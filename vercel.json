@@ -1,13 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "installCommand": "echo 'Static site: nothing to install'",
-  "buildCommand": "echo 'Prebuilt with python -m mtdi site build (CI checks it is current)'",
-  "outputDirectory": "site/dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "headers": [
-    {"source": "/assets/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=3600"}]},
-    {"source": "/llms.txt", "headers": [{"key": "Content-Type", "value": "text/plain; charset=utf-8"}]}
-  ]
+  "functions": {
+    "app.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{studio/models/**,**/__pycache__/**,requirements-local.txt}"
+    }
+  }
 }

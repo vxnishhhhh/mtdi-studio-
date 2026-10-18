@@ -1,0 +1,6 @@
+# Extras for running on your own machine (python run.py). Not used on Vercel.
+-r requirements.txt
+faster-whisper>=1.1      # on-device NVTRA speech recognition (base.en, int8)
+# Optional server-side camera path (the browser hand tracking does not need these)
+# opencv-contrib-python==4.11.0.86
+# mediapipe==1.0.0

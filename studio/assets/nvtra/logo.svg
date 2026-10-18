@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="120 300 612 420" role="img" aria-label="NVTRA">
+  <defs><linearGradient id="au" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2c56b"/><stop offset="1" stop-color="#c9a44a"/></linearGradient></defs>
+  <g fill="none" stroke="url(#au)" stroke-width="22" stroke-linejoin="miter" stroke-miterlimit="6">
+    <polyline points="176,344 410,514 410,672"/>
+    <polyline points="232,432 372,532 372,608"/>
+    <polyline points="248,472 338,540 338,588"/>
+    <polyline points="676,344 442,514 442,672"/>
+    <polyline points="620,432 480,532 480,608"/>
+    <polyline points="604,472 514,540 514,588"/>
+  </g>
+  <g fill="url(#au)">
+    <polygon points="399,672 421,672 410,690"/><polygon points="431,672 453,672 442,690"/>
+    <polygon points="361,608 383,608 372,622"/><polygon points="469,608 491,608 480,622"/>
+    <polygon points="327,588 349,588 338,600"/><polygon points="503,588 525,588 514,600"/>
+  </g>
+</svg>

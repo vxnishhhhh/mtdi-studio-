@@ -1,9 +1,9 @@
 __pycache__/
 *.pyc
-*.tmp
-recordings/
-*.jsonl
-site/project-dist/
-.env
-*.egg-info/
-build/
+.venv/
+*.log
+*.sqlite3*
+.DS_Store
+
+# generated at runtime by precompress_mediapipe
+studio/assets/mediapipe/*.gz
