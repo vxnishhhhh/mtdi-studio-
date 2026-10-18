@@ -31,7 +31,8 @@ def render(node):
         return ""
     tag = "a" if kind == "Link" else kind.lower()
     attrs = []
-    for key, value in node.to_plotly_json()["props"].items():
+    # Sorted: Dash keeps data-*/aria-* props in hash order, and builds must be reproducible.
+    for key, value in sorted(node.to_plotly_json()["props"].items()):
         if key in ("children", "n_clicks", "n_clicks_timestamp", "disable_n_clicks", "refresh") or value is None:
             continue
         if key == "style":

@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "python3 -m pip install -r requirements.txt",
-  "buildCommand": "python3 -m mtdi site build",
+  "installCommand": "echo 'Static site: nothing to install'",
+  "buildCommand": "echo 'Prebuilt with python -m mtdi site build (CI checks it is current)'",
   "outputDirectory": "site/dist",
   "cleanUrls": true,
   "trailingSlash": false,

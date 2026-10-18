@@ -21,5 +21,9 @@ jobs:
       - run: python -m unittest discover tests -v
       - name: Every project manifest is valid
         run: for p in projects/*/; do python -m mtdi check "$p"; done
-      - name: The website builds
-        run: python -m mtdi site build --seconds 10
+      - name: The committed website (site/dist, served by Vercel) is current
+        if: matrix.python == '3.13'
+        run: |
+          python -m mtdi site build
+          git status --porcelain site/dist
+          test -z "$(git status --porcelain site/dist)" || (echo "Run: python -m mtdi site build, then commit site/dist" && exit 1)

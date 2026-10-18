@@ -13,7 +13,7 @@ Before opening a pull request:
 ```bash
 python -m unittest discover tests
 for p in projects/*/; do python -m mtdi check "$p"; done
-python -m mtdi site build --seconds 10
+python -m mtdi site build      # then commit site/dist: Vercel serves it as-is
 ```
 
 Rules that apply to people and AI agents alike are in [AGENTS.md](AGENTS.md). The short

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrate anything in one manifest · MTDI 5.0</title>
+<meta name="description" content="MTDI&#x27;s promise is that a new project needs one file, not a new monitoring system. Here is what that looks like for three very different things.">
+<meta property="og:title" content="Integrate anything in one manifest · MTDI 5.0">
+<meta property="og:description" content="MTDI&#x27;s promise is that a new project needs one file, not a new monitoring system. Here is what that looks like for three very different things.">
+<meta property="og:image" content="/assets/og.png">
+<meta name="theme-color" content="#07090f">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="/assets/i3.css">
+<link rel="stylesheet" href="/assets/site.css">
+<script>window.I3_CONFIG={"landUrl": "/assets/land.json", "statePollMs": 1000};</script>
+
+</head>
+<body>
+<header class="i3-header"><a class="i3-brand-link" href="/"><span class="i3-brand">MTDI Studio</span></a><nav class="i3-nav-wrap"><div class="i3-nav"><a class="i3-nav-link" href="/"><span class="i3-nav-btn" data-i3-path="/"><span class="i3-nav-dot"></span>Home</span></a><div class="i3-nav-sep"></div><a class="i3-nav-link" href="/pillars"><span class="i3-nav-btn" data-i3-path="/pillars"><span class="i3-nav-dot"></span>Pillars</span></a><div class="i3-nav-sep"></div><a class="i3-nav-link" href="/demo"><span class="i3-nav-btn" data-i3-path="/demo"><span class="i3-nav-dot"></span>Demo</span></a><div class="i3-nav-sep"></div><a class="i3-nav-link" href="/docs/overview"><span class="i3-nav-btn" data-i3-path="/docs/overview"><span class="i3-nav-dot"></span>Docs</span></a><div class="i3-nav-sep"></div><a class="i3-nav-link" href="/docs/ai"><span class="i3-nav-btn" data-i3-path="/docs/ai"><span class="i3-nav-dot"></span>Use with AI</span></a><div class="i3-nav-sep"></div><a class="i3-nav-link" href="/articles"><span class="i3-nav-btn" data-i3-path="/articles"><span class="i3-nav-dot"></span>Articles</span></a></div></nav><div class="i3-pills"></div></header><div class="i3-credit">MTDI 5.0</div><div aria-label="NVTRA" class="is-collapsed" id="i3-dock" role="complementary"><div class="i3-dock-top"><canvas class="i3-dock-orb" data-i3-sphere="1.4"></canvas><div class="i3-dock-head"><div class="i3-dock-name">NVTRA</div><div class="i3-dock-hint">Ask about MTDI</div></div></div><div class="i3-dock-body"><div class="i3-dock-log"><p>I am NVTRA. On this website I answer from MTDI&#x27;s documentation; in the studio I answer from live data.</p></div><div class="i3-dock-form" data-i3-placeholder="Ask: what is MTDI? how do I start?"></div></div></div><div id="i3-shell"><main id="i3-page"><div class="i3-pad site-doc"><aside class="site-side"><b>Articles</b><a href="/articles/01-introducing-mtdi-5">Introducing MTDI 5.0</a><a href="/articles/02-environmental-intelligence">Environmental Intelligence: learn, lock, compare</a><a href="/articles/03-a-score-you-can-take-apart">A score you can take apart</a><a href="/articles/04-integrate-anything">Integrate anything in one manifest</a><a href="/articles/05-beyond-sensors">Beyond sensors: software, networks and security</a><a href="/articles/06-mtdi-on-a-raspberry-pi">Running MTDI on a Raspberry Pi</a><div class=site-toc><b>On this page</b><a class="lvl2" href="#a-sensor-on-a-microcontroller">A sensor on a microcontroller</a><a class="lvl2" href="#a-program">A program</a><a class="lvl2" href="#the-computer-itself">The computer itself</a><a class="lvl2" href="#the-procedure">The procedure</a></div></aside><article class="i3-md"><h1 id="integrate-anything-in-one-manifest">Integrate anything in one manifest</h1>
+<p><em>MTDI Studio · October 2026</em></p>
+<p>MTDI's promise is that a new project needs one file, not a new monitoring system. Here is what that looks like for three very different things.</p>
+<h2 id="a-sensor-on-a-microcontroller">A sensor on a microcontroller</h2>
+<p>An HC-SR04 ultrasonic ranger on any Arduino-compatible board prints one line per measurement:</p>
+<pre><code class="lang-">DIST_CM=182.4,ECHO_US=10611,_SEQ=42</code></pre>
+<p>The manifest says where those lines arrive and what they mean:</p>
+<pre><code class="lang-json">{&quot;id&quot;: &quot;ranger&quot;, &quot;adapter&quot;: &quot;serial&quot;, &quot;port&quot;: &quot;auto&quot;, &quot;baud&quot;: 115200}
+{&quot;id&quot;: &quot;distance&quot;, &quot;keys&quot;: [&quot;DIST_CM&quot;], &quot;unit&quot;: &quot;cm&quot;, &quot;domain&quot;: &quot;ultrasonic&quot;,
+ &quot;raw_range&quot;: [2, 400], &quot;noise_floor&quot;: 0.3, &quot;expected_rate&quot;: 20}</code></pre>
+<p><code>raw_range</code> gives clipping detection, <code>expected_rate</code> gives timing evidence, and <code>noise_floor</code> gives the starting point for Environmental Intelligence.</p>
+<h2 id="a-program">A program</h2>
+<p>Anything that prints numbers is a source. Network Watch's probe is a short plain-Python script that measures TCP connect latency and prints:</p>
+<pre><code class="lang-">RTT_MS=12.84,FAIL_PCT=0</code></pre>
+<p>The <code>process</code> adapter runs it and reads its output. Written in Rust, Go, Bash or C, it would integrate the same way.</p>
+<h2 id="the-computer-itself">The computer itself</h2>
+<p>The <code>system</code> adapter needs no code at all. On Linux, including Raspberry Pi OS, it reads <code>/proc</code> and <code>/sys</code> with the standard library and emits CPU, memory, load, temperature, disk and network keys. Host Health maps them to channels and adds three NVTRA rules, such as outbound traffic without compute load.</p>
+<h2 id="the-procedure">The procedure</h2>
+<ol><li><code>python -m mtdi new &lt;id&gt;</code>, or <code>python -m mtdi adopt &lt;repo&gt;</code> for a separate repository.</li><li>Make a table: what is measured, where it comes from, its keys, unit and domain.</li><li>Make the source print <code>KEY=value</code> lines. Print nothing on failure, never a stand-in.</li><li>Write <code>project.json</code>, including <code>simulate</code> blocks so it runs before the hardware does.</li><li>Add NVTRA rules that say what a pattern suggests and what else could cause it.</li><li><code>python -m mtdi check</code>, <code>run --simulate</code>, then the real thing with <code>--record</code>.</li></ol>
+<p>The full guide is <a href="/docs/integrating">INTEGRATING.md</a>.</p><p class="site-edit"><a href="https://github.com/vxnishhhhh/mtdi-studio-/blob/main/docs/articles/04-integrate-anything.md" target="_blank" rel="noopener">View source on GitHub →</a></p></article></div></main></div>
+<script src="/assets/i3.js"></script>
+<script>(function(){var F=[[["what", "mtdi"], "MTDI (Microprocessing Technological Diagnostic Intelligence) turns anything that produces numbers into channels and runs five pillars over them: Validation Chamber, Environmental Intelligence, NVTRA, I\u00b3 and Aether. Start at /docs/overview."], [["start", "install", "run"], "pip install -r requirements.txt, then python -m mtdi run projects/host-health for real data from your own computer, or add --simulate to any project."], [["ai", "chatgpt", "claude", "agent"], "Paste the repository link into any AI and ask it to follow docs/AI.md. The playbook is at /docs/ai."], [["pi", "raspberry", "small"], "The engine is pure Python standard library; see /articles/06-mtdi-on-a-raspberry-pi, including headless mode."], [["environment", "baseline"], "Environmental Intelligence learns each channel's normal level, locks it, saves it under a name and compares against it. See /articles/02-environmental-intelligence."], [["score", "confidence", "factor"], "The MTDI score is eight weighted, named factors per channel: a heuristic evidence-quality score, not a probability. See /articles/03-a-score-you-can-take-apart."], [["security", "cyber", "network", "software"], "MTDI works beyond sensors: see /articles/05-beyond-sensors and the auth-watch, network-watch and host-health projects."], [["matlab"], "matlab/+mtdi is an independent implementation; mtdi.verify checks it agrees with Python. See /docs/matlab."]];window.I3=window.I3||{};I3.ask=function(q){q=(q||'').toLowerCase();for(var i=0;i<F.length;i++){if(F[i][0].some(function(w){return q.indexOf(w)>=0;}))return Promise.resolve(F[i][1]);}return Promise.resolve('On this website I can point you to the docs: try asking what MTDI is, how to start, how to use it with AI, or about the score. Run the studio for answers from live data.');};})();</script>
+</body>
+</html>
