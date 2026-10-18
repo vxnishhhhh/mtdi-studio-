@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtdi-studio"
+version = "5.0.0"
+description = "MTDI 5.0: Microprocessing Technological Diagnostic Intelligence"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "vxnishhhhh" }]
+license = { text = "MIT" }
+keywords = ["diagnostics", "framework", "monitoring", "anomaly-detection", "machine-learning", "dashboard"]
+dependencies = [
+    "dash==4.1.0",
+    "flask==3.1.3",
+    "werkzeug==3.1.8",
+    "plotly==6.7.0",
+    "numpy>=1.26,<3",
+    "psutil>=6",
+    "requests>=2.32",
+    "qrcode==8.2",
+    "cryptography>=44",
+]
+
+[project.optional-dependencies]
+serial = ["pyserial>=3.5"]
+local-speech = ["faster-whisper>=1.1"]
+
+[project.scripts]
+mtdi = "mtdi.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/vxnishhhhh/mtdi-studio-"
+
+[tool.setuptools.packages.find]
+include = ["mtdi*"]
+

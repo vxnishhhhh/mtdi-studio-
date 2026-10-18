@@ -955,165 +955,115 @@ def install(ns, engine):
                                        "measurement_note": "Swept bins acquired sequentially; absolute CH3 accuracy unknown until reference calibration"})
         return item
 
-    def demo_reader():
-        if not ns.get("RUNTIME", {}).get("demo"):
-            raise RuntimeError("Simulation requires the explicit demo option")
-        began = time.monotonic()
-        last_ch3 = began - 1.0
-        focus_bands = []
-        focus_idx = -1
-        c2_clock = [time.time()]
-        while not stop.is_set():
-            now, mono = time.time(), time.monotonic()
-            phase = (mono - began) * 0.75
-            raw_vector = [21 + 1.8 * math.sin(phase), -6.5 + 1.2 * math.cos(phase * 0.8), 38 + 0.9 * math.sin(phase * 0.4)]
-            # SIMULATED raw rings for the D4 engine: a 50 unit field seen through a slowly tumbling,
-            # hard/soft iron distorted ch1probe, and 860 SPS Ch2 blocks with a 50 Hz line.
-            th, ph = phase * 0.37, phase * 0.23
-            fld = [50 * math.cos(th) * math.cos(ph), 50 * math.sin(th) * math.cos(ph), 50 * math.sin(ph)]
-            dist = [1.08 * fld[0] + 0.03 * fld[1] - 47.3 + random.gauss(0, .4), 0.03 * fld[0] + 0.95 * fld[1] + 21.8 + random.gauss(0, .4), 1.02 * fld[2] - 12.4 + random.gauss(0, .4)]
-            with ns["raw_ring_lock"]:
-                ns["RAW_RING"]["ch1_raw"].append((now, *dist))
-                ns["RAW_RING"]["ch1"].append((now, *raw_vector))
-                nblk = 100
-                if ns["BURST_REQUEST"]["ch2f"] > 0:
-                    nblk = min(8600, int(ns["BURST_REQUEST"]["ch2f"])); ns["BURST_REQUEST"]["ch2f"] = 0
-                # a continuous simulated ADC clock: blocks abut exactly like a real 860 SPS stream
-                t0 = c2_clock[0]; c2_clock[0] = t0 + nblk / 860.0
-                if now - c2_clock[0] > 2.0:
-                    t0 = now - nblk / 860.0; c2_clock[0] = now
-                ns["RAW_RING"]["ch2f"].extend((t0 + i / 860.0, 12000 + 900 * math.sin(2 * math.pi * 50.02 * (t0 + i / 860.0)) + 60 * math.sin(2 * math.pi * 100.04 * (t0 + i / 860.0)) + 35 * math.sin(2 * math.pi * 150.06 * (t0 + i / 860.0)) + random.gauss(0, 25)) for i in range(nblk))
-            raw_c1 = math.sqrt(sum(v * v for v in raw_vector))
-            c1 = engine.ingest("ch1", raw_c1, now, "unit", raw=raw_vector, vector=raw_vector,
-                                metadata={"monotonic": mono, "data_source": "SIMULATED"})
-            with ns["c1_lock"]:
-                data = ns["ch1_data"]
-                x, y, z = [c1["axial"][key] for key in ("x", "y", "z")]
-                data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=raw_vector[0], raw_y=raw_vector[1],
-                            raw_z=raw_vector[2], raw_magnitude=raw_c1, error=None, warning="SIMULATED DATA", chip_warning=None,
-                            chip_id=None, calibrated=False, calibration_warning="SIMULATED DATA", last_rx=now,
-                            baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
-                            baseline_magnitude=math.sqrt(sum(v*v for v in c1["baseline_vector"])))
-                data["history"].append(c1["deviation"])
-                data["xyz_history"].append((x, y, z))
-                data["min_c1"] = min(data["min_c1"], c1["deviation"])
-                data["max_c1"] = max(data["max_c1"], c1["deviation"])
-            rms = 0.8 + 0.25 * (1 + math.sin(phase * 1.7))
-            ch2 = engine.ingest("ch2", rms, now, "mV RMS relative", metadata={"monotonic": mono, "data_source": "SIMULATED"})
-            profile = ch2["calibration"]["profile"]
-            baseline_mv = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
-            ratio = rms / max(baseline_mv, 0.008)
-            relative = min(100.0, max(0.0, (ratio - 1) / 9 * 100))
-            with ns["ch2f_lock"]:
-                data = ns["ch2f_data"]
-                data.update(rms_mv=rms, raw_rms_mv=rms, mean_mv=0.0, peak_mv=rms*1.7,
-                            field_vu=ch2["deviation"], peak_vu=(rms*1.7 - baseline_mv)*profile.get("scale", 1),
-                            baseline_vu=0.0, baseline_mv=baseline_mv, ratio=ratio, rel_index=relative, level="LOW", gain=16,
-                            clipped=False, error=None, warning=None, last_rx=now, status="SIMULATED DATA",
-                            calibrated=not ch2["baseline"]["settling"], probe_calibrated=False, unit=ch2["unit"])
-                data["history"].append(ch2["deviation"])
-                data["rel_history"].append(relative)
-                data["min_rms"] = min(data["min_rms"], rms)
-                data["max_rms"] = max(data["max_rms"], rms)
-            ns["CSV_LOG"].log_c1(now, *raw_vector, raw_c1, raw_vector, False, False, note="SIMULATED DATA")
-            ns["CSV_LOG"]._put({"unix_time": now, "channel": "ch2f", "c2_rms_mv": rms, "c2_peak_mv": rms*1.7,
-                               "c2_baseline_mv": baseline_mv, "c2_ratio": ratio, "c2_rel_index_pct": relative, "c2_gain": 16,
-                               "c2_clipped": 0, "c2_calibrated": 0, "c2_trusted": 0, "note": "SIMULATED DATA", "data_source": "SIMULATED"})
-            ns["ARCHIVE"].put("c1", {"t": now, "x": raw_vector[0], "y": raw_vector[1], "z": raw_vector[2], "c1": raw_c1,
-                                      "trusted": False, "warning": "SIMULATED DATA", "data_source": "SIMULATED", "monotonic": mono})
-            ns["ARCHIVE"].put("ch2f", {"t": now, "rms_mv": rms, "peak_mv": rms*1.7, "baseline_mv": baseline_mv,
-                                         "ratio": ratio, "rel_index": relative, "gain": 16, "clipped": False, "trusted": False,
-                                         "warning": "SIMULATED DATA", "data_source": "SIMULATED", "monotonic": mono})
-            with ns["src3_cmd_lock"]:
-                command_state = ns["src3_cmd"]
-                paused = command_state["paused"]
-                new_range, new_points, clear = command_state["range"], command_state["points"], command_state["reset_hold"]
-                command_state.update(range=None, points=None, reset_hold=False)
-                new_preset = command_state.get("preset")
-                command_state["preset"] = None
-                new_bands = command_state.get("bands"); command_state["bands"] = None
-            with ns["sweep3_lock"]:
-                sweep3 = ns["sweep3_data"]
-                if new_bands is not None:
-                    focus_bands = [(int(a), int(b)) for a, b in new_bands if int(b) > int(a)]
-                    focus_idx = -1
-                    sweep3["bands"] = {}
-                    sweep3["focus"] = [list(b) for b in focus_bands]
-                    sweep3["maxhold"] = []
-                if new_range:
-                    sweep3["span_start"], sweep3["span_stop"] = new_range
-                if new_points:
-                    sweep3["points"] = int(new_points)
-                if new_preset:
-                    sweep3["preset"] = new_preset
-                if new_range or new_points or clear:
-                    sweep3["maxhold"] = []
-                    sweep3["waterfall"].clear()
-                    sweep3["waterfall_times"].clear()
-                start_hz, stop_hz, points = sweep3["span_start"], sweep3["span_stop"], sweep3["points"]
-                if focus_bands:
-                    # advance only when a sweep is about to run, so every band gets its turn
-                    if not paused and mono - last_ch3 >= 1:
-                        focus_idx = (focus_idx + 1) % len(focus_bands)
-                    start_hz, stop_hz = focus_bands[max(0, focus_idx)]
-                if paused:
-                    sweep3["status"] = "SIMULATED DATA; paused"
-            if paused:
-                engine.status("ch3", "paused", "SIMULATED DATA; paused")
-            if not paused and mono - last_ch3 >= 1:
-                started = time.monotonic()
-                freqs = [start_hz + i * (stop_hz - start_hz) / (points - 1) for i in range(points)]
-                levels = [-103 + 1.2 * math.sin(i * 0.31 + phase)
-                          + 34 * math.exp(-((f - 98500000) / max((stop_hz-start_hz)/80, 250000))**2)
-                          + 26 * math.exp(-((f - 2437000000) / max((stop_hz-start_hz)/70, 1000000))**2) for i, f in enumerate(freqs)]
-                floor = statistics.median(levels)
-                peaks = ns["_s3_peaks"](freqs, levels, floor)
-                peak_index = levels.index(max(levels))
-                publish_sweep(freqs, levels, started, source="SIMULATED")
-                duration = time.monotonic() - started
-                with ns["sweep3_lock"]:
-                    previous = sweep3["maxhold"]
-                    hold = [max(a, b) for a, b in zip(previous, levels)] if len(previous) == points else list(levels)
-                    sweep3.update(freqs=freqs, levels=levels, maxhold=hold, peaks=peaks, floor=floor,
-                                    peak_level=levels[peak_index], peak_freq=freqs[peak_index], sweep_s=duration,
-                                    sweeps=sweep3["sweeps"] + 1, device="Software simulator", device_info="SIMULATED DATA",
-                                    help_summary="Simulation", port="SIMULATED", leveloffset="Not applicable", level_sane=True,
-                                    trusted=False, warnings=["SIMULATED DATA"], level_note="SIMULATED DATA", present=False,
-                                    status="SIMULATED DATA", error=None, last_rx=now)
-                    sweep3["waterfall"].append(list(levels))
-                    sweep3["waterfall_times"].append(now)
-                    sweep3["peak_history"].append(levels[peak_index])
-                    if focus_bands:
-                        key = f"{start_hz}-{stop_hz}"
-                        band = sweep3.setdefault("bands", {}).get(key) or {
-                            "start": start_hz, "stop": stop_hz, "freqs": [], "levels": [], "prev": [], "delta": [],
-                            "waterfall": deque(maxlen=48), "times": deque(maxlen=48), "sweeps": 0}
-                        prev = band["levels"] if len(band["levels"]) == len(levels) else []
-                        band.update(freqs=list(freqs), levels=list(levels), prev=list(prev),
-                                    delta=[a - b for a, b in zip(levels, prev)] if prev else [],
-                                    sweeps=band["sweeps"] + 1, last_rx=now, sweep_s=duration,
-                                    peak_level=levels[peak_index], peak_freq=freqs[peak_index], trusted=False, floor=floor)
-                        band["waterfall"].append(list(levels)); band["times"].append(now)
-                        sweep3["bands"][key] = band
-                ns["CSV_LOG"].log_ch3(now, start_hz, stop_hz, points, duration, freqs[peak_index], levels[peak_index], floor, False, note="SIMULATED DATA")
-                ns["ARCHIVE"].put("ch3", {"started_at": now, "completed_at": now + duration, "duration_s": duration,
-                                         "profile": sweep3["preset"], "start_hz": start_hz, "stop_hz": stop_hz,
-                                         "requested_points": points, "repeat": 1, "bin_width_hz": (stop_hz-start_hz)/(points-1),
-                                         "frequencies": freqs, "levels": levels, "peaks": peaks, "warnings": ["SIMULATED DATA"],
-                                         "trusted": False, "firmware": "SIMULATED", "port": "SIMULATED", "transport": "SIMULATED",
-                                         "raw_response": None, "data_source": "SIMULATED"})
-                with ns["wifi_lock"]:
-                    ns["wifi_data"].update(networks=[{"ssid": "SIMULATED AP", "bssid": "02:00:00:00:00:01", "chan": "6", "mhz": 2437,
-                                                     "band": "2.4 GHz", "signal": 72, "dbm": -64, "sec": "WPA2", "rate": "simulated", "active": False}],
-                                           iface="SIMULATED", backend="Software simulator", connected=None, scan_mode="simulated discovery",
-                                           paused=False, error=None, last_rx=now, scans=ns["wifi_data"]["scans"]+1)
-                with ns["bt_lock"]:
-                    ns["bt_data"].update(devices=[{"addr": "02:00:00:00:00:02", "name": "SIMULATED BLE", "rssi": -61,
-                                                 "vendor": "Software simulator", "services": 1, "tx": -4, "kind": "BLE"}],
-                                         adapter="SIMULATED", backend="Software simulator", scan_mode="simulated discovery", paused=False,
-                                         error=None, last_rx=now, scans=ns["bt_data"]["scans"]+1)
-                last_ch3 = mono
-            stop.wait(0.1)
+    # ── external feed: any program, SDK or MTDI project drives the channels ────────
+    # These publish into exactly the structures the pages, NVTRA and MTDI read, so data
+    # from a feed looks the same everywhere as data from an attached instrument. Each
+    # sample carries the label it was given (default EXTERNAL); nothing is synthesised.
+    feed_lock = threading.Lock()
+    feed_clock = {"ch1": 0.0, "ch2": 0.0, "ch3": 0.0}
+
+    def _feed_mono(channel):
+        # strictly increasing per channel, even for posts that arrive in one burst
+        with feed_lock:
+            mono = max(time.monotonic(), feed_clock[channel] + 1e-6)
+            feed_clock[channel] = mono
+            return mono
+
+    def feed_ch1(values, unit="unit", source="EXTERNAL", now=None):
+        """Channel 1: a three-axis vector [x, y, z] or a single number."""
+        vector = [float(v) for v in (values if isinstance(values, (list, tuple)) else [values])]
+        if len(vector) == 1:
+            vector = [vector[0], 0.0, 0.0]
+        if len(vector) != 3 or not all(math.isfinite(v) for v in vector):
+            raise ValueError("ch1 takes one number or three finite numbers")
+        now = time.time() if now is None else float(now)
+        mono = _feed_mono("ch1")
+        with ns["raw_ring_lock"]:
+            ns["RAW_RING"]["ch1_raw"].append((now, *vector))
+            ns["RAW_RING"]["ch1"].append((now, *vector))
+        size = math.sqrt(sum(v * v for v in vector))
+        c1 = engine.ingest("ch1", size, now, str(unit), raw=vector, vector=vector,
+                           metadata={"monotonic": mono, "data_source": source})
+        with ns["c1_lock"]:
+            data = ns["ch1_data"]
+            x, y, z = [c1["axial"][key] for key in ("x", "y", "z")]
+            data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=vector[0], raw_y=vector[1],
+                        raw_z=vector[2], raw_magnitude=size, error=None, warning=None, chip_warning=None,
+                        chip_id=source, calibrated=False, calibration_warning=None, last_rx=now,
+                        baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
+                        baseline_magnitude=math.sqrt(sum(v * v for v in c1["baseline_vector"])))
+            data["history"].append(c1["deviation"])
+            data["xyz_history"].append((x, y, z))
+            data["min_c1"] = min(data["min_c1"], c1["deviation"])
+            data["max_c1"] = max(data["max_c1"], c1["deviation"])
+        ns["ARCHIVE"].put("c1", {"t": now, "x": vector[0], "y": vector[1], "z": vector[2], "c1": size,
+                                 "trusted": False, "warning": None, "data_source": source, "monotonic": mono})
+        return c1
+
+    def feed_ch2(value, unit="mV RMS relative", source="EXTERNAL", now=None):
+        """Channel 2: one number per sample (a level, a rate, an RMS, anything scalar)."""
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("ch2 takes one finite number")
+        now = time.time() if now is None else float(now)
+        mono = _feed_mono("ch2")
+        ch2 = engine.ingest("ch2", value, now, str(unit), metadata={"monotonic": mono, "data_source": source})
+        profile = ch2["calibration"]["profile"]
+        baseline = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
+        ratio = value / baseline if abs(baseline) > 1e-12 else 1.0
+        relative = min(100.0, max(0.0, (ratio - 1) / 9 * 100))
+        with ns["raw_ring_lock"]:
+            ns["RAW_RING"]["ch2f"].append((now, value))
+        with ns["ch2f_lock"]:
+            data = ns["ch2f_data"]
+            data.update(rms_mv=value, raw_rms_mv=value, mean_mv=value, peak_mv=value,
+                        field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
+                        ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
+                        warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
+                        probe_calibrated=False, unit=ch2["unit"])
+            data["history"].append(ch2["deviation"])
+            data["rel_history"].append(relative)
+            data["min_rms"] = min(data["min_rms"], value)
+            data["max_rms"] = max(data["max_rms"], value)
+        ns["ARCHIVE"].put("ch2f", {"t": now, "rms_mv": value, "peak_mv": value, "baseline_mv": baseline,
+                                   "ratio": ratio, "rel_index": relative, "gain": 1, "clipped": False,
+                                   "trusted": False, "warning": None, "data_source": source, "monotonic": mono})
+        return ch2
+
+    def feed_ch3(xs, ys, source="EXTERNAL", now=None):
+        """Channel 3: one sweep, a series of (x, y) points (a frequency sweep, a profile, a histogram)."""
+        xs, ys = [float(v) for v in xs], [float(v) for v in ys]
+        if len(xs) != len(ys) or len(xs) < 3 or not all(math.isfinite(v) for v in xs + ys):
+            raise ValueError("ch3 takes two equal-length lists of at least three finite numbers")
+        if any(b <= a for a, b in zip(xs, xs[1:])):
+            raise ValueError("ch3 x values must increase")
+        now = time.time() if now is None else float(now)
+        started = time.monotonic()
+        floor = statistics.median(ys)
+        peaks = ns["_s3_peaks"](xs, ys, floor)
+        peak_index = ys.index(max(ys))
+        item = publish_sweep(xs, ys, started, source=source)
+        duration = time.monotonic() - started
+        with ns["sweep3_lock"]:
+            sweep3 = ns["sweep3_data"]
+            previous = sweep3["maxhold"]
+            hold = [max(a, b) for a, b in zip(previous, ys)] if len(previous) == len(ys) else list(ys)
+            sweep3.update(freqs=xs, levels=ys, maxhold=hold, peaks=peaks, floor=floor,
+                          peak_level=ys[peak_index], peak_freq=xs[peak_index], sweep_s=duration,
+                          sweeps=sweep3["sweeps"] + 1, device=source, device_info=source,
+                          help_summary="External feed", port=source, leveloffset="Not applicable", level_sane=True,
+                          trusted=False, warnings=[], level_note=None, present=True, span_start=xs[0], span_stop=xs[-1],
+                          points=len(xs), status=source, error=None, last_rx=now)
+            sweep3["waterfall"].append(list(ys))
+            sweep3["waterfall_times"].append(now)
+            sweep3["peak_history"].append(ys[peak_index])
+        ns["ARCHIVE"].put("ch3", {"started_at": now, "completed_at": now + duration, "duration_s": duration,
+                                  "profile": "external", "start_hz": xs[0], "stop_hz": xs[-1],
+                                  "requested_points": len(xs), "repeat": 1, "bin_width_hz": (xs[-1] - xs[0]) / (len(xs) - 1),
+                                  "frequencies": xs, "levels": ys, "peaks": peaks, "warnings": [],
+                                  "trusted": False, "firmware": source, "port": source, "transport": "feed",
+                                  "raw_response": None, "data_source": source})
+        return item
 
     def ch3_rows(rows, freqs):
         if tuple(freqs) != ch3_grid[0] or not ch3_baselines:
@@ -1237,7 +1187,9 @@ def install(ns, engine):
     ns["_v238_ch3_stats"] = ch3_stats
     ns["_v238_ch3_display"] = ch3_display
     ns["_v238_ch3_rows"] = ch3_rows
-    ns["demo_reader"] = demo_reader
+    ns["feed_ch1"] = feed_ch1
+    ns["feed_ch2"] = feed_ch2
+    ns["feed_ch3"] = feed_ch3
     ns["src1_reader"] = src1_reader
     ns["ch2f_reader"] = ch2f_reader
     ns["_s3_read_until_prompt"] = read_until_prompt

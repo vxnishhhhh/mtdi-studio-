@@ -1,0 +1,178 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "host-health",
+    "name": "Host Health",
+    "author": "MTDI Studio example",
+    "domain": "computing",
+    "tagline": "THE MACHINE MTDI RUNS ON",
+    "description": "Real data with nothing to wire: MTDI watches the computer it runs on, a single-board computer, laptop or server. Its [[CPU]], [[memory]], [[load]], [[temperature]] and [[network]] each learn their normal behaviour, and departures from it are explained."
+  },
+  "hardware": [
+    {
+      "name": "HOST",
+      "role": "Any Linux, macOS or Windows machine"
+    }
+  ],
+  "sources": [
+    {
+      "id": "host",
+      "adapter": "system",
+      "interval": 1.0
+    }
+  ],
+  "channels": [
+    {
+      "id": "cpu",
+      "label": "CPU use",
+      "domain": "compute",
+      "keys": [
+        "CPU_PCT"
+      ],
+      "unit": "%",
+      "raw_range": [
+        -1,
+        101
+      ],
+      "noise_floor": 1.0,
+      "noise_budget": 5.0,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "simulate": {
+        "mean": 12,
+        "noise": 3
+      }
+    },
+    {
+      "id": "memory",
+      "label": "Memory use",
+      "domain": "compute",
+      "keys": [
+        "MEM_PCT"
+      ],
+      "unit": "%",
+      "raw_range": [
+        -1,
+        101
+      ],
+      "noise_floor": 0.2,
+      "noise_budget": 1.0,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "simulate": {
+        "mean": 41,
+        "noise": 0.2
+      }
+    },
+    {
+      "id": "load",
+      "label": "Load average",
+      "domain": "compute",
+      "keys": [
+        "LOAD1"
+      ],
+      "unit": "",
+      "noise_floor": 0.05,
+      "noise_budget": 0.3,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "simulate": {
+        "mean": 0.4,
+        "noise": 0.05
+      }
+    },
+    {
+      "id": "temperature",
+      "label": "Board temperature",
+      "domain": "thermal",
+      "keys": [
+        "TEMP_C"
+      ],
+      "unit": "°C",
+      "noise_floor": 0.3,
+      "noise_budget": 1.5,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "optional": true,
+      "simulate": {
+        "mean": 48,
+        "noise": 0.3
+      }
+    },
+    {
+      "id": "net_in",
+      "label": "Network in",
+      "domain": "network",
+      "keys": [
+        "NET_RX_KBS"
+      ],
+      "unit": "KB/s",
+      "noise_floor": 1.0,
+      "noise_budget": 10.0,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "simulate": {
+        "mean": 6,
+        "noise": 1.5
+      }
+    },
+    {
+      "id": "net_out",
+      "label": "Network out",
+      "domain": "network",
+      "keys": [
+        "NET_TX_KBS"
+      ],
+      "unit": "KB/s",
+      "noise_floor": 1.0,
+      "noise_budget": 10.0,
+      "expected_rate": 1,
+      "stale_after": 5,
+      "simulate": {
+        "mean": 3,
+        "noise": 1
+      }
+    }
+  ],
+  "environment": {
+    "window": 20.0
+  },
+  "nvtra": {
+    "rules": [
+      {
+        "id": "net_out_without_cpu",
+        "when": {
+          "net_out": ">=6",
+          "cpu": "<3"
+        },
+        "condition": "Outbound traffic without compute load",
+        "text": "Data is leaving the machine faster than usual while the CPU stays at its normal level. A sync, backup or upload explains this; an unexpected one is worth checking."
+      },
+      {
+        "id": "compute_spike",
+        "when": {
+          "cpu": ">=6",
+          "load": ">=3"
+        },
+        "condition": "Compute load above normal",
+        "text": "CPU use and load average both rose beyond their learned normal. Something new is running; heat follows if it lasts."
+      },
+      {
+        "id": "memory_growth",
+        "when": {
+          "memory": ">=6"
+        },
+        "condition": "Memory use moved",
+        "text": "Memory use left its learned level. A new program explains a step; steady growth over time can mean a leak."
+      }
+    ]
+  },
+  "aether": {
+    "purpose": "Shows that MTDI is not only for sensors: a computer's own behaviour has an environment, a baseline and anomalies too, and MTDI can watch the very machine it runs on."
+  },
+  "studio": {
+    "ch1": "cpu",
+    "ch2": "memory",
+    "ch3": "net_in"
+  }
+}

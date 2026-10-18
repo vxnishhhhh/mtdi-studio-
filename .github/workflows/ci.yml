@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r requirements.txt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: GNU Octave (MATLAB toolbox cross-check)
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends octave g++
+      - name: Tests (core, backend, studio ingest, C++ / Java / JS / MATLAB SDK conformance)
+        run: python -m unittest discover tests -v
+      - name: Studio self-test
+        run: STUDIO_HTTPS_PORT=0 python run.py --self-test
+      - name: Every project manifest is valid
+        run: for p in projects/*/; do python -m mtdi check "$p"; done

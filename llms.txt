@@ -1,0 +1,36 @@
+# MTDI Studio 5.0
+
+> MTDI (Microprocessing Technological Diagnostic Intelligence) is a complete framework for any
+> project that produces data: the I³ interface (studio/), an evidence engine with five pillars
+> (mtdi/), NVTRA (chat, voice and a grounded bot), machine learning, signed S3-compatible
+> storage, LLM and voice providers, SDKs in Python, C++, Java, JavaScript, MATLAB, Arduino and
+> MicroPython, and one-command Vercel deployment. Nothing is simulated by default.
+
+To build a project with MTDI, follow docs/AI.md step by step.
+
+## Start here
+- [AI playbook](docs/AI.md): the procedure for building a project on MTDI
+- [Architecture](docs/ARCHITECTURE.md): how the framework, bridge and interface fit together
+- [Rules for agents](AGENTS.md)
+- [Manifest reference](docs/MANIFEST.md) and [JSON schema](docs/schema/project.schema.json)
+- [Line protocol](firmware/PROTOCOL.md)
+
+## Framework (mtdi/)
+- mtdi/engine.py, mtdi/core.py, mtdi/pillars/: the evidence engine and five pillars
+- mtdi/adapters/: serial, tcp, http, python, process, system, replay, simulator
+- mtdi/ml/: anomaly (ZScore, EWMA, MAD, CUSUM, PageHinkley), classify (KNN, NearestCentroid, LogisticRegression, GaussianNB), cluster (KMeans), forecast (Holt, OnlineLinear), features, Monitor
+- mtdi/storage/: local, S3 (SigV4), AES-256-GCM encryption, project backup/restore
+- mtdi/llm.py (Anthropic, OpenAI, Gemini, Groq, xAI), mtdi/voice.py (Whisper, ElevenLabs, OpenAI TTS), mtdi/bot.py (NVTRA)
+- mtdi/runtime.py (Runner, /mtdi/* API), mtdi/bridge.py (project → studio), mtdi/integrations/ (GitHub, Vercel, Notion, MATLAB)
+
+## Interface (studio/)
+- studio/pages.py, studio/ui.py, studio/theme.py, studio/browser.py: pages, Page 3, intro, browser runtime
+- studio/intelligence.py: NVTRA providers, keys, agent, speech
+- studio/acquisition.py: feed_ch1 / feed_ch2 / feed_ch3; studio/runtime.py: POST /api/ingest
+
+## SDKs
+- sdk/cpp/mtdi.hpp, sdk/java/src/io/mtdi/Mtdi.java, sdk/js/mtdi.mjs, matlab/+mtdi, firmware/
+
+## Commands
+- python -m mtdi describe: every capability as JSON
+- python -m mtdi run|watch|ask|chat|voice|anomalies|send|store|check|new|adopt|create|publish|packet|analyze|parse|matlab

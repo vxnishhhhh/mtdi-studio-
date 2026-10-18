@@ -1261,6 +1261,65 @@ def install(ns):
         return Response(generate(), mimetype='text/event-stream',
                         headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})
 
+    def ingest_allowed():
+        """Feeding the studio changes what every viewer sees, so a public deployment
+        needs a shared token. Locally (no STUDIO_SERVERLESS) the token is optional."""
+        token = os.environ.get('STUDIO_INGEST_TOKEN', '').strip()
+        given = request.headers.get('Authorization', '').removeprefix('Bearer ').strip() or \
+            request.headers.get('X-Studio-Token', '').strip()
+        if token:
+            import hmac
+            return hmac.compare_digest(token, given)
+        return not os.environ.get('STUDIO_SERVERLESS')
+
+    def ingest_one(sample, default_source):
+        source = str(sample.get('source') or default_source)[:40] or 'EXTERNAL'
+        units = sample.get('unit') if isinstance(sample.get('unit'), dict) else {}
+        done = []
+        if 'ch1' in sample:
+            ns['feed_ch1'](sample['ch1'], unit=units.get('ch1', 'unit'), source=source, now=sample.get('t'))
+            done.append('ch1')
+        if 'ch2' in sample:
+            ns['feed_ch2'](sample['ch2'], unit=units.get('ch2', 'mV RMS relative'), source=source, now=sample.get('t'))
+            done.append('ch2')
+        if 'ch3' in sample:
+            sweep = sample['ch3']
+            if not isinstance(sweep, dict):
+                raise ValueError('ch3 must be {"x": [...], "y": [...]}')
+            ns['feed_ch3'](sweep.get('x') or [], sweep.get('y') or [], source=source, now=sample.get('t'))
+            done.append('ch3')
+        return done
+
+    @server.post('/api/ingest')
+    def ingest():
+        """Drive the studio's channels from any program.
+
+        Body: {"ch1": [x, y, z] or n, "ch2": n, "ch3": {"x": [...], "y": [...]}, "source": "label", "t": unix}
+        or {"samples": [ ...the same objects... ]}. Auth: Authorization: Bearer $STUDIO_INGEST_TOKEN."""
+        if not ingest_allowed():
+            return {'ok': False, 'error': 'ingest needs Authorization: Bearer <STUDIO_INGEST_TOKEN>; '
+                                          'set that variable on the server to enable it'}, 403
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return {'ok': False, 'error': 'JSON object required'}, 400
+        samples = body.get('samples') if isinstance(body.get('samples'), list) else [body]
+        if len(samples) > 2000:
+            return {'ok': False, 'error': 'at most 2000 samples per request'}, 413
+        updated = 0
+        try:
+            for sample in samples:
+                if not isinstance(sample, dict):
+                    raise ValueError('each sample must be an object')
+                updated += len(ingest_one(sample, body.get('source', 'EXTERNAL')))
+        except (TypeError, ValueError, KeyError) as exc:
+            return {'ok': False, 'error': clean_text(exc), 'accepted': updated}, 400
+        if not runtime.deferred:
+            try:
+                runtime.start_deferred()
+            except Exception:
+                LOG.debug('deferred start after ingest failed', exc_info=True)
+        return {'ok': True, 'accepted': updated}
+
     @server.post('/api/control')
     def control():
         data = request.get_json(silent=True)
