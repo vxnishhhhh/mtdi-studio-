@@ -11,5 +11,9 @@ Updated by every session. Newest first.
 
 ## Log
 
+* 2026-10-18 · Owner added ADR 0006: Compatibility Laboratory, capability records and runtime
+  selection, Intelligence Profiles (Edge, Scientific, Vision, Autonomous, Hybrid, Research). Backlog
+  S1-03 to S1-05; reference projects and the universality gate renumbered S1-07 to S1-09.
+
 * 2026-10-18 · Plan approved (all four decisions as recommended; Africa/Johannesburg time).
   Pillars per ADR 0001. Ops backbone, ADRs 0001-0005, tour tool. Scheduled sessions created.

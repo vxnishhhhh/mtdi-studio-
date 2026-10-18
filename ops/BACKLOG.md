@@ -6,7 +6,7 @@ check passes in CI. Plan: the owner's doc "MTDI 5 Readiness Report and Plan". De
 
 Status: `ready` · `in progress (PR #n)` · `blocked (reason)` · `done (PR #n)`
 
-## Stage 1 · Universal foundation (gate: an old sensor project and a software-only data project run on one set of contracts)
+## Stage 1 · Universal foundation (gate: an old sensor project and a software-only data project run on one set of contracts, each on a runtime chosen from its target's capabilities)
 
 ### S1-01 · Computational Core in the studio; Aether as the layer · ready
 The studio's MTDI page orbit, its sections and the Home constellation show the five pillars of
@@ -23,29 +23,51 @@ imports. Seed with GitHub, Vercel, Notion, MATLAB, Anthropic, OpenAI, Gemini, Gr
 ElevenLabs, S3, CodeRabbit, Codex, PlatformIO, KiCad, Ollama.
 **Check:** tests validate the schema and that every listed module imports.
 
-### S1-03 · Project-driven studio words · ready
+### S1-03 · Capability records and runtime selection (ADR 0006) · ready
+`mtdi/capabilities.py`: a capability record schema (class, memory, storage, float, network, OS,
+languages, accelerators, runtime it can host), records for reference targets in `registry/targets/`
+(Arduino Uno, ESP32, Raspberry Pi 4/5, desktop, cloud function, browser), host self-detection
+(`python -m mtdi capabilities`), and `select_runtime(target, profile)` returning line-protocol / edge /
+full / remote with its reason.
+**Check:** tests cover every reference target and the selection rules; `describe` lists them.
+
+### S1-04 · Intelligence Profiles (ADR 0006) · ready
+Manifest field `profile` (edge, scientific, vision, autonomous, hybrid, research; default hybrid).
+`mtdi/profiles.py` defines the modules, dependencies and minimum capabilities per profile; `Runner`
+loads only the profile's modules; `mtdi check` reports the profile and whether the target qualifies.
+**Check:** a test per profile proves it loads its modules and refuses an under-capable target.
+
+### S1-05 · Compatibility Laboratory, first matrix (ADR 0006) · ready
+`.github/workflows/compat.yml` (nightly + on PR): Arduino Uno and ESP32 firmware builds with size
+checks; core suite on an ARM64 runner; desktop matrix (Linux, macOS, Windows); serverless studio
+smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILITY.md` (target ×
+capability × result, compiled / emulated / hardware kept distinct).
+**Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
+
+### S1-06 · Project-driven studio words · ready
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
 project's `interface` block or `MTDI_CONTENT` path. Defaults reproduce today's placeholders exactly.
 **Check:** a test renders the studio with a second content file and finds its words on every page.
 
-### S1-04 · Reference project: Third Eye (MTDI 1 reborn) · ready
+### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · ready
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware
 (`firmware/`, prints protocol lines), studio block, NVTRA rules, Aether purpose. A recorded
 session for replay (`recordings/`), labelled with how it was produced; if no real recording exists,
 leave replay empty and say so.
 **Check:** `mtdi check`, firmware compiles in CI (arduino-cli or PlatformIO), replay drives the studio.
 
-### S1-05 · Reference project: space weather (software only) · ready
+### S1-08 · Reference project: space weather (software only) · ready
 `projects/space-weather`: a collector for NOAA SWPC planetary K-index (public JSON), run by a
 GitHub Actions workflow on a schedule that commits dated recordings; a `replay` source for
 offline use; channels Kp and its rate of change; ML monitor (CUSUM) on Kp.
 **Check:** workflow runs once successfully; the project packet has live channels from real data.
 
-### S1-06 · Universality test · blocked (needs S1-04, S1-05)
-`tests/test_universality.py`: both reference projects load, run, bridge into the studio and answer
-NVTRA questions through the same framework code paths, with no project-specific code in `mtdi/`.
+### S1-09 · Universality test · blocked (needs S1-03, S1-04, S1-07, S1-08)
+`tests/test_universality.py`: both reference projects load under their profiles (Edge, Research),
+get a runtime chosen from their target's capabilities, run, bridge into the studio and answer NVTRA
+questions through the same framework code paths, with no project-specific code in `mtdi/`.
 **Check:** the test passes in CI. This is the Stage 1 gate.
 
 ## Stage 2 · Engineering runtime

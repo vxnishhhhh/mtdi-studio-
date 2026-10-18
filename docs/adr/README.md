@@ -10,3 +10,4 @@ change its decision; a new record supersedes it.
 | [0003](0003-workbench-inside-studio.md) | The workbench lives inside the existing studio (Dash), not a second React app | Accepted 2026-10-18 |
 | [0004](0004-data-library.md) | Real data: collected by GitHub Actions, stored as versioned releases, catalogued in Notion | Accepted 2026-10-18 |
 | [0005](0005-registries-as-files.md) | Registries (modules, integrations, datasets, models, experiments) are versioned files first | Accepted 2026-10-18 |
+| [0006](0006-compatibility-lab-and-profiles.md) | Compatibility Laboratory, capability advertisement and Intelligence Profiles | Accepted 2026-10-18 |
