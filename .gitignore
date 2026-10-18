@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.tmp
+recordings/
+*.jsonl
+site/dist/
+site/project-dist/
+.env
+*.egg-info/
+build/

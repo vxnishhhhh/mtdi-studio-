@@ -1,0 +1,64 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "template",
+    "name": "Title",
+    "author": "Author",
+    "domain": "generic",
+    "tagline": "SUBTEXT",
+    "description": "Text. A [[highlighted term]] looks like this."
+  },
+  "hardware": [
+    {
+      "name": "LABEL",
+      "role": "Subtext"
+    },
+    {
+      "name": "LABEL",
+      "role": "Subtext"
+    }
+  ],
+  "sources": [
+    {
+      "id": "source",
+      "adapter": "serial",
+      "port": "auto",
+      "baud": 115200
+    }
+  ],
+  "channels": [
+    {
+      "id": "channel",
+      "label": "Label",
+      "domain": "generic",
+      "kind": "scalar",
+      "keys": [
+        "VALUE"
+      ],
+      "unit": "",
+      "scale": 1.0,
+      "offset": 0.0,
+      "noise_floor": 1.0,
+      "expected_rate": 20,
+      "simulate": {
+        "mean": 500,
+        "noise": 1.5
+      }
+    }
+  ],
+  "environment": {
+    "window": 10.0,
+    "auto_relock_after": null
+  },
+  "weights": {},
+  "nvtra": {
+    "rules": []
+  },
+  "aether": {
+    "purpose": "Text.",
+    "story": [],
+    "authorship": [],
+    "quote": null
+  },
+  "interface": {}
+}

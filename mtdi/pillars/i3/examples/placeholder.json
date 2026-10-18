@@ -1,0 +1,700 @@
+{
+  "brand": {
+    "name": "Title",
+    "author": "Author",
+    "credit": "Author"
+  },
+  "notice": "Placeholder content",
+  "force_home_on_load": false,
+  "intro": {
+    "eyebrow": "Subtext",
+    "title_top": "TITLE",
+    "title_bottom": "SUBTITLE",
+    "kicker": "Subtext",
+    "card_title": "Title",
+    "description": "Text. A [[highlighted term]] looks like this.",
+    "grid_label": "Label",
+    "grid": [
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      }
+    ]
+  },
+  "status": [
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_1",
+      "state": "ok"
+    },
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_2",
+      "state": "ok"
+    },
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_3",
+      "state": "ok"
+    }
+  ],
+  "dock": {
+    "name": "NVTRA",
+    "hint": "Subtext",
+    "placeholder": "Text",
+    "greeting": "Text.",
+    "chip": {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_1",
+      "state": "ok"
+    }
+  },
+  "pages": [
+    {
+      "path": "/",
+      "type": "home",
+      "label": "Home",
+      "opening": {
+        "kind": "field",
+        "title": "Title.",
+        "tagline": "Text."
+      },
+      "hero": {
+        "title": "Title",
+        "tag_em": "SUBTEXT",
+        "tag": "   —   SUBTEXT",
+        "description": "Text. A [[highlighted term]] looks like this.",
+        "spec": [
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          }
+        ]
+      },
+      "modules": {
+        "title": "Title",
+        "line": "Text with one [[highlighted]] word.",
+        "items": [
+          {
+            "num": "01",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/page",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL",
+              "bind": "value_1"
+            }
+          },
+          {
+            "num": "02",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/framework",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL",
+              "bind": "value_2"
+            }
+          },
+          {
+            "num": "03",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/document",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL"
+            }
+          },
+          {
+            "num": "04",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/settings",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL"
+            }
+          }
+        ],
+        "globe": {
+          "label": "Label",
+          "nodes": [
+            {
+              "name": "LABEL",
+              "lon": -100,
+              "lat": 40,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 0,
+              "lat": 50,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 80,
+              "lat": 25,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 140,
+              "lat": 35,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 150,
+              "lat": -30,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": -50,
+              "lat": -15,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 25,
+              "lat": -25,
+              "summary": "Text."
+            }
+          ],
+          "links": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              6
+            ],
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              0
+            ],
+            [
+              1,
+              6
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "path": "/page",
+      "type": "module",
+      "label": "Page",
+      "hero": {
+        "title": "Title",
+        "tag_em": "SUBTEXT",
+        "tag": "   —   SUBTEXT",
+        "description": "Text.",
+        "spec": [
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "kind": "metrics",
+          "items": [
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_1"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_2"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_3"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext"
+            }
+          ]
+        },
+        {
+          "kind": "section",
+          "kicker": "Subtext",
+          "title": "Title",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "slot",
+              "label": "Label",
+              "note": "Subtext",
+              "height": 300
+            }
+          ]
+        },
+        {
+          "kind": "section",
+          "kicker": "Subtext",
+          "title": "Title",
+          "accent": "#72b99c",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "cards",
+              "cols": 3,
+              "items": [
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/framework",
+      "type": "framework",
+      "label": "Framework",
+      "name": "TITLE",
+      "opening": {
+        "kind": "flow",
+        "title": "TITLE",
+        "tagline": "Text.",
+        "footnote": "Subtext.",
+        "nodes": [
+          {
+            "x": 0.18,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.5,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.82,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.31,
+            "y": 0.44,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.69,
+            "y": 0.44,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.5,
+            "y": 0.64,
+            "w": 0.48,
+            "title": "Label",
+            "copy": "Subtext",
+            "core": true
+          },
+          {
+            "x": 0.29,
+            "y": 0.83,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.71,
+            "y": 0.83,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          }
+        ],
+        "links": [
+          [
+            0,
+            3
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            4
+          ],
+          [
+            3,
+            5
+          ],
+          [
+            4,
+            5
+          ],
+          [
+            5,
+            6
+          ],
+          [
+            5,
+            7
+          ]
+        ]
+      },
+      "landing": {
+        "kicker": "SUBTEXT",
+        "title": "Title.",
+        "copy": "Text.",
+        "meta": [
+          "LABEL",
+          "LABEL",
+          "LABEL",
+          "LABEL"
+        ]
+      },
+      "caption": {
+        "title": "LABEL",
+        "text": "Subtext."
+      },
+      "core": {
+        "label": "LABEL",
+        "sub": "Subtext",
+        "sphere": true
+      },
+      "pillars": [
+        {
+          "num": "00",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#2979ff",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#2979ff",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "metrics",
+                  "items": [
+                    {
+                      "label": "Label",
+                      "value": "Value",
+                      "bind": "value_1"
+                    },
+                    {
+                      "label": "Label",
+                      "value": "Value"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "01",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#00e676",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#00e676",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "slot",
+                  "label": "Label"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "02",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#ffd166",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#ffd166",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "slot",
+                  "label": "Label"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "03",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#b388ff",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#b388ff",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "quote",
+                  "text": "Text."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "04",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#ff5252",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#ff5252",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "list",
+                  "items": [
+                    "Text.",
+                    "Text.",
+                    "Text."
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/document",
+      "type": "document",
+      "label": "Document",
+      "kicker": "SUBTEXT",
+      "title": "Title.",
+      "copy": "Text.",
+      "sections": [
+        {
+          "title": "Title",
+          "copy": [
+            "Text.",
+            "Text with a [[highlighted term]]."
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#00e676",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "cards",
+              "cols": 4,
+              "items": [
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#ffd166",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "slot",
+              "label": "Label",
+              "note": "Subtext",
+              "height": 200
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#b388ff",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "list",
+              "items": [
+                "Text.",
+                "Text.",
+                "Text."
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#ff5252",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "quote",
+              "text": "Text."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/settings",
+      "type": "settings",
+      "label": "Settings",
+      "kicker": "SUBTEXT",
+      "title": "Title",
+      "copy": "Text.",
+      "rows": [
+        {
+          "title": "Label",
+          "text": "Subtext.",
+          "value": "Value"
+        }
+      ]
+    }
+  ]
+}

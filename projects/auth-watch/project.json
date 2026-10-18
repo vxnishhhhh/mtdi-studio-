@@ -1,0 +1,32 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "auth-watch",
+    "name": "Auth Watch",
+    "author": "MTDI Studio example",
+    "domain": "cybersecurity",
+    "tagline": "THE NORMAL RHYTHM OF LOGINS",
+    "description": "A [[log probe]] counts [[failed]] and [[accepted]] authentications per window on a Linux host. Environmental Intelligence learns the machine's normal rhythm, so a burst of failures stands out against its own history instead of a fixed threshold."
+  },
+  "hardware": [{"name": "LINUX HOST", "role": "OpenSSH · sudo · PAM logs"}],
+  "sources": [{"id": "authlog", "adapter": "process", "command": ["python3", "probe.py"],
+               "env": {"MTDI_LOG": "/var/log/auth.log", "MTDI_WINDOW": "10"}}],
+  "channels": [
+    {"id": "failed", "label": "Failed logins", "domain": "security", "keys": ["FAILED_AUTH"], "unit": "per window",
+     "noise_floor": 0.5, "noise_budget": 2.0, "expected_rate": 0.1, "stale_after": 35, "simulate": {"mean": 0.3, "noise": 0.5}},
+    {"id": "accepted", "label": "Accepted logins", "domain": "security", "keys": ["ACCEPTED_AUTH"], "unit": "per window",
+     "noise_floor": 0.5, "noise_budget": 2.0, "expected_rate": 0.1, "stale_after": 35, "simulate": {"mean": 0.2, "noise": 0.4}}
+  ],
+  "environment": {"window": 300.0},
+  "nvtra": {
+    "rules": [
+      {"id": "brute_force_pattern", "when": {"failed": ">=6", "accepted": "<3"},
+       "condition": "Failed logins well above normal",
+       "text": "Failed authentications rose far beyond this host's learned rhythm without matching successful logins, the pattern of password guessing. A misconfigured client retrying stale credentials looks the same; check the source addresses in the log."},
+      {"id": "failures_then_success", "when": {"failed": ">=6", "accepted": ">=3"},
+       "condition": "Failures followed by successful logins",
+       "text": "Both failed and accepted logins rose. A person mistyping then succeeding explains it; so would a guess that eventually worked. Worth confirming who logged in."}
+    ]
+  },
+  "aether": {"purpose": "Shows MTDI in cybersecurity: the same Environmental Intelligence that learns a room's magnetic field learns a server's normal login rhythm."}
+}
