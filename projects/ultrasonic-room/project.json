@@ -16,11 +16,11 @@
     {"id": "ranger", "adapter": "serial", "port": "auto", "baud": 115200}
   ],
   "channels": [
-    {"id": "distance", "label": "Echo distance", "physical": "ultrasonic", "kind": "scalar",
+    {"id": "distance", "label": "Echo distance", "domain": "ultrasonic", "kind": "scalar",
      "keys": ["DIST_CM"], "unit": "cm", "raw_range": [2, 400],
      "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 5.0, "expected_rate": 20,
      "simulate": {"mean": 182.0, "noise": 0.4}},
-    {"id": "echo", "label": "Echo time", "physical": "ultrasonic", "kind": "scalar",
+    {"id": "echo", "label": "Echo time", "domain": "ultrasonic", "kind": "scalar",
      "keys": ["ECHO_US"], "unit": "µs", "raw_range": [100, 23500],
      "noise_floor": 15, "noise_budget": 120, "expected_rate": 20, "optional": true,
      "simulate": {"mean": 10600, "noise": 20}}

@@ -881,9 +881,9 @@
 
   // ══ NAV — active state follows the route ═════════════════════════════════
   function syncNav(){
-    var path=location.pathname;
+    var path=location.pathname.replace(/\/(index\.html)?$/,'')||'/';   // static hosts add / or index.html
     document.querySelectorAll('.i3-nav-btn[data-i3-path]').forEach(function(b){
-      var p=b.getAttribute('data-i3-path');
+      var p=b.getAttribute('data-i3-path').replace(/\/$/,'')||'/';
       b.classList.toggle('is-active',p===path||(p!=='/'&&path.indexOf(p+'/')===0));
     });
   }

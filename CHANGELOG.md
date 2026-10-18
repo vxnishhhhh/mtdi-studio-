@@ -24,7 +24,19 @@ hardware, firmware or software, driven by one manifest per project.
 * **04 Aether:** purpose and authorship per project, non-functional.
 * **Protocol:** `KEY=value` / JSON lines, strict; Inductra's firmware format unchanged.
 * **Adapters:** serial (USB, socket://, rfc2217://), TCP listen/connect, HTTP ingest, Python
-  generator, replay, and a SIMULATED simulator; plus a recorder.
+  generator, `process` (any program in any language), `system` (host telemetry, standard library
+  on Linux), replay, and a SIMULATED simulator; plus a recorder.
+* **Any field:** a channel's `domain` is an open word (sensors, compute, network, security, …).
+* **Small boards:** `run --headless` (JSON API, no Dash) and `watch` (terminal view over SSH).
+* **AI-operable:** `llms.txt`, `docs/AI.md` playbook, `AGENTS.md`, a JSON Schema for manifests,
+  `python -m mtdi describe`, and `python -m mtdi adopt` to build another repository on MTDI.
+* **Integrations:** `python -m mtdi create` wizard and `publish`: GitHub repository, Vercel
+  deployment, Notion page, MATLAB Online starter. Tokens from the environment only.
+* **Two implementations:** `matlab/+mtdi` independently recomputes `python -m mtdi analyze`;
+  verified to agree in GNU Octave by the test suite.
+* **Website:** `python -m mtdi site build` renders the docs, articles and a replay of the real
+  engine for every example project with the same I³ components (`mtdi/pillars/i3/static.py`).
+* **Placeholders:** templates use only Title, Subtext, Text, Label and Value.
 
 ### Projects
 
@@ -32,3 +44,6 @@ hardware, firmware or software, driven by one manifest per project.
   firmware and Mac bridge (byte-identical copies), RF as an optional HTTP source, Inductra's
   three signature rules as NVTRA rules.
 * **ultrasonic-room** (example): HC-SR04 echo distance, the first non-electromagnetic project.
+* **host-health** (example): the computer MTDI runs on, real telemetry with no wiring.
+* **network-watch** (example): TCP connect latency and failures from a plain-Python probe.
+* **auth-watch** (example): failed and accepted logins per window from a Linux auth log.

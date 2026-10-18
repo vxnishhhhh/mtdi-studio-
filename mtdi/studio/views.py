@@ -105,7 +105,7 @@ def content_pack(project, simulated):
             "description": meta.get("description", ""),
             "grid_label": "Hardware" if hw else "Channels",
             "grid": [{"name": h.get("name", ""), "role": h.get("role", "")} for h in hw[:6]] or
-                    [{"name": c["label"].upper(), "role": c["unit"] or c["physical"]} for c in channels[:6]],
+                    [{"name": c["label"].upper(), "role": c["unit"] or c["domain"]} for c in channels[:6]],
         },
         "status": [{"label": "MTDI", "bind": "mtdi.score", "state": "off"},
                    {"label": "LIVE", "bind": "mtdi.completeness", "state": "ok"}],
@@ -155,7 +155,7 @@ def _home(project, name):
 def _channel_section(c):
     p = f"ch.{c['id']}."
     unit = f" ({c['unit']})" if c["unit"] else ""
-    return {"kind": "section", "kicker": f"{c['physical']} · {c['kind']} · {', '.join(c['keys'])}",
+    return {"kind": "section", "kicker": f"{c['domain']} · {c['kind']} · {', '.join(c['keys'])}",
             "title": c["label"], "accent": c.get("accent"),
             "blocks": [
                 {"kind": "metrics", "items": [
@@ -173,7 +173,7 @@ def _channel_section(c):
 def _channels(project):
     return {"path": "/channels", "type": "module", "label": "Channels",
             "hero": _hero(project, "Channels", "LIVE", "   —   EVERY MEASURED CHANNEL",
-                          "Each channel is a set of protocol keys mapped to one physical measurement. Values are shown "
+                          "Each channel is a set of protocol keys mapped to one measurement. Values are shown "
                           "after the manifest's [[scale]] and [[offset]]; deviation is measured against the channel's "
                           "own learned baseline."),
             "blocks": [_channel_section(c) for c in project["channels"]]}
@@ -185,7 +185,7 @@ def _flow(project):
     shown = chans[:4] if len(chans) <= 4 else chans[:3]
     xs = {1: [0.5], 2: [0.3, 0.7], 3: [0.18, 0.5, 0.82], 4: [0.14, 0.38, 0.62, 0.86]}
     n = len(shown) + (1 if len(chans) > 4 else 0)
-    nodes = [{"x": xs[n][i], "y": 0.22, "w": 0.22, "title": c["label"], "copy": f"{c['physical']} · {c['unit'] or 'units'}"}
+    nodes = [{"x": xs[n][i], "y": 0.22, "w": 0.22, "title": c["label"], "copy": f"{c['domain']} · {c['unit'] or 'units'}"}
              for i, c in enumerate(shown)]
     if len(chans) > 4:
         nodes.append({"x": xs[n][-1], "y": 0.22, "w": 0.22, "title": f"+{len(chans) - 3} channels", "copy": "see Channels"})
@@ -260,7 +260,7 @@ def _environment_blocks(project):
                  {"label": "Signal to noise", "bind": p + "snr"}, {"label": "Transient", "bind": p + "transient"}]
         if c["kind"] == "vector":
             items.append({"label": "Axial consensus", "bind": p + "agreement"})
-        blocks.append({"kind": "section", "kicker": f"{c['physical']} environment", "title": c["label"], "accent": "#00e676",
+        blocks.append({"kind": "section", "kicker": f"{c['domain']} environment", "title": c["label"], "accent": "#00e676",
                        "blocks": [{"kind": "metrics", "items": items},
                                   {"kind": "spark", "label": "Deviation from baseline", "bind": p + "spark",
                                    "value_bind": p + "baseline_state", "accent": "#00e676"}]})

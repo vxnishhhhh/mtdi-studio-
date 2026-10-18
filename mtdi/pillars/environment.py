@@ -255,8 +255,9 @@ class EnvironmentLibrary:
             return []
         return sorted(p.stem for p in self.folder.glob("*.json"))
 
-    def save(self, name, channels, sources):
-        """channels: {id: ChannelEnvironment}; sources: {id: data_source label}."""
+    def save(self, name, channels, sources, absent=()):
+        """channels: {id: ChannelEnvironment}; sources: {id: data_source label};
+        absent: optional channels left out because they never reported."""
         simulated = [cid for cid, src in sources.items() if src == "SIMULATED"]
         if simulated:
             raise ValueError("refused: simulated data is not a real environment (" + ", ".join(simulated) + ")")
@@ -264,7 +265,8 @@ class EnvironmentLibrary:
         if unready:
             raise ValueError("refused: these channels have not learned a baseline yet: " + ", ".join(unready))
         record = {"name": name, "saved_at": time.time(), "mtdi": "5.0",
-                  "sources": sources, "channels": {cid: env.reference() for cid, env in channels.items()}}
+                  "sources": sources, "channels": {cid: env.reference() for cid, env in channels.items()},
+                  "absent": list(absent)}
         file = self._file(name)
         file.parent.mkdir(parents=True, exist_ok=True)
         tmp = file.with_suffix(".tmp")

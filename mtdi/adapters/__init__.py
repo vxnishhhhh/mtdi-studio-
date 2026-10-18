@@ -6,6 +6,8 @@
     replay     a recorded session file played back in real time
     simulator  declared-simulated data from the manifest; always labelled SIMULATED
     python     any Python generator you write: "package.module:function"
+    process    any program in any language; its stdout lines are the protocol
+    system     the host computer itself (CPU, memory, temperature, disk, network)
 
 Every adapter does one thing: deliver protocol lines or {KEY: value} dicts to
 Engine.ingest_line / ingest_values with an honest data_source label. None of them
@@ -69,10 +71,13 @@ def build(engine, spec, simulate=False):
     from .tcp_line import TcpAdapter
     from .replay import ReplayAdapter
     from .simulator import SimulatorAdapter
+    from .process import ProcessAdapter
+    from .system import SystemAdapter
     if simulate or spec["adapter"] == "simulator":
         return SimulatorAdapter(engine, spec)
     kinds = {"serial": SerialAdapter, "tcp": TcpAdapter, "http": HttpAdapter,
-             "replay": ReplayAdapter, "python": PythonAdapter}
+             "replay": ReplayAdapter, "python": PythonAdapter, "process": ProcessAdapter,
+             "system": SystemAdapter}
     return kinds[spec["adapter"]](engine, spec)
 
 

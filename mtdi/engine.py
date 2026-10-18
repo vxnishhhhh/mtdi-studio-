@@ -136,9 +136,16 @@ class Engine:
 
     def save_environment(self, name):
         with self.lock:
-            sources = {cid: ch.evidence.data_source or "—" for cid, ch in self.channels.items()}
-            record = self.environments.save(name, {cid: ch.env for cid, ch in self.channels.items()}, sources)
-            self._event("environment", f"Saved environment '{name}'")
+            # An optional channel that has never reported (a sensor this machine does not have)
+            # is left out of the environment instead of blocking it; it is named in the record.
+            absent = [cid for cid, ch in self.channels.items() if ch.spec["optional"] and ch.evidence.count == 0]
+            present = {cid: ch for cid, ch in self.channels.items() if cid not in absent}
+            if not present:
+                raise ValueError("refused: no channel has reported yet")
+            sources = {cid: ch.evidence.data_source or "—" for cid, ch in present.items()}
+            record = self.environments.save(name, {cid: ch.env for cid, ch in present.items()}, sources,
+                                            absent=absent)
+            self._event("environment", f"Saved environment '{name}'" + (f" (without {', '.join(absent)})" if absent else ""))
             return record
 
     def load_environment(self, name):
@@ -177,7 +184,7 @@ class Engine:
                 value = ch.value
                 magnitude = math.sqrt(sum(v * v for v in value)) if isinstance(value, list) else value
                 channels[cid] = {
-                    "id": cid, "label": spec["label"], "unit": spec["unit"], "physical": spec["physical"],
+                    "id": cid, "label": spec["label"], "unit": spec["unit"], "domain": spec["domain"],
                     "kind": spec["kind"], "axes": spec["axes"], "optional": spec["optional"],
                     "value": value, "magnitude": magnitude, "raw": ch.raw,
                     "evidence": evidence, "environment": env,

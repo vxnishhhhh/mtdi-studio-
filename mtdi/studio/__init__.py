@@ -4,6 +4,10 @@
     studio = Studio("projects/inductra-vaion")
     studio.run(port=8050)
 
+Headless (JSON API only, no browser interface; lighter for small boards):
+
+    Studio("projects/host-health", ui=False).run(port=8050)
+
 Embedding in another program instead of using adapters:
 
     studio = Studio("projects/my-project", start_adapters=False)
@@ -12,19 +16,18 @@ Embedding in another program instead of using adapters:
 """
 import pathlib
 
-from flask import jsonify, request
+from flask import Flask, jsonify, request
 
 from ..adapters import build
 from ..adapters.replay import Recorder
 from ..engine import Engine
 from ..pillars import nvtra
-from ..pillars.i3 import create_app
 from ..project import load
 from . import views
 
 
 class Studio:
-    def __init__(self, project, simulate=False, record=None, ask=None, start_adapters=True):
+    def __init__(self, project, simulate=False, record=None, ask=None, start_adapters=True, ui=True):
         self.project = load(project) if isinstance(project, (str, pathlib.Path)) else project
         self.simulate_all = simulate
         self.simulate = simulate or any(s["adapter"] == "simulator" for s in self.project["sources"])
@@ -33,10 +36,17 @@ class Studio:
             self.engine.recorders.append(Recorder(record))
         self.adapters = [build(self.engine, s, simulate) for s in self.project["sources"]]
         self._ask = ask
-        self.app = create_app(views.content_pack(self.project, self.simulate),
-                              state_provider=self.state, ask_handler=self.ask,
-                              action_handler=self.action, state_poll_ms=1000)
-        self._routes(self.app.server)
+        if ui:
+            from ..pillars.i3 import create_app      # Dash is only needed for the interface
+            self.app = create_app(views.content_pack(self.project, self.simulate),
+                                  state_provider=self.state, ask_handler=self.ask,
+                                  action_handler=self.action, state_poll_ms=1000)
+            self.server = self.app.server
+        else:
+            self.app = None
+            self.server = Flask("mtdi")
+            self._headless_routes(self.server)
+        self._routes(self.server)
         if start_adapters:
             for adapter in self.adapters:
                 adapter.start()
@@ -103,8 +113,33 @@ class Studio:
                     return jsonify({"ok": False, "message": "values must be numbers"}), 400
             return jsonify({"ok": True, "channels_updated": updated})
 
+    def _headless_routes(self, server):
+        """The same hooks the interface uses, as plain JSON."""
+        @server.get("/")
+        def _index():
+            meta = self.project["project"]
+            return jsonify({"mtdi": self.project.get("mtdi"), "project": meta.get("name"), "headless": True,
+                            "endpoints": ["/mtdi/packet", "/mtdi/state", "/mtdi/ingest", "/mtdi/action", "/mtdi/ask"]})
+
+        @server.get("/mtdi/state")
+        def _state():
+            return jsonify(self.state())
+
+        @server.post("/mtdi/action")
+        def _action():
+            body = request.get_json(silent=True) or {}
+            try:
+                return jsonify({"ok": True, "message": self.action(str(body.get("action", "")), body.get("args") or {})})
+            except (ValueError, KeyError, OSError) as error:
+                return jsonify({"ok": False, "message": str(error)}), 400
+
+        @server.post("/mtdi/ask")
+        def _ask():
+            body = request.get_json(silent=True) or {}
+            return jsonify({"answer": self.ask(str(body.get("question", ""))[:2000], "/")})
+
     def run(self, host="127.0.0.1", port=8050, debug=False):
-        self.app.run(host=host, port=port, debug=debug, use_reloader=False)
+        self.server.run(host=host, port=port, debug=debug, use_reloader=False, threaded=True)
 
     def stop(self):
         for adapter in self.adapters:

@@ -29,14 +29,14 @@
 
   "channels": [
     {
-      "id": "magnetic", "label": "Magnetic field", "physical": "magnetic", "kind": "vector",
+      "id": "magnetic", "label": "Magnetic field", "domain": "magnetic", "kind": "vector",
       "source": ["uno", "bridge"], "keys": ["MAGX", "MAGY", "MAGZ"], "axes": ["x", "y", "z"],
       "unit": "µT", "scale": 0.0066666667, "raw_range": [-32768, 32767],
       "noise_floor": 0.1, "noise_budget": 1.0, "alert_change": 2.0, "stale_after": 2.0,
       "simulate": {"mean": [18.0, -6.0, 41.0], "noise": 0.08}
     },
     {
-      "id": "electric", "label": "Electric activity", "physical": "electric", "kind": "vector",
+      "id": "electric", "label": "Electric activity", "domain": "electric", "kind": "vector",
       "source": ["uno", "bridge"], "keys": ["CH3", "CH2", "CH1"], "axes": ["x", "y", "z"],
       "unit": "mV RMS", "scale": 4.8875855, "raw_range": [0, 1023],
       "transform": "ac_rms", "window": 25,
@@ -44,7 +44,7 @@
       "simulate": {"mean": [2500, 2450, 2550], "noise": 6, "wave": {"amp": 25, "hz": 0.2}}
     },
     {
-      "id": "rf", "label": "RF spectrum", "physical": "rf", "kind": "scalar",
+      "id": "rf", "label": "RF spectrum", "domain": "rf", "kind": "scalar",
       "source": "rf", "keys": ["RF_DEV_DB"], "unit": "dB",
       "noise_floor": 0.5, "noise_budget": 2.5, "alert_change": 4.0, "stale_after": 90.0, "optional": true
     }

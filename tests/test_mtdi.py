@@ -67,13 +67,18 @@ class Manifest(unittest.TestCase):
         cases = [({"sources": []}, "sources"),
                  ({"channels": [{"id": "a", "keys": ["A"], "source": "nope"}]}, "channels[0].source"),
                  ({"channels": [{"id": "a", "keys": ["A", "B"], "kind": "scalar"}]}, "scalar"),
-                 ({"channels": [{"id": "a", "keys": ["A"], "physical": "magic"}]}, "physical"),
+                 ({"channels": [{"id": "a", "keys": ["A"], "domain": "Two Words"}]}, "domain"),
                  ({"sources": [{"id": "s", "adapter": "carrier-pigeon"}]}, "adapter"),
                  ({"nvtra": {"rules": [{"when": {"ghost": ">=6"}, "condition": "x"}]}}, "ghost")]
         for over, needle in cases:
             with self.assertRaises(ManifestError) as ctx:
                 manifest(**over)
             self.assertIn(needle, str(ctx.exception))
+
+    def test_domain_is_open_and_physical_is_an_alias(self):
+        m = manifest(channels=[{"id": "a", "keys": ["A"], "domain": "cybersecurity"},
+                               {"id": "b", "keys": ["B"], "physical": "magnetic"}])
+        self.assertEqual([c["domain"] for c in m["channels"]], ["cybersecurity", "magnetic"])
 
     def test_every_shipped_project_loads(self):
         self.assertGreaterEqual(len(PROJECTS), 3)
@@ -179,6 +184,17 @@ class EngineTests(unittest.TestCase):
         a = self.engine.snapshot()["channels"]["a"]["environment"]
         self.assertTrue(a["pinned"] and a["frozen"])
         self.assertAlmostEqual(a["deviation"], 30, delta=0.5)        # measured against the saved room
+
+    def test_optional_channel_never_reporting_does_not_block_saving(self):
+        m = manifest(channels=[{"id": "a", "keys": ["A"], "noise_floor": 0.1},
+                               {"id": "t", "keys": ["T"], "optional": True}])
+        m["_dir"] = self.tmp.name
+        clock = Clock()
+        e = Engine(m, clock=clock)
+        feed(e, clock, 300, lambda i: f"A={500 + self.rng.gauss(0, 0.05):.3f}")
+        record = e.save_environment("no thermal sensor")
+        self.assertEqual(record["absent"], ["t"])
+        self.assertEqual(list(record["channels"]), ["a"])
 
     def test_ac_rms_transform(self):
         m = normalise({"project": {"id": "t"}, "sources": [{"id": "s", "adapter": "http"}],
@@ -286,6 +302,177 @@ class InductraIsUnchanged(unittest.TestCase):
         base = ROOT / "projects" / "inductra-vaion"
         for rel, sha in self.SHA.items():
             self.assertEqual(hashlib.sha256((base / rel).read_bytes()).hexdigest(), sha, rel)
+
+
+class EveryField(unittest.TestCase):
+    """Software, computers, networks and security run on the same pillars as sensors."""
+
+    def test_process_adapter_runs_any_program(self):
+        from mtdi.adapters import build
+        with tempfile.TemporaryDirectory() as tmp:
+            m = normalise({"project": {"id": "t"},
+                           "sources": [{"id": "p", "adapter": "process",
+                                        "command": [sys.executable, "-c", "import time\nfor i in range(5): print(f'LAT_MS={10+i}', flush=True); time.sleep(0.02)\nprint('junk')"]}],
+                           "channels": [{"id": "lat", "keys": ["LAT_MS"], "domain": "network"}]})
+            m["_dir"] = tmp
+            engine = Engine(m)
+            adapter = build(engine, m["sources"][0]).start()
+            deadline = time.time() + 5
+            while time.time() < deadline:
+                snap = engine.snapshot()
+                if snap["channels"]["lat"]["evidence"]["samples"] >= 5 and snap["sources"]["p"]["rejected"] >= 1:
+                    break
+                time.sleep(0.05)
+            adapter.stop()
+            p = engine.snapshot()
+            self.assertEqual(p["channels"]["lat"]["evidence"]["samples"], 5)
+            self.assertEqual(p["channels"]["lat"]["evidence"]["data_source"], "SOFTWARE")
+            self.assertGreaterEqual(p["sources"]["p"]["rejected"], 1)
+
+    @unittest.skipUnless(pathlib.Path("/proc/stat").exists(), "Linux /proc reader")
+    def test_system_adapter_reads_the_host(self):
+        from mtdi.adapters.system import reader
+        r = reader()
+        r.read("/")
+        time.sleep(0.3)
+        values = r.read("/")
+        for key in ("CPU_PCT", "MEM_PCT", "LOAD1", "DISK_PCT"):
+            self.assertIn(key, values)
+        self.assertTrue(0 <= values["MEM_PCT"] <= 100)
+
+
+class AdoptAndDescribe(unittest.TestCase):
+    def test_adopt_vendors_mtdi_and_keeps_existing_agents_md(self):
+        from mtdi.adopt import adopt
+        with tempfile.TemporaryDirectory() as tmp:
+            (pathlib.Path(tmp) / "AGENTS.md").write_text("# Mine\n")
+            adopt(tmp, project_id="demo", name="Demo")
+            root = pathlib.Path(tmp)
+            self.assertTrue((root / "mtdi" / "engine.py").exists())
+            self.assertTrue((root / "mtdi-matlab" / "+mtdi" / "analyze.m").exists())
+            self.assertEqual(load(root / "mtdi-project")["project"]["id"], "demo")
+            agents = (root / "AGENTS.md").read_text()
+            self.assertTrue(agents.startswith("# Mine"))
+            adopt(tmp, force=True)
+            self.assertEqual((root / "AGENTS.md").read_text().count("MTDI:BEGIN"), 1)
+            with self.assertRaises(FileExistsError):
+                adopt(tmp)
+
+    def test_describe_is_json(self):
+        import contextlib
+        import io
+        from mtdi.__main__ import main
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            main(["describe"])
+        data = json.loads(buf.getvalue())
+        self.assertIn("process", data["adapters"])
+        self.assertEqual(len(data["pillars"]), 5)
+
+
+class TwoImplementations(unittest.TestCase):
+    """The MATLAB toolbox must agree with Python on the same capture (run in GNU Octave)."""
+
+    @unittest.skipUnless(__import__("shutil").which("octave"), "GNU Octave not installed")
+    def test_matlab_agrees_with_python(self):
+        import subprocess
+        from mtdi.analysis import analyze, read_recording
+        with tempfile.TemporaryDirectory() as tmp:
+            rec = pathlib.Path(tmp) / "rec.jsonl"
+            rng = random.Random(9)
+            rows = [{"t": 100 + i * 0.05, "source": "ranger",
+                     "values": {"DIST_CM": round(180 + rng.gauss(0, 0.4), 3), "ECHO_US": 10600 + rng.randint(-30, 30), "_SEQ": i}}
+                    for i in range(300)]
+            rec.write_text("\n".join(json.dumps(r) for r in rows))
+            manifest = ROOT / "projects" / "ultrasonic-room" / "project.json"
+            py = pathlib.Path(tmp) / "py.json"
+            py.write_text(json.dumps(analyze(load(manifest), read_recording(rec))))
+            result = subprocess.run(["octave", "--no-gui", "--quiet", "--eval",
+                                     f"addpath('{ROOT / 'matlab'}'); exit(~mtdi.verify('{rec}', '{manifest}', '{py}'))"],
+                                    capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class Integrations(unittest.TestCase):
+    """The wizard end to end against fake GitHub, Vercel and Notion; tokens never touch disk."""
+
+    def test_create_with_every_integration(self):
+        import subprocess
+        import webbrowser
+        from argparse import Namespace
+        from mtdi import create
+        from mtdi.integrations import github, notion, vercel
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            bare = pathlib.Path(tmp) / "remote.git"
+            subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
+
+            def fake(method, url, token_value=None, body=None, headers=None, raw=None, timeout=60):
+                calls.append((method, url, token_value, body, raw))
+                if "api.github.com" in url:
+                    return {"clone_url": bare.as_uri(), "html_url": "https://github.com/me/rover", "full_name": "me/rover"}
+                if "/v2/files" in url:
+                    return {}
+                if "/v13/deployments" in url:
+                    return {"url": "rover.vercel.app", "id": "dpl_1", "readyState": "QUEUED"}
+                if "api.notion.com" in url:
+                    return {"url": "https://notion.so/rover", "id": "p1"}
+                raise AssertionError(url)
+            secrets = {"GITHUB_TOKEN": "ghp_SECRET111", "VERCEL_TOKEN": "vc_SECRET222", "NOTION_TOKEN": "ntn_SECRET333",
+                       "NOTION_PARENT_PAGE_ID": "0123456789abcdef0123456789abcdef"}
+            saved = {k: __import__("os").environ.get(k) for k in secrets}
+            opened = []
+            originals = (github.http, vercel.http, notion.http, github._gh_ready, webbrowser.open)
+            try:
+                __import__("os").environ.update(secrets)
+                github.http = vercel.http = notion.http = fake
+                github._gh_ready = lambda: False
+                webbrowser.open = lambda url, new=0: opened.append(url)
+                target = pathlib.Path(tmp) / "rover"
+                args = Namespace(name="Rover", id=None, description="A rover.", standalone=str(target), github="rover",
+                                 public=False, vercel="rover-studio", notion="env", matlab=True, yes=True, dry_run=False)
+                results = create.run(args)
+            finally:
+                github.http, vercel.http, notion.http, github._gh_ready, webbrowser.open = originals
+                for k, v in saved.items():
+                    if v is None:
+                        __import__("os").environ.pop(k, None)
+                    else:
+                        __import__("os").environ[k] = v
+            self.assertEqual(results["github"]["full_name"], "me/rover")
+            self.assertEqual(results["vercel"]["url"], "https://rover.vercel.app")
+            self.assertEqual(results["notion"]["url"], "https://notion.so/rover")
+            self.assertIn("matlab.mathworks.com/open/github", opened[0])
+            pushed = subprocess.run(["git", "--git-dir", str(bare), "log", "--oneline", "main"], capture_output=True, text=True)
+            self.assertIn("MTDI", pushed.stdout)
+            uploads = [c for c in calls if "/v2/files" in c[1]]
+            deploy = [c for c in calls if "/v13/deployments" in c[1]][0]
+            self.assertEqual(len(uploads), len(deploy[3]["files"]))
+            self.assertEqual(deploy[3]["name"], "rover-studio")
+            for path in target.rglob("*"):
+                if path.is_file():
+                    data = path.read_bytes()
+                    for secret in ("ghp_SECRET111", "vc_SECRET222", "ntn_SECRET333"):
+                        self.assertNotIn(secret.encode(), data, f"token written to {path}")
+
+
+class Site(unittest.TestCase):
+    def test_static_render_matches_components(self):
+        from mtdi.pillars.i3 import static
+        from mtdi.studio import views
+        pack = views.content_pack(load(ROOT / "projects" / "host-health"), True)
+        html = static.page(pack, pack["pages"][2])
+        self.assertEqual(html.count('class="i3-orbit-card"'), 5)
+        self.assertIn('data-i3-bind="mtdi.score"', html)
+
+    def test_project_site_builds(self):
+        from mtdi.site import build_project_site
+        with tempfile.TemporaryDirectory() as tmp:
+            out = build_project_site(ROOT / "projects" / "ultrasonic-room", pathlib.Path(tmp) / "s", seconds=3)
+            replay = json.loads((out / "replay.json").read_text())
+            self.assertEqual(len(replay["states"]), 3)
+            self.assertEqual(replay["data_source"], "SIMULATED")
+            self.assertTrue((out / "index.html").exists() and (out / "environment" / "index.html").exists())
 
 
 if __name__ == "__main__":

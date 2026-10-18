@@ -1,44 +1,78 @@
 {
   "brand": {
-    "name": "Product Name",
+    "name": "Title",
     "author": "Author",
     "credit": "Author"
   },
-  "notice": "Placeholder content · edit content/placeholder.json",
+  "notice": "Placeholder content",
   "force_home_on_load": false,
-
   "intro": {
-    "eyebrow": "I³   Induction · Interference · Intelligence",
-    "title_top": "PRODUCT",
-    "title_bottom": "NAME",
-    "kicker": "Project overview",
-    "card_title": "Product Name",
-    "description": "One or two sentences that say what this product is and what it makes visible. Technical terms can be [[highlighted]] like this.",
-    "grid_label": "Components",
+    "eyebrow": "Subtext",
+    "title_top": "TITLE",
+    "title_bottom": "SUBTITLE",
+    "kicker": "Subtext",
+    "card_title": "Title",
+    "description": "Text. A [[highlighted term]] looks like this.",
+    "grid_label": "Label",
     "grid": [
-      {"name": "COMPONENT 01", "role": "Role · interface"},
-      {"name": "COMPONENT 02", "role": "Role · interface"},
-      {"name": "COMPONENT 03", "role": "Role · interface"},
-      {"name": "COMPONENT 04", "role": "Role · interface"},
-      {"name": "COMPONENT 05", "role": "Role · interface"},
-      {"name": "COMPONENT 06", "role": "Role · interface"}
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      },
+      {
+        "name": "LABEL",
+        "role": "Subtext"
+      }
     ]
   },
-
   "status": [
-    {"label": "SCORE", "value": "—", "bind": "score", "state": "ok"},
-    {"label": "LINK", "value": "—", "bind": "link", "state": "ok"},
-    {"label": "CHANNEL", "value": "—", "bind": "channel", "state": "warn"}
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_1",
+      "state": "ok"
+    },
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_2",
+      "state": "ok"
+    },
+    {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_3",
+      "state": "ok"
+    }
   ],
-
   "dock": {
     "name": "NVTRA",
-    "hint": "Press N or click to ask",
-    "placeholder": "Ask NVTRA about this page",
-    "greeting": "Placeholder: NVTRA explains what is on screen in plain language once it is connected.",
-    "chip": {"label": "SCORE", "value": "—", "bind": "score", "state": "ok"}
+    "hint": "Subtext",
+    "placeholder": "Text",
+    "greeting": "Text.",
+    "chip": {
+      "label": "LABEL",
+      "value": "Value",
+      "bind": "value_1",
+      "state": "ok"
+    }
   },
-
   "pages": [
     {
       "path": "/",
@@ -46,171 +80,621 @@
       "label": "Home",
       "opening": {
         "kind": "field",
-        "title": "A single sentence that states the problem this product exists to solve.",
-        "tagline": "A second, calmer paragraph that explains the problem in everyday terms and says what this product measures, builds or explains so the reader can see it for themselves."
+        "title": "Title.",
+        "tagline": "Text."
       },
       "hero": {
-        "title": "Product Name",
-        "tag_em": "CATEGORY OF INTELLIGENCE",
-        "tag": "   —   SHORT POSITIONING LINE",
-        "description": "A paragraph describing the product. It names the [[key components]], the [[inputs]] it works with and the [[outputs]] it produces, then ends on why that matters to the person using it.",
+        "title": "Title",
+        "tag_em": "SUBTEXT",
+        "tag": "   —   SUBTEXT",
+        "description": "Text. A [[highlighted term]] looks like this.",
         "spec": [
-          {"k": "SPEC 01", "v": "Value · detail"},
-          {"k": "SPEC 02", "v": "Value · detail"},
-          {"k": "SPEC 03", "v": "Value · detail"},
-          {"k": "SPEC 04", "v": "Value · detail"},
-          {"k": "SPEC 05", "v": "Value · detail"},
-          {"k": "HOST", "v": "Platform"}
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          }
         ]
       },
       "modules": {
-        "title": "Modules",
-        "line": "A short line about the modules, with one [[emphasised]] word.",
+        "title": "Title",
+        "line": "Text with one [[highlighted]] word.",
         "items": [
-          {"num": "01", "key": "MODULE", "role": "module", "title": "Module One", "href": "/module",
-           "desc": "One sentence on what this module shows.", "live": {"value": "—", "label": "LIVE VALUE", "bind": "module_value"}},
-          {"num": "02", "key": "FRAMEWORK", "role": "framework", "title": "Framework", "href": "/framework",
-           "desc": "The pillar framework: trust, health and reasoning.", "live": {"value": "—", "label": "SCORE", "bind": "score"}},
-          {"num": "03", "key": "DOCUMENT", "role": "document", "title": "Document", "href": "/document",
-           "desc": "A numbered technical document page.", "live": {"value": "06", "label": "SECTIONS"}},
-          {"num": "04", "key": "SETTINGS", "role": "settings", "title": "Settings", "href": "/settings",
-           "desc": "Interface preferences.", "live": {"value": "MOTION", "label": "APPEARANCE"}}
+          {
+            "num": "01",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/page",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL",
+              "bind": "value_1"
+            }
+          },
+          {
+            "num": "02",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/framework",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL",
+              "bind": "value_2"
+            }
+          },
+          {
+            "num": "03",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/document",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL"
+            }
+          },
+          {
+            "num": "04",
+            "key": "LABEL",
+            "role": "label",
+            "title": "Title",
+            "href": "/settings",
+            "desc": "Text.",
+            "live": {
+              "value": "Value",
+              "label": "LABEL"
+            }
+          }
         ],
         "globe": {
-          "label": "Interactive globe with selectable nodes",
+          "label": "Label",
           "nodes": [
-            {"name": "NODE 01 · LOCATION", "lon": -105.27, "lat": 40.02, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 02 · LOCATION", "lon": -0.34, "lat": 51.43, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 03 · LOCATION", "lon": 10.53, "lat": 52.30, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 04 · LOCATION", "lon": 140.10, "lat": 36.06, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 05 · LOCATION", "lon": 77.17, "lat": 28.63, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 06 · LOCATION", "lon": 151.21, "lat": -33.87, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 07 · LOCATION", "lon": -43.31, "lat": -22.79, "summary": "Placeholder: what this location contributes to the product."},
-            {"name": "NODE 08 · LOCATION", "lon": 31.02, "lat": -29.86, "summary": "Placeholder: what this location contributes to the product."}
+            {
+              "name": "LABEL",
+              "lon": -100,
+              "lat": 40,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 0,
+              "lat": 50,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 80,
+              "lat": 25,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 140,
+              "lat": 35,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 150,
+              "lat": -30,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": -50,
+              "lat": -15,
+              "summary": "Text."
+            },
+            {
+              "name": "LABEL",
+              "lon": 25,
+              "lat": -25,
+              "summary": "Text."
+            }
           ],
-          "links": [[0,1],[1,2],[2,4],[4,3],[3,5],[5,6],[6,0],[7,2],[7,6],[1,7]]
+          "links": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              6
+            ],
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              0
+            ],
+            [
+              1,
+              6
+            ]
+          ]
         }
       }
     },
-
     {
-      "path": "/module",
+      "path": "/page",
       "type": "module",
-      "label": "Module",
+      "label": "Page",
       "hero": {
-        "title": "Module One",
-        "tag_em": "MODULE 01",
-        "tag": "   —   WHAT THIS MODULE IS FOR",
-        "description": "Describe what the module shows, where its data comes from and how to read it. Use [[highlights]] for named parts.",
-        "spec": [{"k": "SOURCE", "v": "Input · rate"}, {"k": "UNITS", "v": "Unit"}, {"k": "RANGE", "v": "Min – Max"}]
+        "title": "Title",
+        "tag_em": "SUBTEXT",
+        "tag": "   —   SUBTEXT",
+        "description": "Text.",
+        "spec": [
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          },
+          {
+            "k": "LABEL",
+            "v": "Value"
+          }
+        ]
       },
       "blocks": [
-        {"kind": "metrics", "items": [
-          {"label": "Primary value", "value": "—", "bind": "module_value", "note": "What this number means"},
-          {"label": "Secondary value", "value": "—", "bind": "module_secondary", "note": "What this number means"},
-          {"label": "Confidence", "value": "—", "bind": "score", "note": "How much to trust it"},
-          {"label": "Sample age", "value": "—", "bind": "age", "note": "Freshness"}
-        ]},
-        {"kind": "section", "kicker": "Live view", "title": "Primary visual",
-         "copy": "A sentence introducing the main chart or 3D view.",
-         "blocks": [{"kind": "slot", "label": "Live chart goes here", "note": "A product mounts its own component into this region", "height": 320}]},
-        {"kind": "section", "kicker": "Detail", "title": "Supporting panels", "accent": "#72b99c",
-         "blocks": [{"kind": "cards", "cols": 3, "items": [
-           {"title": "Panel A", "desc": "Placeholder description."},
-           {"title": "Panel B", "desc": "Placeholder description."},
-           {"title": "Panel C", "desc": "Placeholder description."}
-         ]}]}
+        {
+          "kind": "metrics",
+          "items": [
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_1"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_2"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext",
+              "bind": "value_3"
+            },
+            {
+              "label": "Label",
+              "value": "Value",
+              "note": "Subtext"
+            }
+          ]
+        },
+        {
+          "kind": "section",
+          "kicker": "Subtext",
+          "title": "Title",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "slot",
+              "label": "Label",
+              "note": "Subtext",
+              "height": 300
+            }
+          ]
+        },
+        {
+          "kind": "section",
+          "kicker": "Subtext",
+          "title": "Title",
+          "accent": "#72b99c",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "cards",
+              "cols": 3,
+              "items": [
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                }
+              ]
+            }
+          ]
+        }
       ]
     },
-
     {
       "path": "/framework",
       "type": "framework",
       "label": "Framework",
-      "name": "FRAMEWORK",
+      "name": "TITLE",
       "opening": {
         "kind": "flow",
-        "title": "FRAMEWORK SIGNAL PATH",
-        "tagline": "Scroll to trace each input into the fusion layer.",
+        "title": "TITLE",
+        "tagline": "Text.",
+        "footnote": "Subtext.",
         "nodes": [
-          {"x": 0.18, "y": 0.22, "w": 0.25, "title": "Input One", "copy": "Source · detail · unit"},
-          {"x": 0.50, "y": 0.22, "w": 0.25, "title": "Input Two", "copy": "Source · detail · unit"},
-          {"x": 0.82, "y": 0.22, "w": 0.25, "title": "Input Three", "copy": "Source · detail · unit"},
-          {"x": 0.31, "y": 0.44, "w": 0.35, "title": "Stage One", "copy": "What happens here"},
-          {"x": 0.69, "y": 0.44, "w": 0.35, "title": "Stage Two", "copy": "What happens here"},
-          {"x": 0.50, "y": 0.64, "w": 0.48, "title": "Fusion Layer", "copy": "Trust · noise · age", "core": true},
-          {"x": 0.29, "y": 0.83, "w": 0.35, "title": "I³ Interface", "copy": "Live graphs · vectors · confidence"},
-          {"x": 0.71, "y": 0.83, "w": 0.35, "title": "NVTRA Explanation", "copy": "Plain language · context"}
+          {
+            "x": 0.18,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.5,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.82,
+            "y": 0.22,
+            "w": 0.25,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.31,
+            "y": 0.44,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.69,
+            "y": 0.44,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.5,
+            "y": 0.64,
+            "w": 0.48,
+            "title": "Label",
+            "copy": "Subtext",
+            "core": true
+          },
+          {
+            "x": 0.29,
+            "y": 0.83,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          },
+          {
+            "x": 0.71,
+            "y": 0.83,
+            "w": 0.35,
+            "title": "Label",
+            "copy": "Subtext"
+          }
         ],
-        "links": [[0,3],[1,3],[1,4],[2,4],[3,5],[4,5],[5,6],[5,7]],
-        "footnote": "Optional footnote about what is and is not in the signal path."
+        "links": [
+          [
+            0,
+            3
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            4
+          ],
+          [
+            3,
+            5
+          ],
+          [
+            4,
+            5
+          ],
+          [
+            5,
+            6
+          ],
+          [
+            5,
+            7
+          ]
+        ]
       },
       "landing": {
-        "kicker": "FULL NAME OF THE FRAMEWORK",
-        "title": "A one-line statement of purpose.",
-        "copy": "Two sentences on what the framework separates and why. The pillars below surround one core; select one to enter it.",
-        "meta": ["5 PILLARS", "8 WEIGHTED FACTORS", "HOST", "LIVE FRAMEWORK"]
+        "kicker": "SUBTEXT",
+        "title": "Title.",
+        "copy": "Text.",
+        "meta": [
+          "LABEL",
+          "LABEL",
+          "LABEL",
+          "LABEL"
+        ]
       },
-      "caption": {"title": "FIVE PILLARS · ONE CORE", "text": "Select a pillar to expand it."},
-      "core": {"label": "CORE", "sub": "Framework core", "sphere": true},
+      "caption": {
+        "title": "LABEL",
+        "text": "Subtext."
+      },
+      "core": {
+        "label": "LABEL",
+        "sub": "Subtext",
+        "sphere": true
+      },
       "pillars": [
-        {"num": "00", "role": "Evidence", "title": "Pillar Zero", "desc": "What this pillar checks.", "accent": "#2979ff",
-         "blocks": [
-           {"kind": "section", "kicker": "Pillar 00", "title": "Pillar Zero", "accent": "#2979ff",
-            "copy": ["What this pillar is responsible for, in one paragraph.", "How it is measured, and what would make it fail."],
-            "blocks": [{"kind": "metrics", "items": [
-              {"label": "Factor A", "value": "—", "bind": "score"}, {"label": "Factor B", "value": "—"}, {"label": "Factor C", "value": "—"}]},
-              {"kind": "slot", "label": "Pillar visual", "note": "Chart, table or 3D view", "height": 240}]}
-         ]},
-        {"num": "01", "role": "Baselines", "title": "Pillar One", "desc": "What this pillar checks.", "accent": "#00e676",
-         "blocks": [{"kind": "section", "kicker": "Pillar 01", "title": "Pillar One", "accent": "#00e676",
-                     "copy": "Placeholder content for this pillar.", "blocks": [{"kind": "slot", "label": "Pillar content"}]}]},
-        {"num": "02", "role": "Health", "title": "Pillar Two", "desc": "What this pillar checks.", "accent": "#ffd166",
-         "blocks": [{"kind": "section", "kicker": "Pillar 02", "title": "Pillar Two", "accent": "#ffd166",
-                     "copy": "Placeholder content for this pillar.", "blocks": [{"kind": "slot", "label": "Pillar content"}]}]},
-        {"num": "03", "role": "Meaning", "title": "I³ Philosophy", "desc": "Induction, interference and intelligence made visible.", "accent": "#b388ff",
-         "blocks": [{"kind": "section", "kicker": "Pillar 03", "title": "I³ Philosophy", "accent": "#b388ff",
-                     "copy": ["[[Induction]] — placeholder: how the product takes in the world.",
-                              "[[Interference]] — placeholder: what gets in the way, and how it is separated out.",
-                              "[[Intelligence]] — placeholder: how the result is explained to a person."],
-                     "blocks": [{"kind": "quote", "text": "A line that sums up the philosophy."}]}]},
-        {"num": "04", "role": "Reason", "title": "Pillar Four", "desc": "Purpose and authorship behind the build.", "accent": "#ff5252",
-         "blocks": [{"kind": "section", "kicker": "Pillar 04", "title": "Pillar Four", "accent": "#ff5252",
-                     "copy": "Placeholder content for this pillar.", "blocks": [{"kind": "list", "items": ["Point one", "Point two", "Point three"]}]}]}
+        {
+          "num": "00",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#2979ff",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#2979ff",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "metrics",
+                  "items": [
+                    {
+                      "label": "Label",
+                      "value": "Value",
+                      "bind": "value_1"
+                    },
+                    {
+                      "label": "Label",
+                      "value": "Value"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "01",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#00e676",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#00e676",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "slot",
+                  "label": "Label"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "02",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#ffd166",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#ffd166",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "slot",
+                  "label": "Label"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "03",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#b388ff",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#b388ff",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "quote",
+                  "text": "Text."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "num": "04",
+          "role": "Label",
+          "title": "Title",
+          "desc": "Text.",
+          "accent": "#ff5252",
+          "blocks": [
+            {
+              "kind": "section",
+              "kicker": "Subtext",
+              "title": "Title",
+              "accent": "#ff5252",
+              "copy": "Text.",
+              "blocks": [
+                {
+                  "kind": "list",
+                  "items": [
+                    "Text.",
+                    "Text.",
+                    "Text."
+                  ]
+                }
+              ]
+            }
+          ]
+        }
       ]
     },
-
     {
       "path": "/document",
       "type": "document",
       "label": "Document",
-      "kicker": "TECHNICAL DOCUMENT",
-      "title": "Document title.",
-      "copy": "One paragraph that frames the document: what question it answers and how it differs from the framework page.",
+      "kicker": "SUBTEXT",
+      "title": "Title.",
+      "copy": "Text.",
       "sections": [
-        {"title": "First section", "copy": ["Placeholder paragraph.", "Placeholder paragraph with a [[highlighted term]]."]},
-        {"title": "Second section", "accent": "#00e676", "copy": "Placeholder paragraph.",
-         "blocks": [{"kind": "cards", "cols": 4, "items": [
-           {"title": "Item", "desc": "Placeholder."}, {"title": "Item", "desc": "Placeholder."},
-           {"title": "Item", "desc": "Placeholder."}, {"title": "Item", "desc": "Placeholder."}]}]},
-        {"title": "Third section", "accent": "#ffd166", "copy": "Placeholder paragraph.",
-         "blocks": [{"kind": "slot", "label": "Figure", "note": "Diagram, chart or table", "height": 220}]},
-        {"title": "Fourth section", "accent": "#b388ff", "copy": "Placeholder paragraph.",
-         "blocks": [{"kind": "list", "items": ["Placeholder point.", "Placeholder point.", "Placeholder point."]}]},
-        {"title": "Fifth section", "accent": "#ff5252", "copy": "Placeholder paragraph."},
-        {"title": "Sixth section", "accent": "#00e5ff", "copy": "Placeholder paragraph.",
-         "blocks": [{"kind": "quote", "text": "A closing statement."}]}
+        {
+          "title": "Title",
+          "copy": [
+            "Text.",
+            "Text with a [[highlighted term]]."
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#00e676",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "cards",
+              "cols": 4,
+              "items": [
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                },
+                {
+                  "title": "Title",
+                  "desc": "Text."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#ffd166",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "slot",
+              "label": "Label",
+              "note": "Subtext",
+              "height": 200
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#b388ff",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "list",
+              "items": [
+                "Text.",
+                "Text.",
+                "Text."
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Title",
+          "accent": "#ff5252",
+          "copy": "Text.",
+          "blocks": [
+            {
+              "kind": "quote",
+              "text": "Text."
+            }
+          ]
+        }
       ]
     },
-
     {
       "path": "/settings",
       "type": "settings",
       "label": "Settings",
-      "kicker": "INTERFACE",
-      "title": "Settings",
-      "copy": "Interface preferences. Product-specific settings are added as rows.",
-      "rows": [{"title": "Framework", "text": "The interface framework rendering this page.", "value": "I³ 0.1.0"}]
+      "kicker": "SUBTEXT",
+      "title": "Title",
+      "copy": "Text.",
+      "rows": [
+        {
+          "title": "Label",
+          "text": "Subtext.",
+          "value": "Value"
+        }
+      ]
     }
   ]
 }

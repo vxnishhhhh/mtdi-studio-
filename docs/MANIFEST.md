@@ -24,6 +24,8 @@ List of `{"name", "role"}`. Shown in the intro card and the spec strip.
 | `http` | `data_source` (`"HARDWARE"` or `"SOFTWARE"`); posts go to `/mtdi/ingest` |
 | `python` | `callable` (`"package.module:function"`, a generator yielding lines or dicts), `options`, `data_source` |
 | `replay` | `file` (JSONL from `--record`), `loop` (true), `speed` (1.0), `from_source` (filter) |
+| `process` | `command` (list), `env` (object), `restart_after` (2 s), `data_source` (`SOFTWARE`): any program whose stdout lines are protocol lines |
+| `system` | `interval` (1 s), `disk` (`/`): the host's CPU_PCT, MEM_PCT, SWAP_PCT, LOAD1, DISK_PCT, PROCS, NET_RX_KBS, NET_TX_KBS, TEMP_C |
 | `simulator` | `rate` (lines/s), `seed`; always labelled SIMULATED |
 
 Every source needs a unique `id`. `note` is free text.
@@ -38,7 +40,7 @@ Every source needs a unique `id`. `note` is free text.
 | `kind` | `vector` if >1 key | `scalar` or `vector` |
 | `axes` | lowercase keys | axis names for a vector |
 | `source` | first source | a source id, or a list of interchangeable source ids |
-| `physical` | `generic` | `magnetic`, `electric`, `ultrasonic`, `rf`, `acoustic`, `optical`, `thermal`, `inertial`, `pressure`, `chemical`, `electrical`, `generic` |
+| `domain` | `generic` | any lowercase word: `magnetic`, `electric`, `ultrasonic`, `rf`, `thermal`, `inertial`, `compute`, `network`, `security`, `software`, `energy`, … (`physical` is accepted as an alias) |
 | `unit` | `""` | physical unit after scaling |
 | `scale`, `offset` | 1, 0 | physical = raw × scale + offset; a number or one per key |
 | `raw_range` | none | `[low, high]` raw limits; a raw value at either end is flagged as clipped |

@@ -2,28 +2,63 @@
   "mtdi": "5.0",
   "project": {
     "id": "template",
-    "name": "Template",
-    "author": "",
-    "domain": "",
-    "tagline": "",
-    "description": "What this project measures and why. Use [[term]] to highlight technical terms."
+    "name": "Title",
+    "author": "Author",
+    "domain": "generic",
+    "tagline": "SUBTEXT",
+    "description": "Text. A [[highlighted term]] looks like this."
   },
   "hardware": [
-    {"name": "BOARD", "role": "What it does"},
-    {"name": "SENSOR", "role": "What it measures"}
+    {
+      "name": "LABEL",
+      "role": "Subtext"
+    },
+    {
+      "name": "LABEL",
+      "role": "Subtext"
+    }
   ],
   "sources": [
-    {"id": "device", "adapter": "serial", "port": "auto", "baud": 115200}
+    {
+      "id": "source",
+      "adapter": "serial",
+      "port": "auto",
+      "baud": 115200
+    }
   ],
   "channels": [
-    {"id": "signal", "label": "Signal", "physical": "generic", "kind": "scalar",
-     "keys": ["VALUE"], "unit": "", "scale": 1.0, "offset": 0.0, "raw_range": [0, 1023],
-     "noise_floor": 1.0, "expected_rate": 20,
-     "simulate": {"mean": 500, "noise": 1.5}}
+    {
+      "id": "channel",
+      "label": "Label",
+      "domain": "generic",
+      "kind": "scalar",
+      "keys": [
+        "VALUE"
+      ],
+      "unit": "",
+      "scale": 1.0,
+      "offset": 0.0,
+      "noise_floor": 1.0,
+      "expected_rate": 20,
+      "simulate": {
+        "mean": 500,
+        "noise": 1.5
+      }
+    }
   ],
-  "environment": {"window": 10.0, "auto_relock_after": null},
+  "environment": {
+    "window": 10.0,
+    "auto_relock_after": null
+  },
   "weights": {},
-  "nvtra": {"rules": []},
-  "aether": {"purpose": "", "story": [], "authorship": [], "quote": null},
+  "nvtra": {
+    "rules": []
+  },
+  "aether": {
+    "purpose": "Text.",
+    "story": [],
+    "authorship": [],
+    "quote": null
+  },
   "interface": {}
 }

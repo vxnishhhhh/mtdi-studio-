@@ -9,25 +9,26 @@ that is an MTDI improvement (see the end).
 ## 1. Create the project
 
 ```bash
-python -m mtdi new astrotech --name "AstroTech"
+python -m mtdi new astrotech --name "AstroTech"        # inside MTDI Studio
+python -m mtdi adopt ../astrotech                       # or: build another repository on MTDI
+python -m mtdi create                                   # or: the wizard (+ GitHub, Vercel, Notion, MATLAB)
 ```
-
-This copies `projects/_template` to `projects/astrotech`.
 
 ## 2. Inventory the measurements
 
-For every physical quantity the project measures, write down:
+For every quantity the project measures (a sensor reading, a software metric, a network
+measurement, a security counter), write down:
 
 | Question | Becomes |
 |---|---|
-| Which board or program produces it, and how does it reach the computer? | a **source** (`serial`, `tcp`, `http`, `python`, `replay`) |
+| Which board or program produces it, and how does it reach the computer? | a **source** (`serial`, `tcp`, `http`, `python`, `process`, `system`, `replay`) |
 | What does one sample look like? | the **keys** the firmware prints |
 | Is it one number or several axes of one quantity? | `kind`: `scalar` or `vector` |
 | How do raw numbers become physical units? | `scale`, `offset` (per key if needed) |
 | What raw values mean "saturated"? | `raw_range` (clipping detection) |
 | What is the smallest real change the sensor resolves? | `noise_floor` (start from the datasheet, then correct it from the measured LOD) |
 | How often should a sample arrive? | `expected_rate` |
-| What kind of physics is it? | `physical` (`magnetic`, `electric`, `ultrasonic`, `rf`, `acoustic`, `optical`, `thermal`, `inertial`, `pressure`, `chemical`, `electrical`, `generic`) |
+| What field is it? | `domain`, any lowercase word (`magnetic`, `ultrasonic`, `thermal`, `compute`, `network`, `security`, `software`, …) |
 
 Do not invent numbers. If a value is unknown, leave the default and say so in the
 project README; the Validation Chamber will measure the truth.
@@ -42,8 +43,10 @@ KEY=value,KEY=value,_SEQ=42
 
 * Existing firmware that already prints `KEY=value` lines needs **no change**: map its keys.
 * New firmware: start from `firmware/mtdi_template_arduino` or `firmware/mtdi_template_micropython`.
-* Software: post to `/mtdi/ingest` (`examples/send_http.py`) or write a generator for the
-  `python` adapter.
+* Software: write a probe that prints protocol lines and run it with the `process` adapter
+  (`projects/network-watch/probe.py`), post to `/mtdi/ingest` (`examples/send_http.py`), or write
+  a generator for the `python` adapter.
+* The computer itself: the `system` adapter needs no code (`projects/host-health`).
 * Test any line: `python -m mtdi parse "DIST_CM=41.7,_SEQ=3"`.
 
 Never print a placeholder value when the sensor fails. Print nothing: the Validation

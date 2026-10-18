@@ -1,22 +1,28 @@
 """Project manifests: how a piece of hardware, firmware or software joins MTDI.
 
 A project is a folder under projects/ with a project.json. The manifest names
-the sources (where lines arrive), the channels (which keys form which physical
-measurement, in which unit) and anything the pillars should know. MTDI's pillars
-never hardcode a sensor: everything sensor-specific lives here.
+the sources (where lines arrive), the channels (which keys form which
+measurement, in which unit) and anything the pillars should know. A channel can
+be a physical sensor, a software metric, a network measurement or a security
+counter: MTDI's pillars never hardcode one. Everything specific lives here.
 
 Field reference: docs/MANIFEST.md. Template: projects/_template/project.json.
 """
 import copy
 import json
 import pathlib
+import re
 
 MTDI_VERSION = "5.0"
-ADAPTERS = {"serial", "tcp", "http", "replay", "simulator", "python"}
+ADAPTERS = {"serial", "tcp", "http", "replay", "simulator", "python", "process", "system"}
 KINDS = {"scalar", "vector"}
 TRANSFORMS = {"none", "ac_rms"}
-PHYSICAL = {"magnetic", "electric", "ultrasonic", "rf", "acoustic", "optical", "thermal",
-            "inertial", "pressure", "chemical", "electrical", "generic"}
+# A channel's domain is an open word. These are the ones the docs and interface know;
+# any other lowercase word is accepted, so a new field never needs a code change.
+KNOWN_DOMAINS = {"magnetic", "electric", "ultrasonic", "rf", "acoustic", "optical", "thermal",
+                 "inertial", "pressure", "chemical", "electrical", "compute", "network",
+                 "security", "software", "energy", "environmental", "biomedical", "generic"}
+_DOMAIN = re.compile(r"^[a-z][a-z0-9_\-]{0,31}$")
 
 
 class ManifestError(ValueError):
@@ -93,8 +99,11 @@ def _channel(ch, where, default_source, source_ids):
     ch["sources"] = src if isinstance(src, list) else [src]
     for sid in ch["sources"]:
         _require(sid in source_ids, f"{where}.source '{sid}' is not a declared source")
-    ch.setdefault("physical", "generic")
-    _require(ch["physical"] in PHYSICAL, f"{where}.physical must be one of {sorted(PHYSICAL)}")
+    # "domain" is the field; "physical" (MTDI 5.0 early manifests) is accepted as an alias.
+    ch["domain"] = ch.get("domain") or ch.get("physical") or "generic"
+    _require(isinstance(ch["domain"], str) and _DOMAIN.match(ch["domain"]),
+             f"{where}.domain must be one lowercase word (e.g. {', '.join(sorted(KNOWN_DOMAINS)[:6])}, …)")
+    ch["physical"] = ch["domain"]
     keys = ch.get("keys")
     _require(isinstance(keys, list) and keys and all(isinstance(k, str) for k in keys), f"{where}.keys must list protocol keys")
     ch.setdefault("kind", "vector" if len(keys) > 1 else "scalar")

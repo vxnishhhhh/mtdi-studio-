@@ -29,6 +29,7 @@ Hooks passed to `create_app`:
 * `ask_handler(question, path)` → the NVTRA dock's answer.
 * `action_handler(action, args)` → message for `actions` blocks (raise ValueError to refuse).
 
+`static.py` renders the same components to plain HTML (the website is built this way), and
 `assets/i3.js` has no Dash dependency: it runs on `data-i3-*` attributes and
 `window.I3_CONFIG`, so the same assets can back a static or React build later.
 Not carried over from Inductra: hand vision, the Spline robot, voice.
