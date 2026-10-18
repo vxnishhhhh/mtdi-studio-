@@ -86,9 +86,11 @@ On a public deployment, ingest needs `Authorization: Bearer $STUDIO_INGEST_TOKEN
 |---|---|---|
 | 00 | **Validation Chamber** | Is each channel present, fresh, on time, in range? Detection limits from measured noise (LOD = 3σ, LOQ = 10σ) |
 | 01 | **Environmental Intelligence** | Learn each channel's normal, lock it, save it as a named environment, compare later |
-| 02 | **NVTRA** | Explain what the evidence shows, in plain language, never inventing a reading |
-| 03 | **I³** | Induction · Interference · Intelligence: the interface |
-| 04 | **Aether** | Purpose and authorship. Shown, never scored |
+| 02 | **Computational Core** | ML, numerical analysis and the language runtimes (Python, C++, Java, JS, MATLAB) ([ADR 0001](docs/adr/0001-pillars-and-aether-layer.md)) |
+| 03 | **NVTRA** | Explain what the evidence shows, in plain language, never inventing a reading |
+| 04 | **I³** | Induction · Interference · Intelligence: the interface |
+
+**Aether** runs across all five as the layer of purpose and authorship (and the terminal). It is shown, never scored.
 
 A core fuses 00 and 01 into one score from eight named, weighted factors. It is an
 evidence-quality score you can take apart, **not a probability**.
