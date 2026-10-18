@@ -41,6 +41,13 @@ finding, and the PR does not touch `vercel.json`, `app.py`'s entry, `.github/wor
 `LICENSE`, or delete data. Otherwise leave the PR open and say why in the report.
 After merging, confirm the Vercel production deployment for the merge commit reaches READY.
 
+### If GitHub tools (`mcp__github__*`) are not available in this session
+Push the branch (`git push -u origin auto/...`); CI runs on every push. Read its result from the
+public API: `curl -s "https://api.github.com/repos/vxnishhhhh/mtdi-studio-/actions/runs?branch=<branch>&per_page=1"`
+(`status` completed, `conclusion` success, `head_sha` your commit). When every gate in step 6 holds,
+merge locally (`git checkout main && git merge --squash <branch> && git commit` with the PR text as
+the message) and push main. Record in the report that no PR was opened and why.
+
 ## 7 · Report (always, even if nothing changed)
 Write `ops/reports/<YYYY-MM-DD>-<session>.md` (on the PR branch, or directly on main if no PR):
 completed · tested · failed · changed · blocked · next · decisions needing the owner.
