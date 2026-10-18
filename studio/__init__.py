@@ -1,12 +1,12 @@
-"""MTDI Studio: a host computer electromagnetic instrument.
+"""MTDI Studio: a host computer composite instrument.
 
 Package layout (data flows top to bottom):
 
     app.py          Dash application, pages, callbacks and the original hardware readers
-    acquisition.py  Verified sensor read paths (QMC5883P, ADS1115, current clamp, tinySA)
+    acquisition.py  Verified sensor read paths (SRC1, SRC2, current clamp, src3)
     analysis.py     Calibration store, Baseline Lock, Transient Watch, Axial Consensus,
-                    Signature Readout, MTDI confidence and the Sixth Sense fusion snapshot
-    audition.py     Field Audition: electric probe, coil and RTL SDR audio paths
+                    Signature Readout, MTDI confidence and the Page 3 fusion snapshot
+    audition.py     Field Audition: ch2 probe, coil and RTL SDR audio paths
     devices.py      Camera process, hand tracking, host telemetry
     runtime.py      Lifecycle, streaming endpoints, exports, local HTTPS listener
     ui.py           Instrument panels, palette, browser runtime (startup gate, physics)

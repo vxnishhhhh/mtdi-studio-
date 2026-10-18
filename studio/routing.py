@@ -18,20 +18,20 @@ def _zoom_factor(value):
 
 
 @app.callback(
-    Output("nav-home","className"), Output("nav-em","className"), Output("nav-spectrum","className"),
+    Output("nav-home","className"), Output("nav-em","className"), Output("nav-sweep3","className"),
     Output("nav-mtdi","className"), Output("nav-settings","className"),
     Input("url","pathname")
 )
 def update_nav(p):
     b = "nav-glass-btn"; a = "nav-glass-btn nav-active"
-    return (a if p == "/" else b, a if p == "/em" else b, a if p == "/spectrum" else b,
+    return (a if p == "/" else b, a if p == "/page-1" else b, a if p == "/page-2" else b,
             a if p == "/mtdi" else b, a if p == "/settings" else b)
 
 
 PAGES = {
     "/": home_page,
-    "/em": em_page,
-    "/spectrum": spectrum_page,
+    "/page-1": p1_page,
+    "/page-2": sweep3_page,
     "/mtdi": mtdi_page,
     "/settings": settings_page,
 }
@@ -54,19 +54,19 @@ def display_page(pathname):
 
 # ── EM sub-tab switching ──
 @app.callback(
-    Output("em-subcontent","children"),
-    Output("em-tab-mag","className"), Output("em-tab-elec","className"), Output("em-tab-both","className"),
-    Input("em-tab-mag","n_clicks"), Input("em-tab-elec","n_clicks"), Input("em-tab-both","n_clicks"),
+    Output("p1-subcontent","children"),
+    Output("p1-tab-c1","className"), Output("p1-tab-c2x","className"), Output("p1-tab-both","className"),
+    Input("p1-tab-c1","n_clicks"), Input("p1-tab-c2x","n_clicks"), Input("p1-tab-both","n_clicks"),
 )
-def em_switch(a, b, c):
-    which = "mag"
+def p1_switch(a, b, c):
+    which = "c1"
     ctx = dash.callback_context
     if ctx.triggered:
         tid = ctx.triggered[0]["prop_id"].split(".")[0]
-        which = {"em-tab-mag":"mag","em-tab-elec":"elec","em-tab-both":"both"}.get(tid, "mag")
+        which = {"p1-tab-c1":"c1","p1-tab-c2x":"c2x","p1-tab-both":"both"}.get(tid, "c1")
     base = "tab-btn"; act = "tab-btn active"
-    if which == "mag":  return magnetic_view(),  act, base, base
-    if which == "elec": return electric_view(),  base, act, base
+    if which == "c1":  return ch1_view(),  act, base, base
+    if which == "c2x": return ch2_view(),  base, act, base
     return combined_view(), base, base, act
 
 
@@ -74,20 +74,20 @@ def em_switch(a, b, c):
 @app.callback(Output("header-pills","children"), Input("header-interval","n_intervals"),
               Input("mobile-refresh-btn","n_clicks"))
 def update_header(n, _refresh):
-    with mag_lock:
-        mv = magnetic_data["magnitude"]
-        # Only a chip fault (or an outright error) makes the magnetometer pill unhealthy.
+    with c1_lock:
+        mv = ch1_data["magnitude"]
+        # Only a chip fault (or an outright error) makes the ch1probe pill unhealthy.
         # Running uncalibrated is normal and must not show as a warning.
-        mfault = magnetic_data["error"] or magnetic_data["chip_warning"]
-        mlast = magnetic_data["last_rx"]
-    with efield_lock:
-        ev = efield_data["field_v_m"]; eerr = efield_data["error"]
-        elvl = efield_data["level"]; eclip = efield_data["clipped"]
-        elast = efield_data["last_rx"]
+        mfault = ch1_data["error"] or ch1_data["chip_warning"]
+        mlast = ch1_data["last_rx"]
+    with ch2f_lock:
+        ev = ch2f_data["field_vu"]; eerr = ch2f_data["error"]
+        elvl = ch2f_data["level"]; eclip = ch2f_data["clipped"]
+        elast = ch2f_data["last_rx"]
     with mtdi_lock: ov = mtdi_data["active_health"]
-    with spectrum_lock:
-        rerr = spectrum_data["error"]; rpl = spectrum_data["peak_level"]
-        rsane = spectrum_data["level_sane"]; rhave = spectrum_data["last_rx"] is not None
+    with sweep3_lock:
+        rerr = sweep3_data["error"]; rpl = sweep3_data["peak_level"]
+        rsane = sweep3_data["level_sane"]; rhave = sweep3_data["last_rx"] is not None
     cc = "pill-ok" if ov > 80 else "pill-warn" if ov > 50 else "pill-high"
     ec = "pill-off" if eerr else ("pill-high" if (eclip or elvl in ("HIGH","OVER")) else "pill-warn" if elvl == "MID" else "pill-ok")
     rc = "pill-off" if (rerr or not rhave) else ("pill-warn" if not rsane else "pill-ok")
@@ -96,15 +96,15 @@ def update_header(n, _refresh):
     # Labels are deliberately terse: the centre nav is absolutely positioned, so four
     # full-width pills collide with it on a 1280px laptop.
     return [
-        html.Div([html.Span(className=f"pill-dot {mc}"), html.Span("CH 1"),   html.Span(f"{mv:.2f} unit" if mlast else "OFFLINE", className="pill-val")], className="status-pill pill-mag"),
-        html.Div([html.Span(className=f"pill-dot {ec}"), html.Span("CH 2"), html.Span(f"{ev:.3f} unit" if elast else "OFFLINE", className="pill-val")], className="status-pill pill-ef"),
+        html.Div([html.Span(className=f"pill-dot {mc}"), html.Span("CH 1"),   html.Span(f"{mv:.2f} unit" if mlast else "OFFLINE", className="pill-val")], className="status-pill pill-c1"),
+        html.Div([html.Span(className=f"pill-dot {ec}"), html.Span("CH 2"), html.Span(f"{ev:.3f} unit" if elast else "OFFLINE", className="pill-val")], className="status-pill pill-c2"),
         html.Div([html.Span(className=f"pill-dot {rc}"), html.Span("CH 3"),    html.Span(rv,             className="pill-val")], className="status-pill pill-rf"),
         html.Div([html.Span(className=f"pill-dot {cc}"), html.Span("MTDI"),  html.Span(f"{ov:.0f}%",   className="pill-val")], className="status-pill pill-mtdi"),
     ]
 
 
 # ── alerts (every channel, from the one alert engine in analysis.py) ──
-# This used to compare the magnetometer magnitude against a fixed 80 unit / 3 unit pair,
+# This used to compare the ch1probe magnitude against a fixed 80 unit / 3 unit pair,
 # which is neither smart nor general: it ignored the other three channels entirely,
 # and in a ~30 unit ambient it fired on rotating the instrument while missing genuine
 # changes. It now reports whatever AnalysisEngine has already judged significant.
@@ -128,18 +128,18 @@ def nvtra_alerts(n, _refresh, prev):
             {"seen": float(latest["timestamp"])})
 
 
-# ── magnetic: numbers (update text in place, no layout shift) ──
+# ── ch1: numbers (update text in place, no layout shift) ──
 @app.callback(
     Output("mv-baseline","children"),
     Output("mv-sig","children"), Output("mv-sig","className"),
-    Output("mag-status","children"), Output("mag-status","className"), Output("mag-dot","className"),
-    Output("mag-recal-status","children"),
-    Output("sum-mag","children"), Output("sum-axes","children"), Output("mag-error","children"),
-    Input("mag-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Output("c1-status","children"), Output("c1-status","className"), Output("c1-dot","className"),
+    Output("c1-recal-status","children"),
+    Output("sum-c1","children"), Output("sum-axes","children"), Output("c1-error","children"),
+    Input("c1-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
 def update_numbers(n, _refresh):
-    with mag_lock:
-        m = dict(magnetic_data); h10 = list(magnetic_data["history"])[-10:]
+    with c1_lock:
+        m = dict(ch1_data); h10 = list(ch1_data["history"])[-10:]
     if len(h10) >= 2:
         mean = sum(h10)/len(h10); std = (sum((v-mean)**2 for v in h10)/len(h10))**0.5
         sig = f"{std:.2f} unit"; sc = GREEN if std < 0.5 else AMBER if std < 2.0 else RED
@@ -176,7 +176,7 @@ def update_numbers(n, _refresh):
         if m["baseline_calibrated"] else
         'Learning the quiet channel 1 baseline… keep the instrument still and clear of devices (~5 s).'
     )
-    summary_mag = f"{m['magnitude']:.2f} unit" if m["last_rx"] is not None else "—"
+    summary_c1 = f"{m['magnitude']:.2f} unit" if m["last_rx"] is not None else "—"
     summary_axes = (
         (
             f"CORRECTED X {m['x']:.2f}  Y {m['y']:.2f}  Z {m['z']:.2f} · "
@@ -188,33 +188,33 @@ def update_numbers(n, _refresh):
             f"metric-value {_cls(sc)}",
             status, f"online-text {_cls(stcol)}", dot,
             baseline_status,
-            summary_mag, summary_axes, err)
+            summary_c1, summary_axes, err)
 
 
-# ── magnetic: Environmental Intelligence baseline button ──
-@app.callback(Output("mag-recal-request", "data"),
-              Input("mag-recal-btn", "n_clicks"), prevent_initial_call=True)
-def magnetometer_recalibrate(n):
-    with mag_lock:
-        if magnetic_data["last_rx"] is None or magnetic_data["error"]:
+# ── ch1: Environmental Intelligence baseline button ──
+@app.callback(Output("c1-recal-request", "data"),
+              Input("c1-recal-btn", "n_clicks"), prevent_initial_call=True)
+def ch1probe_recalibrate(n):
+    with c1_lock:
+        if ch1_data["last_rx"] is None or ch1_data["error"]:
             return {"queued":False, "reason":"offline", "t":time.time()}
-    with mag_cmd_lock:
-        mag_cmd["recalibrate"] = True
+    with c1_cmd_lock:
+        c1_cmd["recalibrate"] = True
     return {"queued":True, "t":time.time()}
 
 
-# ── magnetic: 2D charts (figure-only, uirevision keeps the view stable) ──
+# ── ch1: 2D charts (figure-only, uirevision keeps the view stable) ──
 @app.callback(
     Output("g-line","figure"), Output("g-axis","figure"), Output("g-pie","figure"),
     Output("g-gauge","figure"), Output("g-bar","figure"),
     Output("g-scatter","figure"), Output("g-delta","figure"),
-    Input("mag-chart-int","n_intervals"), Input("mag-zoom","value"),
+    Input("c1-chart-int","n_intervals"), Input("c1-zoom","value"),
     Input("mobile-refresh-btn","n_clicks")
 )
 def update_charts(n, zoom, _refresh):
     zoom = _zoom_factor(zoom)
-    with mag_lock:
-        m = dict(magnetic_data); hist = list(magnetic_data["history"]); xyz = list(magnetic_data["xyz_history"])
+    with c1_lock:
+        m = dict(ch1_data); hist = list(ch1_data["history"]); xyz = list(ch1_data["xyz_history"])
     if hist:
         mn = min(hist); mx = max(hist); avg = sum(hist)/len(hist)
     else:
@@ -222,31 +222,31 @@ def update_charts(n, zoom, _refresh):
     have = bool(hist)
     return (make_line_chart(hist, color=CYAN, fill_color="rgba(0,229,255,0.07)",
                             height=250, ylabel="unit", smart_scale=True, zoom=zoom,
-                            revision="mag-line"),
+                            revision="c1-line"),
             fig_axis(xyz), fig_pie(m['x'], m['y'], m['z']) if have else fig_pie(None, None, None),
             fig_gauge(m['magnitude'] if have else None), fig_bar(mn, avg, mx),
             fig_2d_scatter(xyz), fig_2d_delta(xyz))
 
 
-# ── electric: triaxial numbers and 2D charts ──
+# ── ch2: triaxial numbers and 2D charts ──
 @app.callback(
     Output("e3-x","children"), Output("e3-y","children"), Output("e3-z","children"),
-    Output("e3-mag","children"), Output("e3-live","children"), Output("e3-live","className"),
+    Output("e3-c1","children"), Output("e3-live","children"), Output("e3-live","className"),
     Output("e3-x-vm","children"), Output("e3-y-vm","children"),
-    Output("e3-z-vm","children"), Output("e3-mag-vm","children"),
+    Output("e3-z-vm","children"), Output("e3-c1-vm","children"),
     Output("e3-static-x","children"), Output("e3-static-y","children"),
-    Output("e3-static-z","children"), Output("e3-static-mag","children"),
+    Output("e3-static-z","children"), Output("e3-static-c1","children"),
     Output("e3-line","figure"), Output("e3-axis","figure"),
     Output("e3-scatter","figure"), Output("e3-delta","figure"),
     Output("e3-gauge","figure"), Output("e3-pie","figure"),
     Output("e3-bar","figure"), Output("e3-archive","figure"),
     Input("e3-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
-def update_efield_triaxial(n, _refresh):
-    with efield_lock:
-        e = dict(efield_data)
-        xyz = list(efield_data.get("exyz_history") or [])
-        emag = list(efield_data.get("emag_history") or [])
+def update_ch2f_triaxial(n, _refresh):
+    with ch2f_lock:
+        e = dict(ch2f_data)
+        xyz = list(ch2f_data.get("exyz_history") or [])
+        sgm = list(ch2f_data.get("sgm_history") or [])
     live = e.get("axes_live", 0)
     axis_unit = "ADC counts RMS" if e.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
     # An axis that is not reporting shows an em dash. Rendering 0.00 would be a
@@ -259,71 +259,71 @@ def update_efield_triaxial(n, _refresh):
     return (shown(e.get("ex_mv")), shown(e.get("ey_mv")), shown(e.get("ez_mv")),
             shown(e.get("e_magnitude_mv")), "%d / 3" % live,
             "metric-value " + _cls(colour),
-            estimated("x", e.get("ex_v_m")), estimated("y", e.get("ey_v_m")),
-            estimated("z", e.get("ez_v_m")), ("≥ " if e.get("clipped") else "") + shown(e.get("e_magnitude_v_m")),
+            estimated("x", e.get("ex_vu")), estimated("y", e.get("ey_vu")),
+            estimated("z", e.get("ez_vu")), ("≥ " if e.get("clipped") else "") + shown(e.get("e_magnitude_vu")),
             shown((e.get("dc_delta_counts") or {}).get("x")), shown((e.get("dc_delta_counts") or {}).get("y")),
             shown((e.get("dc_delta_counts") or {}).get("z")), shown(e.get("static_activity_counts")),
-            make_line_chart(emag, color=AMBER, fill_color="rgba(255,171,64,0.08)",
+            make_line_chart(sgm, color=AMBER, fill_color="rgba(255,171,64,0.08)",
                             height=250, ylabel=axis_unit),
             fig_axis(xyz, unit=axis_unit),
             fig_2d_scatter(xyz, unit=axis_unit),
             fig_2d_delta(xyz, unit=axis_unit),
             fig_gauge(e.get("e_magnitude_mv"), unit=axis_unit),
             fig_pie(e.get("ex_mv"), e.get("ey_mv"), e.get("ez_mv")),
-            fig_bar(*_e3_stats(emag), unit=axis_unit, quantity='channel 2 activity magnitude'),
-            fig_archive(series=emag, unit=axis_unit))
+            fig_bar(*_e3_stats(sgm), unit=axis_unit, quantity='channel 2 activity magnitude'),
+            fig_archive(series=sgm, unit=axis_unit))
 
 
-# ── electric: triaxial 3D views, slower because they are expensive ──
+# ── ch2: triaxial 3D views, slower because they are expensive ──
 @app.callback(
     Output("e3-surface","figure"), Output("e3-terrain","figure"),
-    Output("e3-plane","figure"), Output("e3-dipole","figure"),
+    Output("e3-plane","figure"), Output("e3-twopole","figure"),
     Input("e3-3d-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
-def update_efield_triaxial_3d(n, _refresh):
-    with efield_lock:
-        xyz = list(efield_data.get("exyz_history") or [])
-        axis_unit = "ADC counts RMS" if efield_data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
+def update_ch2f_triaxial_3d(n, _refresh):
+    with ch2f_lock:
+        xyz = list(ch2f_data.get("exyz_history") or [])
+        axis_unit = "ADC counts RMS" if ch2f_data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
     state = _direction_plot_state(xyz)
     return (fig_3d_surface(xyz, height=400, unit=axis_unit),
             fig_3d_terrain(xyz, height=400, unit=axis_unit),
             fig_3d_error_plane(xyz, height=430, direction_state=state),
-            fig_3d_dipole_field(xyz, height=430, direction_state=state))
+            fig_3d_dipolch2f(xyz, height=430, direction_state=state))
 
 
-# ── magnetic: heavier 3D surfaces update slowly ──
+# ── ch1: heavier 3D surfaces update slowly ──
 @app.callback(
     Output("g3d-surface","figure"), Output("g3d-terrain","figure"),
-    Input("mag-3d-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Input("c1-3d-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
 def update_3d_surfaces(n, _refresh):
-    with mag_lock:
-        xyz = list(magnetic_data["xyz_history"])
+    with c1_lock:
+        xyz = list(ch1_data["xyz_history"])
     return (fig_3d_surface(xyz, height=400),
             fig_3d_terrain(xyz, height=400))
 
 
-# ── magnetic: lightweight direction and dipole views update more frequently ──
+# ── ch1: lightweight direction and twopole views update more frequently ──
 @app.callback(
-    Output("g3d-plane","figure"), Output("g3d-dipole","figure"),
+    Output("g3d-plane","figure"), Output("g3d-twopole","figure"),
     Output("mag3d-error","children"),
-    Input("mag-dir-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Input("c1-dir-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
 def update_3d_direction(n, _refresh):
-    with mag_lock:
-        xyz = list(magnetic_data["xyz_history"]); err = magnetic_data["error"]
+    with c1_lock:
+        xyz = list(ch1_data["xyz_history"]); err = ch1_data["error"]
     state = _direction_plot_state(xyz)
     e = html.Div(f"STATUS: {err}", className="error-box", style={"marginTop":"12px"}) if err else None
     return (fig_3d_error_plane(xyz, height=460, direction_state=state),
-            fig_3d_dipole_field(xyz, height=460, direction_state=state),
+            fig_3d_dipolch2f(xyz, height=460, direction_state=state),
             e)
 
 
-# ── magnetic: signal archive ──
+# ── ch1: signal archive ──
 @app.callback(
     Output("g-archive","figure"), Output("arch-count","children"), Output("arch-min","children"),
     Output("arch-avg","children"), Output("arch-max","children"),
-    Input("mag-arch-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Input("c1-arch-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
 def update_arch(n, _refresh):
     with archive_lock:
@@ -334,25 +334,25 @@ def update_arch(n, _refresh):
             (f"{mn:.2f}" if cnt else "—"), (f"{avg:.2f}" if cnt else "—"), (f"{mx:.2f}" if cnt else "—"))
 
 
-# ── electric: numbers (scalar RMS + auto-range state) ──
+# ── ch2: numbers (scalar RMS + auto-range state) ──
 @app.callback(
     Output("ev-level","children"), Output("ev-level","className"),
     Output("ev-index","children"), Output("ev-rms","children"),
     Output("ev-gain","children"),
-    Output("ef-status","children"), Output("ef-status","className"), Output("ef-dot","className"),
-    Output("ef-warn","children"),
+    Output("c2-status","children"), Output("c2-status","className"), Output("c2-dot","className"),
+    Output("c2-warn","children"),
     Output("ev-baseline","children"),
     Output("ev-util","children"), Output("ev-minmax","children"), Output("ev-statustext","children"),
     Output("ev-base-top","children"), Output("ev-delta-top","children"),
-    Output("ef-error","children"),
-    Input("ef-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Output("c2-error","children"),
+    Input("c2-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
-def update_efield_numbers(n, _refresh):
-    with efield_lock: e = dict(efield_data)
+def update_ch2f_numbers(n, _refresh):
+    with ch2f_lock: e = dict(ch2f_data)
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
-    lc = _ef_level_color(e["level"])
-    if e["error"] and not (e["last_rx"] is None and e["error"] == "Waiting for E-field sensor"):
+    lc = _c2_level_color(e["level"])
+    if e["error"] and not (e["last_rx"] is None and e["error"] == "Waiting for Ch2 sensor"):
         st = f"CHANNEL 2 OFFLINE · {e['error'][:64]}"; sc = RED; dot = "online-dot off"
     elif e["error"]:
         st = 'CHANNEL 2 WAITING · connect the Uno USB ADC'; sc = AMBER; dot = "online-dot warn"
@@ -363,13 +363,13 @@ def update_efield_numbers(n, _refresh):
         warn = None
         clipped_axes = e.get("axis_clipped") or {}
         shown = lambda key, axis: (("≥ " if clipped_axes.get(axis) else "") + f"{e.get(key):.3f}") if have and e.get(key) is not None else "—"
-        return (shown("ex_v_m", "x"), f"metric-value {_cls(lc)}",
-                shown("ey_v_m", "y"), shown("ez_v_m", "z"),
-                (("≥ " if e.get("clipped") else "") + f"{e.get('e_magnitude_v_m'):.3f}") if have and e.get("e_magnitude_v_m") is not None else "—",
+        return (shown("ex_vu", "x"), f"metric-value {_cls(lc)}",
+                shown("ey_vu", "y"), shown("ez_vu", "z"),
+                (("≥ " if e.get("clipped") else "") + f"{e.get('e_magnitude_vu'):.3f}") if have and e.get("e_magnitude_vu") is not None else "—",
                 st, f"online-text {_cls(sc)}", dot, warn, "—", "—",
                 f"{e['min_code']} / {e['max_code']}" if have else "—", e["status"],
-                f"{e.get('baseline_v_m', 0.0):.3f}" if have else "—",
-                f"{abs(e.get('e_magnitude_v_m') or 0.0):.3f}" if have else "—", None)
+                f"{e.get('baseline_vu', 0.0):.3f}" if have else "—",
+                f"{abs(e.get('e_magnitude_vu') or 0.0):.3f}" if have else "—", None)
     elif not e["calibrated"]:
         st = 'CALIBRATING BASELINE · keep the source clear of devices…'; sc = AMBER; dot = "online-dot warn"
     elif e["clipped"]:
@@ -389,8 +389,8 @@ def update_efield_numbers(n, _refresh):
         # reach this branch. The import is local so a failure degrades the one
         # status string rather than the page.
         try:
-            from studio.acquisition import EFIELD_MUX, EFIELD_MUX_NAME
-            wiring = EFIELD_MUX_NAME.get(EFIELD_MUX, f"input {EFIELD_MUX}")
+            from studio.acquisition import CH2F_MUX, CH2F_MUX_NAME
+            wiring = CH2F_MUX_NAME.get(CH2F_MUX, f"input {CH2F_MUX}")
         except Exception:
             wiring = "probe input"
         st = f"CHANNEL 2 ONLINE · Source 2 {wiring} @ 0x48 · {age:.1f}s ago"; sc = GREEN; dot = "online-dot on"
@@ -403,128 +403,128 @@ def update_efield_numbers(n, _refresh):
         if warning_text else None
     )
     err = html.Div(f"STATUS: {e['error']}", className="error-box", style={"marginTop":"16px"}) if e["error"] else None
-    base = f"{e['baseline_v_m']:.3f}" if e["calibrated"] else "—"
-    field_text = (("≥ " if e["clipped"] else "") + f"{e['field_v_m']:.3f}") if have else "—"
-    peak_text = (("≥ " if e["clipped"] else "") + f"{e['peak_v_m']:.3f}") if have else "—"
-    return (shown("ex_v_m", "x"), f"metric-value {_cls(lc)}",
-            shown("ey_v_m", "y"), shown("ez_v_m", "z"),
-            (("≥ " if e.get("clipped") else "") + f"{e.get('e_magnitude_v_m'):.3f}") if have and e.get("e_magnitude_v_m") is not None else "—",
+    base = f"{e['baseline_vu']:.3f}" if e["calibrated"] else "—"
+    field_text = (("≥ " if e["clipped"] else "") + f"{e['field_vu']:.3f}") if have else "—"
+    peak_text = (("≥ " if e["clipped"] else "") + f"{e['peak_vu']:.3f}") if have else "—"
+    return (shown("ex_vu", "x"), f"metric-value {_cls(lc)}",
+            shown("ey_vu", "y"), shown("ez_vu", "z"),
+            (("≥ " if e.get("clipped") else "") + f"{e.get('e_magnitude_vu'):.3f}") if have and e.get("e_magnitude_vu") is not None else "—",
             st, f"online-text {_cls(sc)}", dot,
             warn,
             base,
             f"{e['utilisation']:.0f}%" if have and e["utilisation"] is not None else "—",
             f"{e['min_code']} / {e['max_code']}" if have else "—",
             e["status"],
-            f"{e.get('baseline_v_m', 0.0):.3f}" if have else "—",
-            f"{abs(e.get('field_v_m') or 0.0):.3f}" if have else "—", err)
+            f"{e.get('baseline_vu', 0.0):.3f}" if have else "—",
+            f"{abs(e.get('field_vu') or 0.0):.3f}" if have else "—", err)
 
 
-# ── electric: live charts (RMS line, index line, gauge, bars, bullet) ──
+# ── ch2: live charts (RMS line, index line, gauge, bars, bullet) ──
 @app.callback(
-    Output("ef-line","figure"), Output("ef-index-line","figure"),
-    Output("ef-gauge","figure"), Output("ef-basebar","figure"), Output("ef-bullet","figure"),
-    Output("ef-b-correlation","figure"), Output("ef-induction-proxy","figure"),
-    Input("ef-chart-int","n_intervals"), Input("ef-zoom","value"), Input("mobile-refresh-btn","n_clicks")
+    Output("c2-line","figure"), Output("c2-index-line","figure"),
+    Output("c2-gauge","figure"), Output("c2-basebar","figure"), Output("c2-bullet","figure"),
+    Output("c2-b-correlation","figure"), Output("c2-induction-proxy","figure"),
+    Input("c2-chart-int","n_intervals"), Input("c2-zoom","value"), Input("mobile-refresh-btn","n_clicks")
 )
-def update_efield_charts(n, zoom, _refresh):
+def update_ch2f_charts(n, zoom, _refresh):
     zoom = _zoom_factor(zoom)
-    with efield_lock:
-        e = dict(efield_data); hist = list(efield_data["history"]); rel_hist = list(efield_data["rel_history"])
-    with mag_lock:
-        mag_hist = list(magnetic_data["history"])
+    with ch2f_lock:
+        e = dict(ch2f_data); hist = list(ch2f_data["history"]); rel_hist = list(ch2f_data["rel_history"])
+    with c1_lock:
+        c1_hist = list(ch1_data["history"])
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     return (make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250,
                             ylabel="ADC counts RMS" if provisional else "mV RMS",
-                            smart_scale=True, zoom=zoom or 1, revision="ef-line"),
+                            smart_scale=True, zoom=zoom or 1, revision="c2-line"),
             make_line_chart(rel_hist, color=CYAN, fill_color="rgba(0,229,255,0.07)", height=250, ylabel="%"),
-            fig_ef_gauge(e["rel_index"] if have else None),
-            (fig_ef_basebar(None, None, None) if provisional else
-             fig_ef_basebar(e["baseline_v_m"], e["field_v_m"], e["peak_v_m"])) if have else fig_ef_basebar(None, None, None),
-            fig_ef_bullet(e["rel_index"] if have else None, e["level"]),
-            fig_ef_b_correlation(mag_hist, rel_hist),
-            fig_ef_induction_proxy(mag_hist, rel_hist))
+            fig_c2_gauge(e["rel_index"] if have else None),
+            (fig_c2_basebar(None, None, None) if provisional else
+             fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"])) if have else fig_c2_basebar(None, None, None),
+            fig_c2_bullet(e["rel_index"] if have else None, e["level"]),
+            fig_c2_b_correlation(c1_hist, rel_hist),
+            fig_c2_induction_proxy(c1_hist, rel_hist))
 
 
 @app.callback(
-    Output("em-overlay", "figure"), Output("em-normalized-overlay", "figure"),
-    Output("em-coupling", "figure"), Output("em-correlation", "figure"),
-    Output("em-traj3d", "figure"), Output("em-b-plane", "figure"), Output("em-e-plane", "figure"),
-    Output("em-b-dipole", "figure"), Output("em-e-dipole", "figure"),
+    Output("p1-overlay", "figure"), Output("p1-normalized-overlay", "figure"),
+    Output("p1-coupling", "figure"), Output("p1-correlation", "figure"),
+    Output("p1-traj3d", "figure"), Output("p1-b-plane", "figure"), Output("p1-e-plane", "figure"),
+    Output("p1-b-twopole", "figure"), Output("p1-e-twopole", "figure"),
     Output("em3-line", "figure"), Output("em3-axis", "figure"), Output("em3-scatter", "figure"),
     Output("em3-delta", "figure"), Output("em3-gauge", "figure"), Output("em3-pie", "figure"),
     Output("em3-bar", "figure"), Output("em3-surface", "figure"), Output("em3-terrain", "figure"),
-    Output("em3-plane", "figure"), Output("em3-dipole", "figure"),
+    Output("em3-plane", "figure"), Output("em3-twopole", "figure"),
     Output("em3-vector-overlay", "figure"), Output("em3-cross-proxy", "figure"),
-    Input("em-overlay-int", "n_intervals"), Input("em-zoom", "value"), Input("mobile-refresh-btn","n_clicks"),
+    Input("p1-overlay-int", "n_intervals"), Input("p1-zoom", "value"), Input("mobile-refresh-btn","n_clicks"),
 )
-def update_em_overlays(n, zoom, _refresh):
+def update_p1_overlays(n, zoom, _refresh):
     zoom = _zoom_factor(zoom)
     window = max(12, int(200 / max(0.5, zoom)))
-    with mag_lock:
-        mag_hist = list(magnetic_data["history"])[-window:]
-        mag_xyz = list(magnetic_data["xyz_history"])[-window:]
-    with efield_lock:
-        ef_hist = list(efield_data["history"])[-window:]
-        ef_rel = list(efield_data["rel_history"])[-window:]
-        ef_xyz = list(efield_data.get("exyz_history") or [])[-window:]
-    em_xyz = _em_composite_xyz(mag_xyz, ef_xyz, window)
-    em_mag = [math.sqrt(x*x + y*y + z*z) for x, y, z in em_xyz]
+    with c1_lock:
+        c1_hist = list(ch1_data["history"])[-window:]
+        c1_xyz = list(ch1_data["xyz_history"])[-window:]
+    with ch2f_lock:
+        c2_hist = list(ch2f_data["history"])[-window:]
+        c2_rel = list(ch2f_data["rel_history"])[-window:]
+        c2_xyz = list(ch2f_data.get("exyz_history") or [])[-window:]
+    p1_xyz = _p1_composite_xyz(c1_xyz, c2_xyz, window)
+    p1_c1 = [math.sqrt(x*x + y*y + z*z) for x, y, z in p1_xyz]
     figures = (
-        fig_em_overlay(mag_hist, ef_hist),
-        fig_em_normalized_overlay(mag_hist, ef_rel),
-        fig_ef_induction_proxy(mag_hist, ef_rel, height=300),
-        fig_ef_b_correlation(mag_hist, ef_rel, height=300),
-        fig_em_trajectory_3d(mag_hist, ef_rel),
-        fig_3d_error_plane(mag_xyz, height=430), fig_3d_error_plane(ef_xyz, height=430),
-        fig_3d_dipole_field(mag_xyz, height=430), fig_3d_dipole_field(ef_xyz, height=430),
-        make_line_chart(em_mag, color=CYAN, height=250, ylabel="normalized"), fig_axis(em_xyz, unit="normalized"),
-        fig_2d_scatter(em_xyz, unit="normalized"), fig_2d_delta(em_xyz, unit="normalized"), fig_gauge(em_mag[-1] if em_mag else None, unit="normalized"),
-        fig_pie(*(em_xyz[-1] if em_xyz else (None, None, None))),
-        fig_bar(*_e3_stats(em_mag), unit="normalized", quantity="E+B composite magnitude"),
-        fig_3d_surface(em_xyz, height=400, unit="normalized"), fig_3d_terrain(em_xyz, height=400, unit="normalized"),
-        fig_3d_error_plane(em_xyz, height=430), fig_3d_dipole_field(em_xyz, height=430),
-        fig_em_vector_overlay_3d(mag_xyz, ef_xyz), fig_em_cross_proxy_3d(mag_xyz, ef_xyz),
+        fig_p1_overlay(c1_hist, c2_hist),
+        fig_p1_normalized_overlay(c1_hist, c2_rel),
+        fig_c2_induction_proxy(c1_hist, c2_rel, height=300),
+        fig_c2_b_correlation(c1_hist, c2_rel, height=300),
+        fig_p1_trajectory_3d(c1_hist, c2_rel),
+        fig_3d_error_plane(c1_xyz, height=430), fig_3d_error_plane(c2_xyz, height=430),
+        fig_3d_dipolch2f(c1_xyz, height=430), fig_3d_dipolch2f(c2_xyz, height=430),
+        make_line_chart(p1_c1, color=CYAN, height=250, ylabel="normalized"), fig_axis(p1_xyz, unit="normalized"),
+        fig_2d_scatter(p1_xyz, unit="normalized"), fig_2d_delta(p1_xyz, unit="normalized"), fig_gauge(p1_c1[-1] if p1_c1 else None, unit="normalized"),
+        fig_pie(*(p1_xyz[-1] if p1_xyz else (None, None, None))),
+        fig_bar(*_e3_stats(p1_c1), unit="normalized", quantity="E+B composite magnitude"),
+        fig_3d_surface(p1_xyz, height=400, unit="normalized"), fig_3d_terrain(p1_xyz, height=400, unit="normalized"),
+        fig_3d_error_plane(p1_xyz, height=430), fig_3d_dipolch2f(p1_xyz, height=430),
+        fig_p1_vector_overlay_3d(c1_xyz, c2_xyz), fig_p1_cross_proxy_3d(c1_xyz, c2_xyz),
     )
     # A stable uirevision normally preserves a user's 3D camera. For this explicit
     # window control it also preserved the old axis range, making the zoom appear
     # inert. Key the revision to the selected window so every graph visibly updates.
     for index, figure in enumerate(figures):
-        figure.update_layout(uirevision=f"em-window-{zoom:.3f}-{index}")
+        figure.update_layout(uirevision=f"p1-window-{zoom:.3f}-{index}")
     return figures
 
 
-# ── electric: Environmental Intelligence baseline button ──
-@app.callback(Output("ef-recal-status","children"),
-              Input("ef-recal-btn","n_clicks"), prevent_initial_call=True)
-def efield_recalibrate(n):
-    with efield_lock:
-        if efield_data["last_rx"] is None or efield_data["error"]:
-            return "E-field sensor is offline; baseline request was not queued."
-    with efield_cmd_lock:
-        efield_cmd["recalibrate"] = True
+# ── ch2: Environmental Intelligence baseline button ──
+@app.callback(Output("c2-recal-status","children"),
+              Input("c2-recal-btn","n_clicks"), prevent_initial_call=True)
+def ch2f_recalibrate(n):
+    with ch2f_lock:
+        if ch2f_data["last_rx"] is None or ch2f_data["error"]:
+            return "Ch2 sensor is offline; baseline request was not queued."
+    with ch2f_cmd_lock:
+        ch2f_cmd["recalibrate"] = True
     return "Re-learning the environmental baseline… keep the probe fixed and clear for ~10 s."
 
 
-# ── spectrum: numbers, device strip, link status ──
+# ── sweep3: numbers, device strip, link status ──
 @app.callback(
-    Output("rf-peak-f","children"), Output("rf-peak-l","children"), Output("rf-floor","children"),
-    Output("rf-floor","className"), Output("rf-span","children"), Output("rf-res","children"),
-    Output("rf-sweep","children"),
-    Output("rf-status","children"), Output("rf-status","className"), Output("rf-dot","className"),
-    Output("rf-warn","children"), Output("rf-dev-strip","children"),
-    Output("rf-peak-body","children"), Output("rf-emi-body","children"),
-    Output("rf-arch-count","children"), Output("rf-arch-min","children"),
-    Output("rf-arch-avg","children"), Output("rf-arch-max","children"), Output("rf-arch-str","children"),
-    Output("rf-error","children"),
-    Input("rf-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
+    Output("ch3-peak-f","children"), Output("ch3-peak-l","children"), Output("ch3-floor","children"),
+    Output("ch3-floor","className"), Output("ch3-span","children"), Output("ch3-res","children"),
+    Output("ch3-sweep","children"),
+    Output("ch3-status","children"), Output("ch3-status","className"), Output("ch3-dot","className"),
+    Output("ch3-warn","children"), Output("ch3-dev-strip","children"),
+    Output("ch3-peak-body","children"), Output("ch3-sg-body","children"),
+    Output("ch3-arch-count","children"), Output("ch3-arch-min","children"),
+    Output("ch3-arch-avg","children"), Output("ch3-arch-max","children"), Output("ch3-arch-str","children"),
+    Output("ch3-error","children"),
+    Input("ch3-num-int","n_intervals"), Input("mobile-refresh-btn","n_clicks")
 )
-def update_spectrum_numbers(n, _refresh):
-    with spectrum_lock:
-        s = dict(spectrum_data); peaks = list(spectrum_data["peaks"])
-    with rf_archive_lock:
-        cnt = rf_stats["count"]; mn = rf_stats["min"]; mx = rf_stats["max"]
-        sm = rf_stats["sum"]; strongest = dict(rf_stats["strongest"])
+def update_sweep3_numbers(n, _refresh):
+    with sweep3_lock:
+        s = dict(sweep3_data); peaks = list(sweep3_data["peaks"])
+    with ch3_archive_lock:
+        cnt = ch3_stats["count"]; mn = ch3_stats["min"]; mx = ch3_stats["max"]
+        sm = ch3_stats["sum"]; strongest = dict(ch3_stats["strongest"])
 
     if s["error"]:
         st = f"CHANNEL 3 OFFLINE · {s['error'][:64]}"; sc = RED; dot = "online-dot off"
@@ -569,118 +569,118 @@ def update_spectrum_numbers(n, _refresh):
     str_s = (f"{strongest['level']:+.1f} unit @ {_freq_label(strongest['freq'])}" if cnt else "—")
 
     return (pf, pl, fl, f"metric-value {_cls(flc)}", span, res, sweep,
-            st, f"online-text {_cls(sc)}", dot, warn, _rf_dev_strip(),
-            _peak_rows(peaks, s["floor"]), emi_rows(s),
+            st, f"online-text {_cls(sc)}", dot, warn, _ch3_dev_strip(),
+            _peak_rows(peaks, s["floor"]), sg_rows(s),
             str(cnt), mn_s, avg_s, mx_s, str_s, err)
 
 
-# ── spectrum: sweep + breakdown charts ──
+# ── sweep3: sweep + breakdown charts ──
 @app.callback(
-    Output("rf-sweep-graph","figure"), Output("rf-bands-graph","figure"), Output("rf-trend-graph","figure"),
-    Input("rf-chart-int","n_intervals"), Input("rf-axis-mode","data"), Input("rf-bands-mode","data"),
+    Output("ch3-sweep-graph","figure"), Output("ch3-bands-graph","figure"), Output("ch3-trend-graph","figure"),
+    Input("ch3-chart-int","n_intervals"), Input("ch3-axis-mode","data"), Input("ch3-bands-mode","data"),
     Input("mobile-refresh-btn","n_clicks")
 )
-def update_spectrum_charts(n, axis_mode, show_bands, _refresh):
-    with spectrum_lock:
-        s = dict(spectrum_data)
-    return (fig_spectrum(s["freqs"], s["levels"], s["maxhold"], s["peaks"], s["floor"],
+def update_sweep3_charts(n, axis_mode, show_bands, _refresh):
+    with sweep3_lock:
+        s = dict(sweep3_data)
+    return (fig_sweep3(s["freqs"], s["levels"], s["maxhold"], s["peaks"], s["floor"],
                          logx=(axis_mode == "log"), height=380, bands=bool(show_bands)),
-            fig_rf_bands(s["peaks"]),
-            fig_rf_trend(s["peak_history"]))
+            fig_ch3_bands(s["peaks"]),
+            fig_ch3_trend(s["peak_history"]))
 
 
-# ── spectrum: waterfall (heaviest figure — slowest interval) ──
-@app.callback(Output("rf-waterfall-graph","figure"), Output("rf-terrain-graph","figure"),
-              Input("rf-wf-int","n_intervals"), Input("mobile-refresh-btn","n_clicks"))
+# ── sweep3: waterfall (heaviest figure — slowest interval) ──
+@app.callback(Output("ch3-waterfall-graph","figure"), Output("ch3-terrain-graph","figure"),
+              Input("ch3-wf-int","n_intervals"), Input("mobile-refresh-btn","n_clicks"))
 def update_waterfall(n, _refresh):
-    with spectrum_lock:
-        rows = list(spectrum_data["waterfall"])
-        times = list(spectrum_data["waterfall_times"])
-        freqs = list(spectrum_data["freqs"])
+    with sweep3_lock:
+        rows = list(sweep3_data["waterfall"])
+        times = list(sweep3_data["waterfall_times"])
+        freqs = list(sweep3_data["freqs"])
     rows, times = _waterfall_rows(rows, times, freqs)
-    return fig_waterfall(rows, freqs, times, 320), fig_rf_terrain(rows, freqs, times, 460)
+    return fig_waterfall(rows, freqs, times, 320), fig_ch3_terrain(rows, freqs, times, 460)
 
 
-# ── spectrum: range presets ──
+# ── sweep3: range presets ──
 @app.callback(
-    Output("rf-preset-mode","data"),
-    *[Output(f"rf-preset-{key}","className") for key, _l, _a, _b in TSA_PRESETS],
-    *[Input(f"rf-preset-{key}","n_clicks") for key, _l, _a, _b in TSA_PRESETS],
+    Output("ch3-preset-mode","data"),
+    *[Output(f"ch3-preset-{key}","className") for key, _l, _a, _b in S3_PRESETS],
+    *[Input(f"ch3-preset-{key}","n_clicks") for key, _l, _a, _b in S3_PRESETS],
 )
-def rf_pick_preset(*clicks):
+def ch3_pick_preset(*clicks):
     chosen = "full"
     ctx = dash.callback_context
     if ctx.triggered:
         tid = ctx.triggered[0]["prop_id"].split(".")[0]
-        if tid.startswith("rf-preset-"):
-            key = tid[len("rf-preset-"):]
-            match = next((p for p in TSA_PRESETS if p[0] == key), None)
+        if tid.startswith("ch3-preset-"):
+            key = tid[len("ch3-preset-"):]
+            match = next((p for p in S3_PRESETS if p[0] == key), None)
             if match:
                 chosen = key
-                with tinysa_cmd_lock:
-                    tinysa_cmd["range"] = (match[2], match[3])
-                    tinysa_cmd["preset"] = key
-    return (chosen, *["rf-btn rf-on" if k == chosen else "rf-btn" for k, _l, _a, _b in TSA_PRESETS])
+                with src3_cmd_lock:
+                    src3_cmd["range"] = (match[2], match[3])
+                    src3_cmd["preset"] = key
+    return (chosen, *["ch3-btn ch3-on" if k == chosen else "ch3-btn" for k, _l, _a, _b in S3_PRESETS])
 
 
-# ── spectrum: sweep resolution ──
+# ── sweep3: sweep resolution ──
 @app.callback(
-    Output("rf-points-mode","data"),
-    Output("rf-pts-101","className"), Output("rf-pts-251","className"), Output("rf-pts-290","className"),
-    Input("rf-pts-101","n_clicks"), Input("rf-pts-251","n_clicks"), Input("rf-pts-290","n_clicks"),
+    Output("ch3-points-mode","data"),
+    Output("ch3-pts-101","className"), Output("ch3-pts-251","className"), Output("ch3-pts-290","className"),
+    Input("ch3-pts-101","n_clicks"), Input("ch3-pts-251","n_clicks"), Input("ch3-pts-290","n_clicks"),
 )
-def rf_pick_points(a, b, c):
-    pts = TSA_DEFAULT_PTS
+def ch3_pick_points(a, b, c):
+    pts = S3_DEFAULT_PTS
     ctx = dash.callback_context
     if ctx.triggered:
         tid = ctx.triggered[0]["prop_id"].split(".")[0]
-        pts = {"rf-pts-101":101, "rf-pts-251":251, "rf-pts-290":290}.get(tid, TSA_DEFAULT_PTS)
-        with tinysa_cmd_lock:
-            tinysa_cmd["points"] = pts
-    return (pts, *["rf-btn rf-on" if pts == v else "rf-btn" for v in (101, 251, 290)])
+        pts = {"ch3-pts-101":101, "ch3-pts-251":251, "ch3-pts-290":290}.get(tid, S3_DEFAULT_PTS)
+        with src3_cmd_lock:
+            src3_cmd["points"] = pts
+    return (pts, *["ch3-btn ch3-on" if pts == v else "ch3-btn" for v in (101, 251, 290)])
 
 
-# ── spectrum: frequency axis scale (client-side view choice, no device traffic) ──
+# ── sweep3: frequency axis scale (client-side view choice, no device traffic) ──
 @app.callback(
-    Output("rf-axis-mode","data"), Output("rf-ax-lin","className"), Output("rf-ax-log","className"),
-    Input("rf-ax-lin","n_clicks"), Input("rf-ax-log","n_clicks"),
+    Output("ch3-axis-mode","data"), Output("ch3-ax-lin","className"), Output("ch3-ax-log","className"),
+    Input("ch3-ax-lin","n_clicks"), Input("ch3-ax-log","n_clicks"),
 )
-def rf_pick_axis(a, b):
+def ch3_pick_axis(a, b):
     mode = "lin"
     ctx = dash.callback_context
-    if ctx.triggered and ctx.triggered[0]["prop_id"].split(".")[0] == "rf-ax-log":
+    if ctx.triggered and ctx.triggered[0]["prop_id"].split(".")[0] == "ch3-ax-log":
         mode = "log"
-    return (mode, "rf-btn" if mode == "log" else "rf-btn rf-on",
-                  "rf-btn rf-on" if mode == "log" else "rf-btn")
+    return (mode, "ch3-btn" if mode == "log" else "ch3-btn ch3-on",
+                  "ch3-btn ch3-on" if mode == "log" else "ch3-btn")
 
 
-# ── spectrum: clear the max-hold trace ──
-@app.callback(Output("rf-hold-reset","className"),
-              Input("rf-hold-reset","n_clicks"), prevent_initial_call=True)
-def rf_reset_hold(n):
-    with tinysa_cmd_lock:
-        tinysa_cmd["reset_hold"] = True
-    return "rf-btn"
+# ── sweep3: clear the max-hold trace ──
+@app.callback(Output("ch3-hold-reset","className"),
+              Input("ch3-hold-reset","n_clicks"), prevent_initial_call=True)
+def ch3_reset_hold(n):
+    with src3_cmd_lock:
+        src3_cmd["reset_hold"] = True
+    return "ch3-btn"
 
 
 @app.callback(
-    Output("rf-pause","children"), Output("rf-pause","className"),
-    Input("rf-pause","n_clicks"), prevent_initial_call=True
+    Output("ch3-pause","children"), Output("ch3-pause","className"),
+    Input("ch3-pause","n_clicks"), prevent_initial_call=True
 )
-def rf_toggle_pause(_n):
-    with tinysa_cmd_lock:
-        tinysa_cmd["paused"] = not tinysa_cmd["paused"]
-        paused = tinysa_cmd["paused"]
-    return ("RESUME" if paused else "PAUSE", "rf-btn rf-on" if paused else "rf-btn")
+def ch3_toggle_pause(_n):
+    with src3_cmd_lock:
+        src3_cmd["paused"] = not src3_cmd["paused"]
+        paused = src3_cmd["paused"]
+    return ("RESUME" if paused else "PAUSE", "ch3-btn ch3-on" if paused else "ch3-btn")
 
 
 @app.callback(
-    Output("rf-custom-status","children"),
-    Input("rf-custom-apply","n_clicks"),
-    State("rf-custom-start","value"), State("rf-custom-stop","value"),
+    Output("ch3-custom-status","children"),
+    Input("ch3-custom-apply","n_clicks"),
+    State("ch3-custom-start","value"), State("ch3-custom-stop","value"),
     prevent_initial_call=True,
 )
-def rf_custom_range(_n, start_mhz, stop_mhz):
+def ch3_custom_range(_n, start_mhz, stop_mhz):
     try:
         start = float(start_mhz)
         stop = float(stop_mhz)
@@ -690,40 +690,40 @@ def rf_custom_range(_n, start_mhz, stop_mhz):
             raise ValueError("require 0.1 <= start < stop <= 6000 MHz")
         start_hz = int(round(start * 1_000_000))
         stop_hz = int(round(stop * 1_000_000))
-        with tinysa_cmd_lock:
-            tinysa_cmd["range"] = (start_hz, stop_hz)
-            tinysa_cmd["preset"] = "custom"
+        with src3_cmd_lock:
+            src3_cmd["range"] = (start_hz, stop_hz)
+            src3_cmd["preset"] = "custom"
         return f"Queued exact range {_freq_label(start_hz)} – {_freq_label(stop_hz)}"
     except (TypeError, ValueError) as exc:
         return f"REJECTED · {exc}"
 
 
 @app.callback(
-    Output("rf-sweep-top-note", "children"),
-    Input("rf-sweep-now", "n_clicks"),
+    Output("ch3-sweep-top-note", "children"),
+    Input("ch3-sweep-now", "n_clicks"),
     prevent_initial_call=True,
 )
-def rf_sweep_now(_n):
-    with tinysa_cmd_lock:
-        tinysa_cmd["paused"] = False
-        tinysa_cmd["reset_hold"] = True
+def ch3_sweep_now(_n):
+    with src3_cmd_lock:
+        src3_cmd["paused"] = False
+        src3_cmd["reset_hold"] = True
     return "On-demand sweep requested now"
 
 
-# ── spectrum: band shading toggle ──
+# ── sweep3: band shading toggle ──
 @app.callback(
-    Output("rf-bands-mode","data"), Output("rf-band-on","className"), Output("rf-band-off","className"),
-    Input("rf-band-on","n_clicks"), Input("rf-band-off","n_clicks"),
+    Output("ch3-bands-mode","data"), Output("ch3-band-on","className"), Output("ch3-band-off","className"),
+    Input("ch3-band-on","n_clicks"), Input("ch3-band-off","n_clicks"),
 )
-def rf_pick_bands(a, b):
+def ch3_pick_bands(a, b):
     on = True
     ctx = dash.callback_context
-    if ctx.triggered and ctx.triggered[0]["prop_id"].split(".")[0] == "rf-band-off":
+    if ctx.triggered and ctx.triggered[0]["prop_id"].split(".")[0] == "ch3-band-off":
         on = False
-    return (on, "rf-btn rf-on" if on else "rf-btn", "rf-btn" if on else "rf-btn rf-on")
+    return (on, "ch3-btn ch3-on" if on else "ch3-btn", "ch3-btn" if on else "ch3-btn ch3-on")
 
 
-# ── spectrum page: RF / WiFi / Bluetooth tab switching ──
+# ── sweep3 page: CH3 / WiFi / Bluetooth tab switching ──
 @app.callback(
     Output("sp-subcontent","children"),
     Output("sp-tab-rf","className"), Output("sp-tab-sdr","className"),
@@ -732,17 +732,17 @@ def rf_pick_bands(a, b):
     Input("sp-tab-wifi","n_clicks"), Input("sp-tab-bt","n_clicks"),
 )
 def sp_switch(a, sdr, b, c):
-    which = "rf"
+    which = "ch3"
     ctx = dash.callback_context
     if ctx.triggered:
         tid = ctx.triggered[0]["prop_id"].split(".")[0]
-        which = {"sp-tab-rf":"rf", "sp-tab-sdr":"sdr",
-                 "sp-tab-wifi":"wifi", "sp-tab-bt":"bt"}.get(tid, "rf")
+        which = {"sp-tab-rf":"ch3", "sp-tab-sdr":"sdr",
+                 "sp-tab-wifi":"wifi", "sp-tab-bt":"bt"}.get(tid, "ch3")
     base = "tab-btn"; act = "tab-btn active"
     if which == "sdr":  return sdr_view(),       base, act,  base, base
     if which == "wifi": return wifi_view(),      base, base, act,  base
     if which == "bt":   return bluetooth_view(), base, base, base, act
-    return rf_sweep_view(), act, base, base, base
+    return ch3_sweep_view(), act, base, base, base
 
 
 # ── WiFi survey + LAN neighbours ──
@@ -994,17 +994,17 @@ app.clientside_callback(
 )
 
 
-# ── EMI analysis: selected LLM + real, trusted sensor windows ──
-emi_analysis_lock = threading.Lock()
+# ── SG analysis: selected LLM + real, trusted sensor windows ──
+sg_analysis_lock = threading.Lock()
 
 
 @app.callback(
-    Output("emi-auto-state", "data"), Output("emi-auto-btn", "children"),
-    Output("emi-auto-interval", "disabled"), Output("emi-status", "children"),
-    Input("emi-auto-btn", "n_clicks"), State("emi-auto-state", "data"),
+    Output("sg-auto-state", "data"), Output("sg-auto-btn", "children"),
+    Output("sg-auto-interval", "disabled"), Output("sg-status", "children"),
+    Input("sg-auto-btn", "n_clicks"), State("sg-auto-state", "data"),
     prevent_initial_call=True,
 )
-def toggle_emi_auto(n_clicks, enabled):
+def toggle_sg_auto(n_clicks, enabled):
     if not n_clicks:
         raise PreventUpdate
     active = not bool(enabled)
@@ -1017,26 +1017,26 @@ def toggle_emi_auto(n_clicks, enabled):
     )
 
 
-@app.callback(Output("emi-live-state", "children"), Input("mtdi-interval", "n_intervals"),
+@app.callback(Output("sg-live-state", "children"), Input("mtdi-interval", "n_intervals"),
               Input("mobile-refresh-btn","n_clicks"))
-def update_emi_live_state(_n, _refresh):
-    with mag_lock:
-        mag_count = len(magnetic_data["history"])
-        mag_ok = magnetic_data["error"] is None and magnetic_data["last_rx"] is not None
-    with efield_lock:
-        ef_count = len(efield_data["history"])
-        ef_ok = efield_data["error"] is None and efield_data["last_rx"] is not None
-    with spectrum_lock:
-        rf_count = len(spectrum_data["levels"])
-        rf_ok = spectrum_data["error"] is None and spectrum_data["last_rx"] is not None
-        rf_trusted = spectrum_data["trusted"]
+def update_sg_live_state(_n, _refresh):
+    with c1_lock:
+        c1_count = len(ch1_data["history"])
+        c1_ok = ch1_data["error"] is None and ch1_data["last_rx"] is not None
+    with ch2f_lock:
+        c2_count = len(ch2f_data["history"])
+        c2_ok = ch2f_data["error"] is None and ch2f_data["last_rx"] is not None
+    with sweep3_lock:
+        ch3_count = len(sweep3_data["levels"])
+        ch3_ok = sweep3_data["error"] is None and sweep3_data["last_rx"] is not None
+        ch3_trusted = sweep3_data["trusted"]
     def chip(label, count, state):
-        return html.Div([html.B(f"{count} SAMPLES"), f"{label} · {state}"], className="emi-live-chip")
+        return html.Div([html.B(f"{count} SAMPLES"), f"{label} · {state}"], className="sg-live-chip")
     return [
-        chip('LABEL', mag_count, "LIVE" if mag_ok else "OFFLINE"),
-        chip('LABEL', ef_count, "LIVE" if ef_ok else "OFFLINE"),
-        chip('LABEL', rf_count, "TRUSTED" if rf_ok and rf_trusted else
-             ("UNTRUSTED" if rf_ok else "OFFLINE")),
+        chip('LABEL', c1_count, "LIVE" if c1_ok else "OFFLINE"),
+        chip('LABEL', c2_count, "LIVE" if c2_ok else "OFFLINE"),
+        chip('LABEL', ch3_count, "TRUSTED" if ch3_ok and ch3_trusted else
+             ("UNTRUSTED" if ch3_ok else "OFFLINE")),
     ]
 
 
@@ -1044,30 +1044,30 @@ def update_emi_live_state(_n, _refresh):
               Input("mtdi-interval", "n_intervals"),
               Input("mobile-refresh-btn", "n_clicks"))
 def update_nvtra_basic_ml(_n, _refresh):
-    with mag_lock:
-        magnetic_ut = float(magnetic_data["magnitude"])
-        mag_ready = magnetic_data["error"] is None and magnetic_data["last_rx"] is not None
-    with efield_lock:
-        electric_v_m = float(efield_data["field_v_m"])
-        ef_ready = efield_data["error"] is None and efield_data["last_rx"] is not None
-    if not (mag_ready and ef_ready):
+    with c1_lock:
+        ch1_val = float(ch1_data["magnitude"])
+        c1_ready = ch1_data["error"] is None and ch1_data["last_rx"] is not None
+    with ch2f_lock:
+        ch2_vu = float(ch2f_data["field_vu"])
+        c2_ready = ch2f_data["error"] is None and ch2f_data["last_rx"] is not None
+    if not (c1_ready and c2_ready):
         return 'MODEL WAITING\nBoth live channel 1 and channel 2 sources are required.'
-    result = _nvtra_basic_ml(electric_v_m, magnetic_ut)
+    result = _nvtra_basic_ml(ch2_vu, ch1_val)
     confidence = f"{result['confidence']}%" if result["label"] != "UNKNOWN" else "REJECTED"
     return (
         f"ESTIMATE · {result['label']}\n"
-        f"LIVE INPUT · {electric_v_m:.1f} unit · {magnetic_ut:.1f} unit\n"
+        f"LIVE INPUT · {ch2_vu:.1f} unit · {ch1_val:.1f} unit\n"
         f"MODEL CONFIDENCE · {confidence}\n"
         f"REASON · {result['reason']}"
     )
 
 
 @app.callback(
-    Output("emi-result", "children"),
-    Input("emi-analyse-btn", "n_clicks"), Input("emi-auto-interval", "n_intervals"),
+    Output("sg-result", "children"),
+    Input("sg-analyse-btn", "n_clicks"), Input("sg-auto-interval", "n_intervals"),
     prevent_initial_call=True,
 )
-def analyse_live_emi(manual_clicks, auto_ticks):
+def analyse_live_sg(manual_clicks, auto_ticks):
     ctx = dash.callback_context
     if not ctx.triggered or not ctx.triggered[0].get("value"):
         raise PreventUpdate
@@ -1078,10 +1078,10 @@ def analyse_live_emi(manual_clicks, auto_ticks):
         )
     if not nvtra_online():
         return html.Div(_nvtra_error_text("no-key"), className="error-box")
-    if not emi_analysis_lock.acquire(blocking=False):
+    if not sg_analysis_lock.acquire(blocking=False):
         return 'An interference analysis is already running. The current source window remains live.'
     try:
-        snapshot, error = _emi_live_snapshot()
+        snapshot, error = _sg_live_snapshot()
         if error:
             return html.Div(error, className="error-box")
         prompt = (
@@ -1089,12 +1089,12 @@ def analyse_live_emi(manual_clicks, auto_ticks):
             json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
         )
         reply, ai_error = _selected_ai_generate(
-            EMI_ANALYST_SYSTEM, [{"role": "user", "text": prompt}],
+            SG_ANALYST_SYSTEM, [{"role": "user", "text": prompt}],
             max_output_tokens=1800,
         )
         if not reply:
             return html.Div(_nvtra_error_text(ai_error or "empty"), className="error-box")
-        missing = _emi_missing_headings(reply)
+        missing = _sg_missing_headings(reply)
         if missing:
             repair_history = [
                 {"role": "user", "text": prompt},
@@ -1105,12 +1105,12 @@ def analyse_live_emi(manual_clicks, auto_ticks):
                 )},
             ]
             repaired, repair_error = _selected_ai_generate(
-                EMI_ANALYST_SYSTEM, repair_history, max_output_tokens=1800,
+                SG_ANALYST_SYSTEM, repair_history, max_output_tokens=1800,
             )
-            if repaired and not _emi_missing_headings(repaired):
+            if repaired and not _sg_missing_headings(repaired):
                 reply = repaired
             else:
-                still_missing = _emi_missing_headings(repaired or reply)
+                still_missing = _sg_missing_headings(repaired or reply)
                 return html.Div(
                     'Paragraph. Enter your text here. ' + ", ".join(still_missing) +
                     (f"\nProvider error: {_nvtra_error_text(repair_error)}"
@@ -1125,7 +1125,7 @@ def analyse_live_emi(manual_clicks, auto_ticks):
         )
         return header + reply.strip()
     finally:
-        emi_analysis_lock.release()
+        sg_analysis_lock.release()
 
 
 # ── MTDI live (health + completeness + Pi telemetry) ──
@@ -1159,16 +1159,16 @@ def _pi_grid():
 )
 def update_mtdi(n, _refresh):
     with mtdi_lock:
-        mc = mtdi_data["mag_health"]; ec = mtdi_data["efield_health"]
-        rc = mtdi_data["rf_health"]; ov = mtdi_data["active_health"]
+        mc = mtdi_data["c1_health"]; ec = mtdi_data["ch2f_health"]
+        rc = mtdi_data["ch3_health"]; ov = mtdi_data["active_health"]
         completeness = mtdi_data["completeness"]
-        mn_ = mtdi_data["mag_note"]; en_ = mtdi_data["efield_note"]
-        rn_ = mtdi_data["rf_note"]
-    with mag_lock: md = dict(magnetic_data); h10 = list(magnetic_data["history"])[-10:]
-    with efield_lock: ed = dict(efield_data)
-    with spectrum_lock: sd_rf = dict(spectrum_data)
+        mn_ = mtdi_data["c1_note"]; en_ = mtdi_data["ch2f_note"]
+        rn_ = mtdi_data["ch3_note"]
+    with c1_lock: md = dict(ch1_data); h10 = list(ch1_data["history"])[-10:]
+    with ch2f_lock: ed = dict(ch2f_data)
+    with sweep3_lock: sd_ch3 = dict(sweep3_data)
     eonline = ed["error"] is None and ed["last_rx"] is not None and ed["calibrated"]
-    ronline = sd_rf["error"] is None and sd_rf["last_rx"] is not None
+    ronline = sd_ch3["error"] is None and sd_ch3["last_rx"] is not None
     def _cc(v): return GREEN if v > 80 else AMBER if v > 50 else RED
     ov_el = html.Div([html.Div([
                      html.Div(f"{ov:.0f}%", className=f"conf-ring-val {_cls(_cc(ov))}"),
@@ -1206,7 +1206,7 @@ def update_mtdi(n, _refresh):
               'Text' if md["calibrated"] else 'Text',
               vc=CYAN if md["calibrated"] else SUBTEXT),
         _card("MAGNITUDE", f"{md['magnitude']:.2f} unit" if mo_ else "—",
-              f"Min {md['min_mag']:.2f}  Max {md['max_mag']:.2f}" if md['min_mag'] != float('inf') else "—",
+              f"Min {md['min_c1']:.2f}  Max {md['max_c1']:.2f}" if md['min_c1'] != float('inf') else "—",
               vc=CYAN if mo_ else SUBTEXT),
         _card("NOISE σ", vs, 'Text', vc=vc_),
         _card('CHANNEL 2 LINK', "ONLINE" if eonline else ('TITLE' if ed["error"] is None else "OFFLINE"),
@@ -1215,59 +1215,59 @@ def update_mtdi(n, _refresh):
         _card('CHANNEL 2',
               (f"{ed.get('rms_counts'):.2f} ADC counts RMS"
                if ed.get("data_source") == "ARDUINO_UNO_USB" and ed.get("rms_counts") is not None else
-               f"{ed['field_v_m']:.3f} unit = N/C" if ed["last_rx"] and ed["field_v_m"] is not None else "—"),
+               f"{ed['field_vu']:.3f} unit = N/C" if ed["last_rx"] and ed["field_vu"] is not None else "—"),
               ('Text' if ed["clipped"] else
                'Text' if ed.get("data_source") == "ARDUINO_UNO_USB" else
-               f"index {ed['rel_index']:.0f}% · base {ed['baseline_v_m']:.3f} unit"),
+               f"index {ed['rel_index']:.0f}% · base {ed['baseline_vu']:.3f} unit"),
               vc=RED if ed["clipped"] else CYAN),
         _card("SAMPLES", str(len(md["xyz_history"])), 'Text', vc=WHITE),
-        _card('CHANNEL 3 LINK', ('TITLE' if sd_rf["trusted"] else 'TITLE') if ronline else "OFFLINE",
-              f"{sd_rf['device'][:28]} · {sd_rf['sweeps']} sweeps" if ronline
-              else (sd_rf["error"] or "waiting")[:40],
-              vc=(GREEN if sd_rf["trusted"] else AMBER) if ronline else RED),
-        _card('CH 3 PEAK', f"{sd_rf['peak_level']:+.1f} unit" if ronline else "—",
-              (f"{_freq_label(sd_rf['peak_freq'])} · {_band_of(sd_rf['peak_freq'])}" if ronline else 'Text'),
-              vc=(CYAN if sd_rf["level_sane"] else RED) if ronline else SUBTEXT),
-        _card('BROAD EST. CH 3 FLOOR', f"{sd_rf['floor']:+.1f} unit" if ronline else "—",
-              (sd_rf["level_note"][:42] if ronline else "—"),
-              vc=(WHITE if sd_rf["level_sane"] else RED) if ronline else SUBTEXT),
-        _card('CH 3 SPAN', _span_label(sd_rf["span_start"], sd_rf["span_stop"]) if ronline else "—",
-              f"{sd_rf['points']} pts · {sd_rf['sweep_s']:.1f}s/sweep" if ronline else "—", vc=CYAN),
+        _card('CHANNEL 3 LINK', ('TITLE' if sd_ch3["trusted"] else 'TITLE') if ronline else "OFFLINE",
+              f"{sd_ch3['device'][:28]} · {sd_ch3['sweeps']} sweeps" if ronline
+              else (sd_ch3["error"] or "waiting")[:40],
+              vc=(GREEN if sd_ch3["trusted"] else AMBER) if ronline else RED),
+        _card('CH 3 PEAK', f"{sd_ch3['peak_level']:+.1f} unit" if ronline else "—",
+              (f"{_freq_label(sd_ch3['peak_freq'])} · {_band_of(sd_ch3['peak_freq'])}" if ronline else 'Text'),
+              vc=(CYAN if sd_ch3["level_sane"] else RED) if ronline else SUBTEXT),
+        _card('BROAD EST. CH 3 FLOOR', f"{sd_ch3['floor']:+.1f} unit" if ronline else "—",
+              (sd_ch3["level_note"][:42] if ronline else "—"),
+              vc=(WHITE if sd_ch3["level_sane"] else RED) if ronline else SUBTEXT),
+        _card('CH 3 SPAN', _span_label(sd_ch3["span_start"], sd_ch3["span_stop"]) if ronline else "—",
+              f"{sd_ch3['points']} pts · {sd_ch3['sweep_s']:.1f}s/sweep" if ronline else "—", vc=CYAN),
     ]
     return ov_el, sensor_grid, sensor_side, _pi_grid()
 
 
 @app.callback(
-    Output("ei-mag-baseline", "children"), Output("ei-mag-delta", "children"),
-    Output("ei-ef-baseline", "children"), Output("ei-ef-live", "children"),
+    Output("ei-c1-baseline", "children"), Output("ei-c1-delta", "children"),
+    Output("ei-c2-baseline", "children"), Output("ei-c2-live", "children"),
     Output("ei-baseline-status", "children"),
     Input("mtdi-interval", "n_intervals"), Input("mobile-refresh-btn","n_clicks"),
 )
 def update_environmental_intelligence(n, _refresh):
-    with mag_lock:
-        mag_ready = magnetic_data["baseline_calibrated"]
-        mag_base = magnetic_data["baseline_magnitude"]
-        mag_delta = magnetic_data["baseline_delta"]
-        mag_error = magnetic_data["error"]
-    with efield_lock:
-        ef_ready = efield_data["calibrated"]
-        ef_base = efield_data["baseline_v_m"]
-        ef_live = efield_data["field_v_m"]
-        ef_error = efield_data["error"]
-        ef_clipped = efield_data["clipped"]
+    with c1_lock:
+        c1_ready = ch1_data["baseline_calibrated"]
+        c1_base = ch1_data["baseline_magnitude"]
+        c1_delta = ch1_data["baseline_delta"]
+        c1_error = ch1_data["error"]
+    with ch2f_lock:
+        c2_ready = ch2f_data["calibrated"]
+        c2_base = ch2f_data["baseline_vu"]
+        c2_live = ch2f_data["field_vu"]
+        c2_error = ch2f_data["error"]
+        c2_clipped = ch2f_data["clipped"]
 
-    mag_text = f"{mag_base:.2f} unit" if mag_ready else "LEARNING"
-    delta_text = f"{mag_delta:.2f} unit" if mag_ready else "—"
-    ef_base_text = f"{ef_base:.3f} unit" if ef_ready else "LEARNING"
-    ef_live_text = (("≥ " if ef_clipped else "") + f"{ef_live:.3f} unit") if not ef_error else "—"
+    c1_text = f"{c1_base:.2f} unit" if c1_ready else "LEARNING"
+    delta_text = f"{c1_delta:.2f} unit" if c1_ready else "—"
+    c2_base_text = f"{c2_base:.3f} unit" if c2_ready else "LEARNING"
+    c2_live_text = (("≥ " if c2_clipped else "") + f"{c2_live:.3f} unit") if not c2_error else "—"
 
-    if mag_error or ef_error:
-        status = f"BASELINE CHANNEL WARNING · CH 1: {mag_error or 'ready'} · E: {ef_error or 'ready'}"
-    elif mag_ready and ef_ready:
+    if c1_error or c2_error:
+        status = f"BASELINE CHANNEL WARNING · CH 1: {c1_error or 'ready'} · E: {c2_error or 'ready'}"
+    elif c1_ready and c2_ready:
         status = "BASELINES LOCKED · references remain fixed until recalibration"
     else:
         status = "LEARNING ENVIRONMENT · keep both probes fixed and clear"
-    return mag_text, delta_text, ef_base_text, ef_live_text, status
+    return c1_text, delta_text, c2_base_text, c2_live_text, status
 
 
 # ── settings system grid ──
@@ -1299,8 +1299,8 @@ def do_archive_csv(n):
     if not n:
         raise PreventUpdate
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    payload = export_rf_csv_bytes()
-    filename = f"studio_rf_sweeps_{stamp}.csv"
+    payload = export_ch3_csv_bytes()
+    filename = f"studio_ch3_sweeps_{stamp}.csv"
     return dcc.send_bytes(lambda buffer: buffer.write(payload),
                           filename)
 
@@ -1489,11 +1489,11 @@ app.clientside_callback(
       if(id === "anim-off"){
         document.documentElement.classList.add("no-anim");
         var sh = document.getElementById('page-shader-canvas'); if(sh) sh.remove();
-        try{localStorage.setItem("iv-anim","off");}catch(e){}
+        try{localStorage.setItem("i3-anim","off");}catch(e){}
       } else {
         document.documentElement.classList.remove("no-anim");
-        if(window.__ivBootPageShader) window.__ivBootPageShader();
-        try{localStorage.setItem("iv-anim","on");}catch(e){}
+        if(window.__i3BootPageShader) window.__i3BootPageShader();
+        try{localStorage.setItem("i3-anim","on");}catch(e){}
       }
       return "";
     }
@@ -1512,13 +1512,13 @@ app.clientside_callback(
       if(!c.triggered.length) return "";
       var id = c.triggered[0].prop_id.split(".")[0];
       var mobile = (id === "phone-layout-mobile");
-      try{ localStorage.setItem("iv-phone-layout", mobile ? "mobile" : "desktop"); }catch(e){}
+      try{ localStorage.setItem("i3-phone-layout", mobile ? "mobile" : "desktop"); }catch(e){}
       /* syncPhoneMode owns the viewport meta and the stage transform. Calling it
          re-reads the setting we just stored, so the change lands without a reload;
          resizing is the event it already listens for. On a desktop browser it is a
          no-op, which is why the buttons are safe to press anywhere. */
       try{
-        if(window.__ivSyncPhoneMode) window.__ivSyncPhoneMode();
+        if(window.__i3SyncPhoneMode) window.__i3SyncPhoneMode();
         else window.dispatchEvent(new Event('resize'));
       }catch(e){}
       return "";
@@ -1562,14 +1562,14 @@ def run_self_test():
         'Text',
     )
     if not all(_help_advertises_command(text, "scan") for text in help_variants):
-        failures.append("TinySA help capability lookup rejected a valid scan entry")
+        failures.append("Src3 help capability lookup rejected a valid scan entry")
     if _help_advertises_command("version\ninfo\nleveloffset", "scan"):
-        failures.append("TinySA help capability lookup found a nonexistent scan entry")
+        failures.append("Src3 help capability lookup found a nonexistent scan entry")
 
     two = "100000 -90.0\n200000 -88.5\n300000 -91.0\n"
     three = "scan 100000 300000 3 3\n100000 -90.0 0\n200000 -88.5 0\n300000 -91.0 0\nch>"
 
-    class MockTinySATransport:
+    class MockSrc3Transport:
         """Prompt-framed serial fixture whose help intentionally omits `scan`."""
         help_text = "version\ninfo\nleveloffset"
 
@@ -1597,11 +1597,11 @@ def run_self_test():
             return chunk
 
     try:
-        mock_tsa = MockTinySATransport()
-        if _help_advertises_command(mock_tsa.help_text, "scan"):
+        mock_s3 = MockSrc3Transport()
+        if _help_advertises_command(mock_s3.help_text, "scan"):
             failures.append("mock fixture unexpectedly advertises scan")
-        f, levels, _raw, _warnings = _tsa_scan(
-            mock_tsa, 100_000, 300_000, 3, timeout=0.25
+        f, levels, _raw, _warnings = _s3_scan(
+            mock_s3, 100_000, 300_000, 3, timeout=0.25
         )
         validate_sweep(f, levels, 100_000, 300_000, 3)
     except Exception as exc:
@@ -1617,15 +1617,15 @@ def run_self_test():
         f, levels = parse_text_scan(two)
         validate_sweep(f[:2], levels[:2], 100_000, 300_000, 3)
         failures.append("truncated sweep was accepted")
-    except TinySAProtocolError:
+    except Src3ProtocolError:
         pass
     try:
         parse_text_scan("scan 1 2 3\nch>")
         failures.append("empty scan was accepted")
-    except TinySAProtocolError:
+    except Src3ProtocolError:
         pass
     try:
-        peaks = _tsa_peaks(
+        peaks = _s3_peaks(
             [float(i) for i in range(9)],
             [-100, -100, -99, -70, -99, -100, -75, -100, -100],
             -100,
@@ -1646,13 +1646,13 @@ def run_self_test():
     pages = {
         "root": app.layout,
         "home": home_page(),
-        "em": em_page(),
-        "em-magnetic": magnetic_view(),
-        "em-electric": electric_view(),
-        "em-combined": combined_view(),
-        "spectrum-rf": spectrum_page(),
-        "spectrum-wifi": wifi_view(),
-        "spectrum-bluetooth": bluetooth_view(),
+        "p1": p1_page(),
+        "p1-ch1": ch1_view(),
+        "p1-ch2": ch2_view(),
+        "p1-combined": combined_view(),
+        "sweep3-rf": sweep3_page(),
+        "sweep3-wifi": wifi_view(),
+        "sweep3-bluetooth": bluetooth_view(),
         "mtdi": mtdi_page(),
         "settings": settings_page(),
     }
@@ -1685,11 +1685,11 @@ def run_self_test():
                 )
 
     try:
-        magnetic_empty = update_numbers(0, None)
-        if magnetic_empty[:4] != ("—", "—", "—", "—"):
+        ch1_empty = update_numbers(0, None)
+        if ch1_empty[:4] != ("—", "—", "—", "—"):
             failures.append('offline channel 1 UI displays numeric placeholder data')
-        efield_empty = update_efield_numbers(0, None)
-        if efield_empty[0] != "—" or efield_empty[2] != "—" or efield_empty[3] != "—":
+        ch2f_empty = update_ch2f_numbers(0, None)
+        if ch2f_empty[0] != "—" or ch2f_empty[2] != "—" or ch2f_empty[3] != "—":
             failures.append('offline Channel 2 UI displays numeric placeholder data')
     except Exception as exc:
         failures.append(f"empty hardware UI state: {exc}")
@@ -1707,34 +1707,34 @@ def run_self_test():
             "cpu_usage", "ram_used_mb", "ram_total_mb", "ram_pct",
             "disk_used_gb", "disk_total_gb", "disk_pct", "uptime_str",
             "temperature_available", "telemetry_source", "host_model",
-            "raspberry_pi",
+            "single_board",
         }
         missing = sorted(required.difference(snapshot))
         if missing:
             failures.append(f"system telemetry snapshot missing keys: {', '.join(missing)}")
-        reference_field = _ef_v_per_m(1265.0)
-        if os.environ.get("STUDIO_EFIELD_V_PER_M_PER_VOLT") is None and abs(reference_field - 500.0) > 0.001:
+        referencch2f = _c2_scale(1265.0)
+        if os.environ.get("STUDIO_CH2F_SCALE_PER_VOLT") is None and abs(referencch2f - 500.0) > 0.001:
             failures.append(
-                f"default Channel 2 reference scale maps 1265 mV to {reference_field:.3f} unit, not 500 unit"
+                f"default Channel 2 reference scale maps 1265 mV to {referencch2f:.3f} unit, not 500 unit"
             )
-        quiet_mv = EF_OBSERVED_QUIET_V_M / EF_V_PER_M_PER_VOLT * 1000.0
-        fixture_mv = EF_OBSERVED_REFERENCE_V_M / EF_V_PER_M_PER_VOLT * 1000.0
-        if abs(_ef_calibrated_v_per_m(quiet_mv, quiet_mv)) > 0.001:
+        quiet_mv = C2_OBSERVED_QUIET_VU / C2_SCALE_PER_VOLT * 1000.0
+        fixture_mv = C2_OBSERVED_REFERENCE_VU / C2_SCALE_PER_VOLT * 1000.0
+        if abs(_c2_calibrated_scale(quiet_mv, quiet_mv)) > 0.001:
             failures.append('Channel 2 environmental reference does not calibrate to 0 unit')
-        calibrated_fixture = _ef_calibrated_v_per_m(fixture_mv, quiet_mv)
-        normalized_fixture = 500.0 * EF_PHONE_NORMALIZATION
+        calibrated_fixture = _c2_calibrated_scale(fixture_mv, quiet_mv)
+        normalized_fixture = 500.0 * C2_PHONE_NORMALIZATION
         if abs(calibrated_fixture - normalized_fixture) > 0.001:
             failures.append(
                 f"Channel 2 fixture maps to {calibrated_fixture:.3f} unit, not {normalized_fixture:.3f} unit"
             )
-        if abs(EF_PHONE_PREVIOUS_V_M * EF_PHONE_NORMALIZATION - 50.0) > 0.001:
+        if abs(C2_PHONE_PREVIOUS_VU * C2_PHONE_NORMALIZATION - 50.0) > 0.001:
             failures.append('Channel 2 phone normalization does not map 1200 unit to 50 unit')
-        for raw_ut, expected_ut in ((MAG_RAW_REF_LOW_UT, 28.0), (120.0, 2000.0)):
-            cx, cy, cz = _apply_magnetic_magnitude_curve(raw_ut, 0.0, 0.0)
-            corrected_ut = math.sqrt(cx*cx + cy*cy + cz*cz)
-            if abs(corrected_ut - expected_ut) > 0.001:
+        for raw_val, expected_val in ((C1_RAW_REF_LOW_VAL, 28.0), (120.0, 2000.0)):
+            cx, cy, cz = _apply_ch1_magnitude_curve(raw_val, 0.0, 0.0)
+            corrected_val = math.sqrt(cx*cx + cy*cy + cz*cz)
+            if abs(corrected_val - expected_val) > 0.001:
                 failures.append(
-                    f"channel 1 curve maps {raw_ut:.1f} unit to {corrected_ut:.3f} unit, not {expected_ut:.1f} unit"
+                    f"channel 1 curve maps {raw_val:.1f} unit to {corrected_val:.3f} unit, not {expected_val:.1f} unit"
                 )
         provider_cases = (
             ("sk" + "-ant-" + "example-credential", "anthropic"),
@@ -1750,10 +1750,10 @@ def run_self_test():
                 failures.append(
                     f"provider routing mapped {expected_provider} fixture to {actual_provider}"
                 )
-        if not all(heading in EMI_ANALYST_SYSTEM for heading in EMI_REQUIRED_HEADINGS):
+        if not all(heading in SG_ANALYST_SYSTEM for heading in SG_REQUIRED_HEADINGS):
             failures.append('interference analyst prompt lost a required heading')
-        complete_fixture = "\n".join(EMI_REQUIRED_HEADINGS) + "\ncomplete"
-        if _emi_missing_headings(complete_fixture):
+        complete_fixture = "\n".join(SG_REQUIRED_HEADINGS) + "\ncomplete"
+        if _sg_missing_headings(complete_fixture):
             failures.append('interference heading validator rejected a complete response')
         if MANUAL_API_KEYS:
             failures.append("distributable source contains manual API-key entries")
@@ -1792,9 +1792,9 @@ def run_self_test():
     for builder in (lambda: make_line_chart([1, 2, 3]), lambda: fig_gauge(30.0),
                     lambda: fig_3d_surface([(1.0, 2.0, 3.0)]), lambda: fig_archive(),
                     lambda: fig_3d_error_plane([(1.0, 2.0, 3.0)]),
-                    lambda: fig_3d_dipole_field([(1.0, 2.0, 3.0)]),
-                    lambda: fig_ef_b_correlation([1.0, 2.0], [10.0, 20.0]),
-                    lambda: fig_rf_trend([1.0, 2.0])):
+                    lambda: fig_3d_dipolch2f([(1.0, 2.0, 3.0)]),
+                    lambda: fig_c2_b_correlation([1.0, 2.0], [10.0, 20.0]),
+                    lambda: fig_ch3_trend([1.0, 2.0])):
         layout = builder().layout
         if layout.transition.duration != 0:
             failures.append("a figure was built without transition duration 0")
@@ -1809,7 +1809,7 @@ def run_self_test():
 
     try:
         client = server.test_client()
-        for route in ("/", "/em", "/spectrum", "/mtdi", "/settings"):
+        for route in ("/", "/page-1", "/page-2", "/mtdi", "/settings"):
             response = client.get(route)
             if response.status_code != 200:
                 failures.append(f"route {route} returned HTTP {response.status_code}")
@@ -1848,7 +1848,7 @@ def run_self_test():
     return 0
 
 
-def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
+def src3_hardware_check(start_hz, stop_hz, points, output_dir):
     """Conservative real-device diagnostic using text scans only."""
     report = {
         "created_at":time.time(), "candidates":[], "verified":False,
@@ -1857,39 +1857,39 @@ def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
     }
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
-    tsa = None
+    s3 = None
     try:
         import serial
-        candidates = _tsa_find_ports()
+        candidates = _s3_find_ports()
         report["candidates"] = candidates
         print("Serial candidates:")
         for candidate in candidates:
             print(f"  {candidate}")
         if not candidates:
-            raise TinySAError("no TinySA serial candidates found")
+            raise Src3Error("no Src3 serial candidates found")
         errors = []
         version = info = help_text = port = ""
         for candidate in candidates:
             trial = None
             try:
-                trial = serial.Serial(candidate, TSA_BAUD, timeout=0.25, write_timeout=2)
+                trial = serial.Serial(candidate, S3_BAUD, timeout=0.25, write_timeout=2)
                 time.sleep(0.35)
-                version = "\n".join(_tsa_reply_lines(_tsa_cmd(trial, "version", 5), "version"))
-                info = "\n".join(_tsa_reply_lines(_tsa_cmd(trial, "info", 5), "info"))
-                help_text = "\n".join(_tsa_reply_lines(_tsa_cmd(trial, "help", 7), "help"))
-                if "tinysa" not in f"{version} {info} {help_text}".lower():
-                    raise TinySAProtocolError("device did not identify as TinySA")
-                tsa, port = trial, candidate
+                version = "\n".join(_s3_reply_lines(_s3_cmd(trial, "version", 5), "version"))
+                info = "\n".join(_s3_reply_lines(_s3_cmd(trial, "info", 5), "info"))
+                help_text = "\n".join(_s3_reply_lines(_s3_cmd(trial, "help", 7), "help"))
+                if "src3" not in f"{version} {info} {help_text}".lower():
+                    raise Src3ProtocolError("device did not identify as Src3")
+                s3, port = trial, candidate
                 break
             except Exception as exc:
                 errors.append(f"{candidate}: {exc}")
                 if trial:
                     trial.close()
-        if tsa is None:
-            raise TinySAError("verification failed: " + "; ".join(errors))
+        if s3 is None:
+            raise Src3Error("verification failed: " + "; ".join(errors))
         report.update({"verified":True, "port":port, "version":version, "info":info})
         (destination / "help.txt").write_text(help_text, encoding="utf-8")
-        print(f"Verified: {version.splitlines()[0] if version else 'TinySA'} on {port}")
+        print(f"Verified: {version.splitlines()[0] if version else 'Src3'} on {port}")
         print(info)
 
         # A small first scan establishes parser and repeatability before the selected span.
@@ -1897,8 +1897,8 @@ def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
         scans = []
         for index in (1, 2):
             started = time.time()
-            freqs, levels, raw, warnings = _tsa_scan(
-                tsa, small_start, small_stop, small_points, timeout=30
+            freqs, levels, raw, warnings = _s3_scan(
+                s3, small_start, small_stop, small_points, timeout=30
             )
             duration = time.time() - started
             (destination / f"small_scan_{index}_raw.txt").write_text(raw, encoding="utf-8")
@@ -1923,7 +1923,7 @@ def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
         }
 
         started = time.time()
-        freqs, levels, raw, warnings = _tsa_scan(tsa, start_hz, stop_hz, points, timeout=120)
+        freqs, levels, raw, warnings = _s3_scan(s3, start_hz, stop_hz, points, timeout=120)
         duration = time.time() - started
         (destination / "selected_scan_raw.txt").write_text(raw, encoding="utf-8")
         (destination / "selected_scan.csv").write_text(
@@ -1937,7 +1937,7 @@ def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
             "returned_points":len(freqs), "duration_s":duration,
             "bin_width_hz":(freqs[-1]-freqs[0])/max(len(freqs)-1, 1),
             "warnings":warnings,
-            "trusted":not warnings and statistics.median(levels) <= TSA_SANE_MAX_DBM,
+            "trusted":not warnings and statistics.median(levels) <= S3_SANE_MAX_DBM,
         }
         if not report["selected_scan"]["trusted"]:
             report["warnings"].append(
@@ -1945,11 +1945,11 @@ def tinysa_hardware_check(start_hz, stop_hz, points, output_dir):
             )
     except Exception as exc:
         report["error"] = str(exc)
-        LOG.exception("TinySA hardware diagnostic failed")
+        LOG.exception("Src3 hardware diagnostic failed")
     finally:
-        if tsa:
+        if s3:
             try:
-                tsa.close()
+                s3.close()
             except Exception:
                 LOG.exception("Diagnostic serial close failed")
         (destination / "diagnostic_report.json").write_text(
@@ -1973,7 +1973,7 @@ def system_hardware_check():
         if index < 2:
             time.sleep(0.55)
     latest = samples[-1] if samples else {}
-    if not latest.get("raspberry_pi"):
+    if not latest.get("single_board"):
         errors.append(f"host is not identified as a host computer ({latest.get('host_model', 'unknown')})")
     if not latest.get("temperature_available"):
         errors.append("no real host computer CPU-temperature source is available")
@@ -1987,7 +1987,7 @@ def system_hardware_check():
     report = {
         "passed": not errors, "app_version": APP_VERSION,
         "samples_collected": len(samples), "host_model": latest.get("host_model"),
-        "raspberry_pi": bool(latest.get("raspberry_pi")),
+        "single_board": bool(latest.get("single_board")),
         "telemetry_source": latest.get("telemetry_source"),
         "cpu_usage_percent": latest.get("cpu_usage"),
         "cpu_temperature_c": temperature if latest.get("temperature_available") else None,
@@ -2038,11 +2038,11 @@ def parse_args(argv=None):
     parser.add_argument("--system-check", action="store_true",
                         help="verify real host computer host telemetry and exit")
     parser.add_argument("--hash-password", action="store_true", help="prompt for a password and print a PBKDF2 hash")
-    parser.add_argument("--tinysa-check", action="store_true", help="run the real-hardware text-scan diagnostic and exit")
+    parser.add_argument("--src3-check", action="store_true", help="run the real-hardware text-scan diagnostic and exit")
     parser.add_argument("--check-start-hz", type=int, default=88_000_000)
     parser.add_argument("--check-stop-hz", type=int, default=108_000_000)
     parser.add_argument("--check-points", type=int, default=101)
-    parser.add_argument("--check-output", default=f"tinysa_diagnostic_{time.strftime('%Y%m%d_%H%M%S')}")
+    parser.add_argument("--check-output", default=f"src3_diagnostic_{time.strftime('%Y%m%d_%H%M%S')}")
     parser.add_argument("--log-level", default=os.environ.get("STUDIO_LOG_LEVEL", "INFO"))
     parser.add_argument(
         "--log-file",
@@ -2114,8 +2114,8 @@ def main(argv=None):
         return run_self_test()
     if args.system_check:
         return system_hardware_check()
-    if args.tinysa_check:
-        return tinysa_hardware_check(
+    if args.src3_check:
+        return src3_hardware_check(
             args.check_start_hz, args.check_stop_hz,
             args.check_points, args.check_output,
         )
@@ -2263,7 +2263,7 @@ def _d4_empty(height=200, text=""):
     return fig
 
 
-def _mains_rows(m, label):
+def _linefreq_rows(m, label):
     if not m:
         return [(label, 'Text')]
     if m.get("error"):
@@ -2276,8 +2276,8 @@ def _mains_rows(m, label):
             ("Window", f"{m.get('contiguous_s') or ''} s · {m.get('samples')} samples" + (f" · {m['note']}" if m.get("note") else ""))]
 
 
-def _mains_fig(m, height=230):
-    sp = (m or {}).get("spectrum") or {}
+def _linefreq_fig(m, height=230):
+    sp = (m or {}).get("sweep3") or {}
     if not sp.get("hz"):
         return _d4_empty(height, (m or {}).get("error") or "waiting for samples")
     fig = go.Figure()
@@ -2307,7 +2307,7 @@ def _d4_render(kind, d, rt, where):
                 html.Div(f"weights {' · '.join(f'{k} {v:.2f}' for k, v in d['weights'].items())} · engine {rt.d4.compute_seconds or 0} s per pass{sim}", className="validation-subcopy d4-weights")]
     if kind == "consensus":
         cs = d.get("consensus")
-        return [_d4_bar("Channel 3", sc.get("rf"), z.get("rf")), _d4_bar("Channel 2", sc.get("electric"), z.get("electric")), _d4_bar("Channel 1", sc.get("magnetic"), z.get("magnetic")),
+        return [_d4_bar("Channel 3", sc.get("ch3"), z.get("ch3")), _d4_bar("Channel 2", sc.get("ch2"), z.get("ch2")), _d4_bar("Channel 1", sc.get("ch1"), z.get("ch1")),
                 _d4_bar("Transient", sc.get("transient")),
                 html.Div(f"Cross-source agreement: {'—' if cs is None else f'{cs:.0f}%'} · MTDI 2.0 {d.get('mtdi')} · contributions " + ", ".join(f"{k} {v}" for k, v in (d.get("contributions") or {}).items()), className="validation-subcopy", style={"marginTop": "6px"})]
     if kind == "confidence":
@@ -2327,23 +2327,23 @@ def _d4_render(kind, d, rt, where):
                 html.Div('Subtext ' + ("—" if d.get("repeatability") is None else f"{d['repeatability']*100:.0f}%"), className="validation-subcopy")]
     if kind == "power":
         # The Window row above says how long the analysed block was; state how the
-        # uninterrupted E-field block is obtained.
+        # uninterrupted Ch2 block is obtained.
         burst = d.get("auto_burst_s") or 0
         burst_note = (f"Contiguous capture: an uninterrupted block is requested automatically every "
                       f"{burst:.0f} s so the FFT always receives a continuous sample window."
                       if burst else "")
-        return [_d4_kv(_mains_rows(d.get("mains"), 'Label')),
+        return [_d4_kv(_linefreq_rows(d.get("linefreq"), 'Label')),
                 html.Div(burst_note, className="validation-subcopy") if burst_note else None]
-    if kind == "power_magnetic":
-        mm = d.get("mains_magnetic") or {}
-        return [_d4_kv(_mains_rows(mm, 'Label')), html.Div(f"ODR configured {cfg.get('mag_odr_hz')} Hz · measured {d.get('magnetic_rate_hz')} Hz", className="validation-subcopy")]
+    if kind == "power_ch1":
+        mm = d.get("linefreq_ch1") or {}
+        return [_d4_kv(_linefreq_rows(mm, 'Label')), html.Div(f"ODR configured {cfg.get('c1_odr_hz')} Hz · measured {d.get('ch1_rate_hz')} Hz", className="validation-subcopy")]
     if kind == "power_network":
         pn = d.get("power_network") or {}
         rows = [(k, (f"{v.get('fundamental_hz')} Hz · THD {v.get('thd_pct')} % · even {v.get('even_amp')} / odd {v.get('odd_amp')} · harmonics {v.get('harmonics')}" if v.get("present") else v.get("note", "—"))) for k, v in (pn.get("channels") or {}).items()]
         return [_d4_kv(rows), html.Ul([html.Li(f) for f in pn.get("findings", [])], className="d4-list"),
                 html.Div([html.Div("⚠ " + a, className="d4-line") for a in pn.get("abnormal", [])] or [html.Div('Subtext', className="validation-subcopy")])]
-    if kind == "rf":
-        r = d.get("rf") or {}
+    if kind == "ch3":
+        r = d.get("ch3") or {}
         if r.get("error"):
             return [html.Div(r["error"], className="validation-subcopy")]
         return [_d4_kv([('Text', f"{_freq_label(r['primary_peak_hz'])} · {r['primary_peak_dbm']} unit"), ('Text', f"{r['noise_floor_dbm']} unit (MAD {r['noise_mad_db']} dB)"), ("SNR", f"{r['snr_db']} dB"),
@@ -2357,15 +2357,15 @@ def _d4_render(kind, d, rt, where):
         lc = d.get("last_calibration")
         if not lc:
             return [html.Div('Subtext', className="validation-subcopy"),
-                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('mag_offsets')} unit · quality {cfg.get('mag_calibration_quality')}", className="validation-subcopy")]
-        o, s_ = lc["offsets_ut"], lc["scale"]
-        return [html.Pre(f"Magnetic Calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} unit\nY offset: {o[1]:+.1f} unit\nZ offset: {o[2]:+.1f} unit\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
-                         f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_ut']} unit\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
+                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} unit · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
+        o, s_ = lc["offsets_val"], lc["scale"]
+        return [html.Pre(f"Ch1 Calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} unit\nY offset: {o[1]:+.1f} unit\nZ offset: {o[2]:+.1f} unit\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
+                         f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_val']} unit\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
                 html.Pre(json.dumps({"x_offset": o[0], "y_offset": o[1], "z_offset": o[2], "soft_iron": lc["soft_iron_matrix"]}, separators=(",", ":")), className="d4-pre small")]
     if kind == "calhealth":
         ch = d.get("calibration_health") or {}
         return [_d4_kv([("Status", str(ch.get("status", "—")).upper()), ('Text', f"{ch['quality']} %" if ch.get("quality") is not None else "—"), ('Text', f"{ch.get('magnitude_spread_pct')} %"),
-                        ('Text', f"{ch.get('offset_drift_ut')} unit"), ("Noise", f"{(d.get('noise_magnetic') or {}).get('rms')} unit RMS"), ("Recalibration", ch.get("recalibration", ch.get("text", "—"))), ('Text', cfg.get("source") or "defaults")])]
+                        ('Text', f"{ch.get('offset_drift_val')} unit"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} unit RMS"), ("Recalibration", ch.get("recalibration", ch.get("text", "—"))), ('Text', cfg.get("source") or "defaults")])]
     if kind == "transients":
         tr = d.get("transients") or {}; ev = tr.get("events") or []
         return [_d4_kv([('Text', f"{tr.get('count', 0)} in {tr.get('window_s') or 0} s"), ("Threshold", f"{tr.get('threshold')} (baseline {tr.get('baseline')}, MAD {tr.get('noise_mad')})"), ("Repetition", f"{tr['repetition_hz']} Hz" if tr.get("repetition_hz") else "—")]),
@@ -2408,7 +2408,7 @@ def _d4_render(kind, d, rt, where):
     if kind == "limits":
         lim = d.get("detection_limits") or {}
         rows = []
-        for key, label in (("magnetic", 'Channel 1'), ("electric", 'Text')):
+        for key, label in (("ch1", 'Channel 1'), ("ch2", 'Text')):
             v = lim.get(key) or {}
             if v.get("error") or not v.get("lod"):
                 rows.append((label, v.get("error") or "not measured yet"))
@@ -2440,18 +2440,18 @@ def _d4_render(kind, d, rt, where):
             rows.append(('Text', exp.get("caveat", "—")))
         return [_d4_kv(rows or [("Exposure", 'Text')])]
     if kind == "noise":
-        ne, nm = d.get("noise_electric") or {}, d.get("noise_magnetic") or {}
+        ne, nm = d.get("noise_ch2") or {}, d.get("noise_ch1") or {}
         return [_d4_kv([('Text', f"RMS {ne.get('rms')} · peak {ne.get('peak')} · σ {ne.get('std')} · NSD {ne.get('nsd_per_sqrt_hz')} /√Hz @ {ne.get('fs')} Hz" if ne else "—"),
                         ('Text', f"RMS {nm.get('rms')} · peak {nm.get('peak')} · σ {nm.get('std')} · NSD {nm.get('nsd_per_sqrt_hz')} unit/√Hz @ {nm.get('fs')} Hz" if nm else "—")])]
     if kind == "fingerprint":
         fp = d.get("fingerprint") or {}; ref = d.get("fingerprint_reference"); chg = d.get("fingerprint_change") or {}
-        return [_d4_kv([('Text', f"{fp.get('magnetic_ut')} unit"), ('Text', f"{fp.get('electric')}"), ('Text', f"{fp.get('rf_floor_dbm')} unit · peak {_freq_label(fp['rf_peak_hz']) if fp.get('rf_peak_hz') else '—'}"),
-                        ('Reference', f"{(fp.get('mains') or {}).get('fundamental_hz')} Hz · THD {(fp.get('mains') or {}).get('thd_pct')} %"), ('Text', f"{fp.get('transient_rate_per_min')} /min")]),
-                html.Div(('Text' if not ref else f"Environmental change vs reference: CH 3 floor {chg.get('rf_floor_db'):+} dB · channel 1 {chg.get('magnetic_pct')} % · channel 2 {chg.get('electric_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
+        return [_d4_kv([('Text', f"{fp.get('ch1_val')} unit"), ('Text', f"{fp.get('ch2')}"), ('Text', f"{fp.get('ch3_floor_dbm')} unit · peak {_freq_label(fp['ch3_peak_hz']) if fp.get('ch3_peak_hz') else '—'}"),
+                        ('Reference', f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ('Text', f"{fp.get('transient_rate_per_min')} /min")]),
+                html.Div(('Text' if not ref else f"Environmental change vs reference: CH 3 floor {chg.get('ch3_floor_db'):+} dB · channel 1 {chg.get('ch1_pct')} % · channel 2 {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
     if kind == "trend":
         t = d.get("trend"); hist = d.get("history") or {}
         rows = [('TEXT', f"{t['minutes']} min window · slope {t['mtdi_per_min']:+} per min · {t['text']}")] if t else [('TEXT', "collecting")]
-        for key in ("magnetometer", "efield", "rf"):
+        for key in ("ch1probe", "ch2f", "ch3"):
             h = hist.get(key)
             if h:
                 rows.append((key, " · ".join(f"{w['label']}: {w.get('text')}" + (f" ({w['change_pct']:+} %)" if w.get("change_pct") is not None else "") for w in h.get("windows", [])) + f" · drift {h.get('drift_per_min')}/min · {(h.get('periodic') or {}).get('text', '')}"))
@@ -2461,12 +2461,12 @@ def _d4_render(kind, d, rt, where):
     if kind == "events":
         evs = d.get("events") or []
         return [html.Div([html.B(f"EVENT #{e['id']:05d} · {e['time']}" + (' TEXT' if e.get("open") else f" · {e.get('duration_s')} s")),
-                          html.Div(f"CH 3 {e['rf']} · Channel 1 {e['magnetic']} · Channel 2 {e['electric']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
+                          html.Div(f"CH 3 {e['ch3']} · Channel 1 {e['ch1']} · Channel 2 {e['ch2']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
             or [html.Div('Subtext', className="validation-subcopy")]
     if kind == "config":
-        return [_d4_kv([("Source", cfg.get("source")), ('Text', str(cfg.get("mag_offsets"))), ("Scale", str(cfg.get("mag_scale"))), ('Text', f"{cfg.get('mag_calibration_quality')} %" if cfg.get("mag_calibration_quality") is not None else "—"),
-                        ('Text', str(cfg.get("mtdi_weights"))), ("Thresholds", f"CH 3 {cfg.get('rf_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')}σ · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')}×MAD"),
-                        ("Baseline", f"{cfg.get('baseline_method')} α={cfg.get('baseline_alpha')}"), ('Text', f"{cfg.get('mag_odr_hz')} Hz"),
+        return [_d4_kv([("Source", cfg.get("source")), ('Text', str(cfg.get("c1_offsets"))), ("Scale", str(cfg.get("c1_scale"))), ('Text', f"{cfg.get('c1_calibration_quality')} %" if cfg.get("c1_calibration_quality") is not None else "—"),
+                        ('Text', str(cfg.get("mtdi_weights"))), ("Thresholds", f"CH 3 {cfg.get('ch3_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')}σ · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')}×MAD"),
+                        ("Baseline", f"{cfg.get('baseline_method')} α={cfg.get('baseline_alpha')}"), ('Text', f"{cfg.get('c1_odr_hz')} Hz"),
                         ("Filter", f"{cfg['filter'].get('type')} order {cfg['filter'].get('order')} cutoff {cfg['filter'].get('cutoff_hz')} Hz" + (" · coefficients loaded" if cfg["filter"].get("b") else " · not designed yet") + (' · APPLIED to channel 1 magnitude' if cfg["filter"].get("apply") else " · not applied")),
                         ('Text', str(cfg.get("d3_reference") or "not entered")), ("Error", d.get("config_error") or "none")])]
     if kind == "references":
@@ -2513,7 +2513,7 @@ def _d4_trial_stats(rt):
     if refs:
         out["error"] = sensor_error([v for v, _ in refs], [r for _, r in refs])
         if out.get("measurements"):
-            out["uncertainty"] = uncertainty(out["measurements"]["mean"], 0.0, out["measurements"]["std"], (rt.d4.snapshot().get("noise_magnetic") or {}).get("rms") or 0.0, abs(out["error"]["bias"] or 0.0))
+            out["uncertainty"] = uncertainty(out["measurements"]["mean"], 0.0, out["measurements"]["std"], (rt.d4.snapshot().get("noise_ch1") or {}).get("rms") or 0.0, abs(out["error"]["bias"] or 0.0))
     d3 = rt.d4.config.get("d3_reference") or {}; ds = out.get("detection") or {}
     out["comparison"] = [{"metric": "Detection rate", "d3": d3.get("detection_rate_pct"), "d4": ds.get("detection_rate_pct"), "unit": "%"},
                          {"metric": "False positives", "d3": d3.get("false_positive_rate_pct"), "d4": ds.get("false_positive_rate_pct"), "unit": "%"},
@@ -2527,7 +2527,7 @@ def _d4_trial_stats(rt):
 
 def _d4_graph(kind, d, rt):
     if kind == "power":
-        return _mains_fig(d.get("mains"), 230)
+        return _linefreq_fig(d.get("linefreq"), 230)
     if kind == "repeat":
         rep = d.get("repeat_run") or {}
         live = {"readings": rep.get("readings") or []} if rep.get("running") else None
@@ -2539,9 +2539,9 @@ def _d4_graph(kind, d, rt):
             return fig_repeatability(live, 300)
         return fig_repeatability(rep.get("result"), 300)
     if kind == "power_surface":
-        return fig_mains_spectrogram((d.get("mains") or {}).get("spectrogram"), 460)
-    if kind == "power_magnetic":
-        return _mains_fig(d.get("mains_magnetic"), 200)
+        return fig_linefreq_spectrogram((d.get("linefreq") or {}).get("spectrogram"), 460)
+    if kind == "power_ch1":
+        return _linefreq_fig(d.get("linefreq_ch1"), 200)
     if kind == "calibration":
         lc = d.get("last_calibration")
         if not lc or not lc.get("raw"):
@@ -2620,22 +2620,22 @@ def d4_actions(clicks, values, in_ids, status_ids):
     msg = ""
     try:
         if action in ("cal_fit", "cal_apply"):
-            result, patch = rt.d4.calibrate_magnetometer(120)
+            result, patch = rt.d4.calibrate_ch1probe(120)
             if result is None:
                 msg = f"REJECTED · {patch}"
             elif action == "cal_apply":
                 path = rt.d4.update_config(patch)
-                rt.note("d4", f"channel 1 calibration applied: offsets {result['offsets_ut']} unit, quality {result['quality']} %")
-                msg = f"Fit applied: offsets {result['offsets_ut']} unit · quality {result['quality']} % · written to {path}"
+                rt.note("d4", f"channel 1 calibration applied: offsets {result['offsets_val']} unit, quality {result['quality']} %")
+                msg = f"Fit applied: offsets {result['offsets_val']} unit · quality {result['quality']} % · written to {path}"
             else:
-                msg = f"Fit done: offsets {result['offsets_ut']} unit · quality {result['quality']} % (not applied)"
+                msg = f"Fit done: offsets {result['offsets_val']} unit · quality {result['quality']} % (not applied)"
         elif action == "burst":
-            rt.d4.request_burst(3440, "efield"); msg = 'Burst requested: next Channel 2 block is 3440 contiguous samples'
+            rt.d4.request_burst(3440, "ch2f"); msg = 'Burst requested: next Channel 2 block is 3440 contiguous samples'
         elif action == "repeat_start":
             def num(k, dflt):
                 v = fields.get(k)
                 return dflt if v in (None, "") else float(v)
-            started = rt.d4.start_repeatability(fields.get("repeat_channel") or "magnetic",
+            started = rt.d4.start_repeatability(fields.get("repeat_channel") or "ch1",
                                                 num("repeat_runs", 10), num("repeat_window", 3))
             msg = (f"Running: {started['runs']} readings of {started['window_s']:g} s on "
                    f"{started['label']} — about {started['eta_s']:g} s. Keep everything still.")
@@ -2667,7 +2667,7 @@ def d4_actions(clicks, values, in_ids, status_ids):
                 v = fields.get(k)
                 return None if v in (None, "") else float(v)
             rt.d4.update_config({"d3_reference": {"detection_rate_pct": num("d3_detection"), "false_positive_rate_pct": num("d3_fp"), "calibration_error_pct": num("d3_cal"), "mtdi_accuracy_pct": num("d3_mtdi"), "analysis_time_s": num("d3_time")}})
-            msg = "D3 reference saved to iv_config.json"
+            msg = "D3 reference saved to i3_config.json"
         else:
             msg = f"unknown action {action}"
     except Exception as exc:
@@ -2699,7 +2699,7 @@ def d4_config_upload_cb(contents, filenames, status_ids):
         rt = _d4_runtime(); path = rt.d4.update_config(payload)
         msg = f"REJECTED · {rt.d4.config_error}" if rt.d4.config_error else f"Loaded {filenames[idx[0]]} → {path}; reader reloaded"
         if not rt.d4.config_error:
-            rt.note("d4", f"iv_config.json uploaded from {filenames[idx[0]]}")
+            rt.note("d4", f"i3_config.json uploaded from {filenames[idx[0]]}")
     except Exception as exc:
         msg = f"REJECTED · {exc}"
     return [msg if i["where"] == where and i.get("card") == "config" else dash.no_update for i in status_ids]

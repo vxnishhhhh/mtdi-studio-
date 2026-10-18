@@ -127,7 +127,7 @@ def _system_snapshot():
         "wifi_ip": _local_ip(), "py_mem_mb": round(proc_mem / (1024**2), 1),
         "telemetry_source": f"{source} + {temp_source}", "telemetry_error": None,
         "host_model": host_model,
-        "raspberry_pi": "raspberry pi" in host_model.lower(),
+        "single_board": " pi " in f" {host_model.lower()} ",
         "last_rx": time.time(),
     }
 
@@ -164,41 +164,41 @@ def archive_loop():
     """Snapshot live signals into one stored area (every 3s while the sensor is healthy)."""
     while not STOP_EVENT.is_set():
         try:
-            with mag_lock:
-                err = magnetic_data["error"]; last = magnetic_data["last_rx"]
-                m = magnetic_data["magnitude"]; x = magnetic_data["x"]; y = magnetic_data["y"]; z = magnetic_data["z"]
-                # Only a chip fault makes a magnetic sample untrusted. Being uncalibrated
+            with c1_lock:
+                err = ch1_data["error"]; last = ch1_data["last_rx"]
+                m = ch1_data["magnitude"]; x = ch1_data["x"]; y = ch1_data["y"]; z = ch1_data["z"]
+                # Only a chip fault makes a ch1 sample untrusted. Being uncalibrated
                 # is recorded as a note so the archive still reflects usable data.
-                mag_fault = magnetic_data["chip_warning"]
-                mag_note = magnetic_data["warning"]
+                c1_fault = ch1_data["chip_warning"]
+                c1_note = ch1_data["warning"]
             if err is None and last is not None and (time.time() - last) < 5:
                 with archive_lock:
-                    signal_archive.append({"t":time.time(), "mag":m, "x":x, "y":y, "z":z})
+                    signal_archive.append({"t":time.time(), "c1":m, "x":x, "y":y, "z":z})
                     session_stats["count"] += 1
                     session_stats["sum"] += m
                     session_stats["min"] = min(session_stats["min"], m)
                     session_stats["max"] = max(session_stats["max"], m)
-                ARCHIVE.put("mag", {
-                    "t":time.time(), "mag":m, "x":x, "y":y, "z":z,
-                    "trusted":mag_fault is None,
-                    "warning":mag_note,
+                ARCHIVE.put("c1", {
+                    "t":time.time(), "c1":m, "x":x, "y":y, "z":z,
+                    "trusted":c1_fault is None,
+                    "warning":c1_note,
                 })
-            with efield_lock:
+            with ch2f_lock:
                 ed = {
-                    "t":time.time(), "rms_mv":efield_data["rms_mv"],
-                    "peak_mv":efield_data["peak_mv"],
-                    "baseline_mv":efield_data["baseline_mv"],
-                    "ratio":efield_data["ratio"], "rel_index":efield_data["rel_index"],
-                    "gain":efield_data["gain"], "clipped":efield_data["clipped"],
+                    "t":time.time(), "rms_mv":ch2f_data["rms_mv"],
+                    "peak_mv":ch2f_data["peak_mv"],
+                    "baseline_mv":ch2f_data["baseline_mv"],
+                    "ratio":ch2f_data["ratio"], "rel_index":ch2f_data["rel_index"],
+                    "gain":ch2f_data["gain"], "clipped":ch2f_data["clipped"],
                     "trusted":(
-                        efield_data["error"] is None and efield_data["calibrated"]
-                        and not efield_data["clipped"] and not efield_data["warning"]
+                        ch2f_data["error"] is None and ch2f_data["calibrated"]
+                        and not ch2f_data["clipped"] and not ch2f_data["warning"]
                     ),
-                    "warning":efield_data["warning"] or efield_data["error"],
+                    "warning":ch2f_data["warning"] or ch2f_data["error"],
                 }
-                ef_fresh = efield_data["last_rx"] and time.time() - efield_data["last_rx"] < 5
-            if ef_fresh:
-                ARCHIVE.put("efield", ed)
+                c2_fresh = ch2f_data["last_rx"] and time.time() - ch2f_data["last_rx"] < 5
+            if c2_fresh:
+                ARCHIVE.put("ch2f", ed)
         except Exception:
             LOG.exception("Signal archive snapshot failed")
         STOP_EVENT.wait(3)
@@ -207,7 +207,7 @@ def archive_loop():
 def demo_reader():
     """Deterministic software-only source. It runs only after explicit ``--demo``."""
     tick = 0
-    last_rf = 0.0
+    last_ch3 = 0.0
     while not STOP_EVENT.is_set():
         now = time.time()
         phase = tick * 0.075
@@ -215,56 +215,56 @@ def demo_reader():
         y = -6.5 + 1.2 * math.cos(phase * 0.8)
         z = 38.0 + 0.9 * math.sin(phase * 0.4)
         magnitude = math.sqrt(x*x + y*y + z*z)
-        with mag_lock:
-            magnetic_data.update({
+        with c1_lock:
+            ch1_data.update({
                 "x":x, "y":y, "z":z, "magnitude":magnitude,
-                "min_mag":min(magnetic_data["min_mag"], magnitude),
-                "max_mag":max(magnetic_data["max_mag"], magnitude),
+                "min_c1":min(ch1_data["min_c1"], magnitude),
+                "max_c1":max(ch1_data["max_c1"], magnitude),
                 "raw_x":x, "raw_y":y, "raw_z":z,
                 "error":None, "warning":None, "chip_warning":None,
                 "calibration_warning":None, "calibrated":True,
                 "calibration_metadata":{"source":"software simulator"},
                 "chip_id":0x80, "last_rx":now,
             })
-            magnetic_data["history"].append(magnitude)
-            magnetic_data["xyz_history"].append((x, y, z))
+            ch1_data["history"].append(magnitude)
+            ch1_data["xyz_history"].append((x, y, z))
         # The simulator logs too, so the CSV pipeline can be exercised without
         # hardware. Every row it writes carries data_source="SIMULATED" and an
         # explicit note, so it can never be mistaken for a measurement.
-        CSV_LOG.log_mag(now, x, y, z, magnitude, (x, y, z), True, False,
+        CSV_LOG.log_c1(now, x, y, z, magnitude, (x, y, z), True, False,
                         note="SIMULATED — software simulator, not a measurement")
 
         rms = 0.8 + 0.25 * (1.0 + math.sin(phase * 1.7))
         ratio = rms / 0.8
         rel = max(0.0, min(100.0, (ratio - 1.0) / 9.0 * 100.0))
-        demo_field = _ef_v_per_m(rms)
-        with efield_lock:
-            efield_data.update({
+        demo_field = _c2_scale(rms)
+        with ch2f_lock:
+            ch2f_data.update({
                 "rms_mv":rms, "mean_mv":0.0, "peak_mv":rms * 1.7,
-                "field_v_m":demo_field, "peak_v_m":_ef_v_per_m(rms * 1.7),
-                "baseline_v_m":_ef_v_per_m(0.8),
+                "field_vu":demo_field, "peak_vu":_c2_scale(rms * 1.7),
+                "baseline_vu":_c2_scale(0.8),
                 "baseline_mv":0.8, "rel_index":rel, "ratio":ratio,
                 "level":"LOW", "gain":16, "min_code":-120, "max_code":125,
                 "utilisation":0.4, "clipped":False, "status":"SIMULATED",
                 "error":None, "warning":None, "last_rx":now, "calibrated":True,
             })
-            efield_data["history"].append(demo_field)
-            efield_data["rel_history"].append(rel)
-        CSV_LOG.log_efield(now, rms, rms * 1.7, 0.8, ratio, rel, 16, 0.4,
+            ch2f_data["history"].append(demo_field)
+            ch2f_data["rel_history"].append(rel)
+        CSV_LOG.log_ch2f(now, rms, rms * 1.7, 0.8, ratio, rel, 16, 0.4,
                            False, True, False,
                            note="SIMULATED — software simulator, not a measurement")
 
-        with tinysa_cmd_lock:
-            rf_paused = tinysa_cmd["paused"]
-        if rf_paused:
-            with spectrum_lock:
-                spectrum_data["status"] = "SIMULATED DATA · paused by operator"
-        if not rf_paused and now - last_rf >= 1.0:
-            with spectrum_lock:
-                start_hz = spectrum_data["span_start"]
-                stop_hz = spectrum_data["span_stop"]
-                points = spectrum_data["points"]
-                preset = spectrum_data["preset"]
+        with src3_cmd_lock:
+            ch3_paused = src3_cmd["paused"]
+        if ch3_paused:
+            with sweep3_lock:
+                sweep3_data["status"] = "SIMULATED DATA · paused by operator"
+        if not ch3_paused and now - last_ch3 >= 1.0:
+            with sweep3_lock:
+                start_hz = sweep3_data["span_start"]
+                stop_hz = sweep3_data["span_stop"]
+                points = sweep3_data["points"]
+                preset = sweep3_data["preset"]
             freqs = [
                 start_hz + i * (stop_hz - start_hz) / max(points - 1, 1)
                 for i in range(points)
@@ -282,20 +282,20 @@ def demo_reader():
                 )
                 levels.append(base + fm_peak + ism_peak)
             floor = statistics.median(levels)
-            peaks = _tsa_peaks(freqs, levels, floor)
+            peaks = _s3_peaks(freqs, levels, floor)
             peak_i = max(range(points), key=lambda i: levels[i])
             bin_width = (stop_hz-start_hz) / max(points-1, 1)
-            with spectrum_lock:
-                old_hold = spectrum_data["maxhold"]
+            with sweep3_lock:
+                old_hold = sweep3_data["maxhold"]
                 max_hold = (
                     [max(old, new) for old, new in zip(old_hold, levels)]
                     if len(old_hold) == points else list(levels)
                 )
-                spectrum_data.update({
+                sweep3_data.update({
                     "freqs":list(freqs), "levels":list(levels),
                     "maxhold":max_hold, "peaks":peaks, "floor":floor,
                     "peak_level":levels[peak_i], "peak_freq":freqs[peak_i],
-                    "sweep_s":0.01, "sweeps":spectrum_data["sweeps"]+1,
+                    "sweep_s":0.01, "sweeps":sweep3_data["sweeps"]+1,
                     "device":"Software simulator",
                     "device_info":"Deterministic seeded UI source",
                     "help_summary":"simulated scan", "port":"SIMULATED",
@@ -304,13 +304,13 @@ def demo_reader():
                     "level_note":"simulated estimated floor", "present":True,
                     "status":"SIMULATED DATA", "error":None, "last_rx":now,
                 })
-                spectrum_data["waterfall"].append(list(levels))
-                spectrum_data["waterfall_times"].append(now)
-                spectrum_data["peak_history"].append(levels[peak_i])
-            CSV_LOG.log_rf(now, start_hz, stop_hz, points, 0.01,
+                sweep3_data["waterfall"].append(list(levels))
+                sweep3_data["waterfall_times"].append(now)
+                sweep3_data["peak_history"].append(levels[peak_i])
+            CSV_LOG.log_ch3(now, start_hz, stop_hz, points, 0.01,
                            freqs[peak_i], levels[peak_i], floor, False,
                            note="SIMULATED — software simulator, not a measurement")
-            ARCHIVE.put("rf", {
+            ARCHIVE.put("ch3", {
                 "started_at":now, "completed_at":now+0.01, "duration_s":0.01,
                 "profile":preset, "start_hz":start_hz, "stop_hz":stop_hz,
                 "requested_points":points, "repeat":3, "bin_width_hz":bin_width,
@@ -342,7 +342,7 @@ def demo_reader():
                     "scan_mode":"simulated discovery", "paused":False,
                     "error":None, "last_rx":now, "scans":bt_data["scans"]+1,
                 })
-            last_rf = now
+            last_ch3 = now
         tick += 1
         STOP_EVENT.wait(0.1)
 

@@ -12,17 +12,17 @@ import socket
 import threading
 import time
 
-# QMC5883P Rev E sections 7 and 9 define these addresses and normal mode.
-QMC_ADDRESS = 0x2C
-QMC_NORMAL_50_HZ = 0xC5
+# SRC1 Rev E sections 7 and 9 define these addresses and normal mode.
+SRC1_ADDRESS = 0x2C
+SRC1_NORMAL_50_HZ = 0xC5
 # CTRL1: OSR2[7:6]=11, OSR1[5:4]=00, ODR[3:2], MODE[1:0]=01 (normal). 200 Hz puts the 50 Hz
-# mains line well inside the magnetometer's Nyquist band for the D4 harmonics engine.
-QMC_ODR_CODES = {10: 0xC1, 50: 0xC5, 100: 0xC9, 200: 0xCD}
-QMC_RANGE_2_GAUSS = 0x0C
-QMC_LSB_PER_UT = 150.0
+# linefreq line well inside the ch1probe's Nyquist band for the D4 harmonics engine.
+SRC1_ODR_CODES = {10: 0xC1, 50: 0xC5, 100: 0xC9, 200: 0xCD}
+SRC1_RANGE_2_GAUSS = 0x0C
+SRC1_LSB_PER_VAL = 150.0
 # LSB per uT for each RNG code in control register 2 (datasheet table: 30 G, 12 G, 8 G, 2 G)
-QMC_LSB_PER_UT_BY_RANGE = {0: 10.0, 1: 25.0, 2: 37.5, 3: 150.0}
-# ADS1115 SBAS444E table 8.3 defines the PGA and differential input codes.
+SRC1_LSB_PER_VAL_BY_RANGE = {0: 10.0, 1: 25.0, 2: 37.5, 3: 150.0}
+# SRC2 SBAS444E table 8.3 defines the PGA and differential input codes.
 ADS_ADDRESS = 0x48
 # Key is the PGA gain, value is (register code, full scale volts). The +-4.096 V
 # range is here because an AC-coupled probe sits at a DC bias -- measured 2.41 V
@@ -31,24 +31,24 @@ ADS_ADDRESS = 0x48
 # so that bias costs nothing as long as the range can contain it.
 ADS_PGA = {16: (5, 0.256), 8: (4, 0.512), 4: (3, 1.024), 2: (2, 2.048), 1: (1, 4.096)}
 # Retired compatibility constants remain so old archived configurations can load,
-# but acquisition no longer opens or samples the former secondary ADS1115 path.
-# Which ADS1115 input the E-field probe is on. 0 is the differential pair A0-A1,
+# but acquisition no longer opens or samples the former secondary SRC2 path.
+# Which SRC2 input the Ch2 probe is on. 0 is the differential pair A0-A1,
 # which is how the probe was built. A board that brings a single-ended channel out
 # instead (signal on AINx, reference on the ADC's own GND) needs 4..7 for A0..A3;
-# set STUDIO_EFIELD_MUX rather than editing this, so a rewire does not need a
+# set STUDIO_CH2F_MUX rather than editing this, so a rewire does not need a
 # code change. Table 8.3 of SBAS444E defines the codes.
-EFIELD_MUX = int(os.environ.get("STUDIO_EFIELD_MUX", "0"))
-# Full-scale range for the E-field probe. The original differential build put a
+CH2F_MUX = int(os.environ.get("STUDIO_CH2F_MUX", "0"))
+# Full-scale range for the Ch2 probe. The original differential build put a
 # few millivolts across A0-A1 and wanted gain 16; an AC-coupled single-ended
 # build sits near mid-rail and needs gain 1 just to fit the bias. Neither is
 # right for the other, so it is an environment setting rather than a constant.
-EFIELD_GAIN = float(os.environ.get("STUDIO_EFIELD_GAIN", "2"))
-if EFIELD_GAIN in (16.0, 8.0, 4.0, 2.0, 1.0):
-    EFIELD_GAIN = int(EFIELD_GAIN)
-EFIELD_MUX_NAME = {0: "differential A0 A1", 1: "differential A0 A3", 2: "differential A1 A3",
+CH2F_GAIN = float(os.environ.get("STUDIO_CH2F_GAIN", "2"))
+if CH2F_GAIN in (16.0, 8.0, 4.0, 2.0, 1.0):
+    CH2F_GAIN = int(CH2F_GAIN)
+CH2F_MUX_NAME = {0: "differential A0 A1", 1: "differential A0 A3", 2: "differential A1 A3",
                    3: "differential A2 A3", 4: "single ended A0", 5: "single ended A1",
                    6: "single ended A2", 7: "single ended A3"}
-# Triaxial probe. Three plate electrodes, one per ADS1115 single-ended input,
+# Triaxial probe. Three plate pads, one per SRC2 single-ended input,
 # each mounted normal to one axis. A plate responds to the field component
 # arriving perpendicular to its face, so three mutually perpendicular plates
 # resolve a vector where one plate could only give a magnitude.
@@ -58,22 +58,22 @@ EFIELD_MUX_NAME = {0: "differential A0 A1", 1: "differential A0 A3", 2: "differe
 # single channel manages. That is still above the 100 SPS Nyquist needs for
 # 50 Hz, but the margin is thin, and every frequency result is computed against
 # the rate actually measured for that axis rather than an assumed one.
-EFIELD_TRIAXIAL = os.environ.get("STUDIO_EFIELD_TRIAXIAL", "1") not in ("0", "false", "no")
-EFIELD_AXIS_MUX = {"x": int(os.environ.get("STUDIO_EFIELD_MUX_X", "4")),
-                   "y": int(os.environ.get("STUDIO_EFIELD_MUX_Y", "5")),
-                   "z": int(os.environ.get("STUDIO_EFIELD_MUX_Z", "6"))}
+CH2F_TRIAXIAL = os.environ.get("STUDIO_CH2F_TRIAXIAL", "1") not in ("0", "false", "no")
+CH2F_AXIS_MUX = {"x": int(os.environ.get("STUDIO_CH2F_MUX_X", "4")),
+                   "y": int(os.environ.get("STUDIO_CH2F_MUX_Y", "5")),
+                   "z": int(os.environ.get("STUDIO_CH2F_MUX_Z", "6"))}
 # Per-axis scale. Hand-built plates are never identical -- measured 2026-09-25:
 # 4.762, 6.120 and 10.027 mV on the same ambient field -- and an uncorrected
 # spread like that tilts the reported direction toward whichever axis collects
 # best. These are set from a calibration run; 1.0 means uncalibrated, which the
 # UI states rather than hides.
-EFIELD_AXIS_SCALE = {a: float(os.environ.get("STUDIO_EFIELD_SCALE_" + a.upper(), "1.0"))
+CH2F_AXIS_SCALE = {a: float(os.environ.get("STUDIO_CH2F_SCALE_" + a.upper(), "1.0"))
                      for a in ("x", "y", "z")}
 # ``auto`` is deliberately conservative: it selects a USB Arduino only when it
-# can identify an Arduino-class serial port.  Otherwise the established ADS1115
+# can identify an Arduino-class serial port.  Otherwise the established SRC2
 # reader remains the source.  Set this explicitly when a non-standard USB UART
 # is used, rather than guessing at an arbitrary serial device.
-EFIELD_SOURCE = os.environ.get("STUDIO_EFIELD_SOURCE", "auto").strip().lower()
+CH2F_SOURCE = os.environ.get("STUDIO_CH2F_SOURCE", "auto").strip().lower()
 ARDUINO_ADC_PORT = os.environ.get("STUDIO_ARDUINO_ADC_PORT", "").strip()
 ARDUINO_ADC_BAUD = int(os.environ.get("STUDIO_ARDUINO_ADC_BAUD", "115200"))
 # The project sensor node is an Uno attached either directly to this host or to
@@ -86,7 +86,7 @@ ARDUINO_TCP_LISTEN = os.environ.get("STUDIO_ARDUINO_TCP_LISTEN", "0.0.0.0:8765")
 # without another code change.
 ARDUINO_ADC_VREF_VOLTS = float(os.environ.get("STUDIO_ARDUINO_ADC_VREF_VOLTS", "5.0"))
 ARDUINO_LINE = re.compile(r"^CH1=(\d{1,4}),CH2=(\d{1,4}),CH3=(\d{1,4})$")
-ARDUINO_MAG_LINE = re.compile(r"^MAGX=(-?\d{1,6}),MAGY=(-?\d{1,6}),MAGZ=(-?\d{1,6})$")
+ARDUINO_C1_LINE = re.compile(r"^MAGX=(-?\d{1,6}),MAGY=(-?\d{1,6}),MAGZ=(-?\d{1,6})$")
 CLAMP_ENABLED = False
 CLAMP_MUX = int(os.environ.get("STUDIO_CLAMP_MUX", "3"))
 CLAMP_AMPS_PER_VOLT = float(os.environ.get("STUDIO_CLAMP_AMPS_PER_VOLT", "30"))
@@ -141,7 +141,7 @@ def signed16(value):
     return value - 65536 if value & 0x8000 else value
 
 
-class ADS1115Reader:
+class SRC2Reader:
     """Request one conversion and confirm its completion before reading data."""
 
     def __init__(self, bus, stop, address=ADS_ADDRESS, mux=0, gain=2):
@@ -202,25 +202,25 @@ class ADS1115Reader:
 
 def validate_text_sweep(freqs, levels, start_hz, stop_hz, points, error_type=ValueError):
     if int(points) != points or not 2 <= points <= 290:
-        raise ValueError("TinySA point count must be between 2 and 290")
+        raise ValueError("Src3 point count must be between 2 and 290")
     if not all(math.isfinite(float(v)) for v in [start_hz, stop_hz]) or not 0 <= start_hz < stop_hz:
-        raise ValueError("TinySA span is invalid")
+        raise ValueError("Src3 span is invalid")
     if len(freqs) != points or len(levels) != points:
-        raise error_type("Incomplete TinySA sweep")
+        raise error_type("Incomplete Src3 sweep")
     if not all(math.isfinite(float(v)) for v in freqs + levels):
-        raise error_type("Nonfinite TinySA measurement")
+        raise error_type("Nonfinite Src3 measurement")
     if any(right <= left for left, right in zip(freqs, freqs[1:])):
-        raise error_type("TinySA frequencies are not increasing")
+        raise error_type("Src3 frequencies are not increasing")
     spacing = (stop_hz - start_hz) / (points - 1)
     tolerance = max(2.0, spacing * 0.001)
     if abs(freqs[0] - start_hz) > tolerance or abs(freqs[-1] - stop_hz) > tolerance:
-        raise error_type("TinySA returned a different span")
+        raise error_type("Src3 returned a different span")
     for index, frequency in enumerate(freqs):
         if abs(frequency - (start_hz + index * spacing)) > tolerance:
-            raise error_type("TinySA frequency grid is incomplete or irregular")
+            raise error_type("Src3 frequency grid is incomplete or irregular")
     warnings = []
     if max(levels) > 10 or min(levels) < -180:
-        warnings.append("RF levels outside the expected instrument range; verify analyser settings")
+        warnings.append("CH3 levels outside the expected instrument range; verify analyser settings")
     return warnings
 
 
@@ -242,76 +242,76 @@ def install(ns, engine):
             logger.warning("%s acquisition unavailable: %s", channel, message)
             last_error_log[channel] = (message, mono)
 
-    def qmc_reader():
-        if (ARDUINO_TCP_LISTEN or EFIELD_SOURCE == "arduino" or
-                (EFIELD_SOURCE == "auto" and arduino_adc_ports())):
-            engine.status("magnetic", "initialising", 'Waiting for combined Source 6 source stream')
+    def src1_reader():
+        if (ARDUINO_TCP_LISTEN or CH2F_SOURCE == "arduino" or
+                (CH2F_SOURCE == "auto" and arduino_adc_ports())):
+            engine.status("ch1", "initialising", 'Waiting for combined Source 6 source stream')
             return
         try:
             from smbus2 import SMBus
         except ImportError as exc:
-            publish_error("magnetic", "magnetic_data", "mag_lock", exc, 0)
+            publish_error("ch1", "ch1_data", "c1_lock", exc, 0)
             return
-        profile, warning = ns["_load_magnetometer_calibration"]()
+        profile, warning = ns["_load_ch1probe_calibration"]()
         warning = str(warning or "Factory nominal sensitivity; vector accuracy requires calibration").replace("—", ";").replace("-", " ")
         attempts = 0
         while not stop.is_set():
             bus = None
             identity_ok = False
             try:
-                engine.status("magnetic", "initialising", 'Opening Source 1')
+                engine.status("ch1", "initialising", 'Opening Source 1')
                 bus = SMBus(ns.get("I2C_BUS", 1))
                 with I2C_LOCK:
-                    identity = bus.read_byte_data(QMC_ADDRESS, 0x00)
+                    identity = bus.read_byte_data(SRC1_ADDRESS, 0x00)
                 if identity != 0x80:
                     raise IOError(f"Unexpected device identity 0x{identity:02X} at Source 1 address")
                 identity_ok = True
                 with I2C_LOCK:
-                    bus.write_byte_data(QMC_ADDRESS, 0x0B, 0x80)
+                    bus.write_byte_data(SRC1_ADDRESS, 0x0B, 0x80)
                 # The soft reset takes longer than the 20 ms this used to wait: the range and
                 # set/reset writes that followed were silently dropped, the chip stayed on its
                 # 30 G power-on range and every uT figure was 15x too small. Write, read back,
                 # retry, and scale by the range the chip actually reports.
                 stop.wait(0.1)
-                lsb_per_ut = QMC_LSB_PER_UT
+                lsb_per_val = SRC1_LSB_PER_VAL
                 for attempt in range(6):
                     with I2C_LOCK:
-                        bus.write_byte_data(QMC_ADDRESS, 0x29, 0x06)
-                        bus.write_byte_data(QMC_ADDRESS, 0x0B, QMC_RANGE_2_GAUSS)
+                        bus.write_byte_data(SRC1_ADDRESS, 0x29, 0x06)
+                        bus.write_byte_data(SRC1_ADDRESS, 0x0B, SRC1_RANGE_2_GAUSS)
                     stop.wait(0.01)
                     with I2C_LOCK:
-                        rng_back = bus.read_byte_data(QMC_ADDRESS, 0x0B)
-                        srp_back = bus.read_byte_data(QMC_ADDRESS, 0x29)
-                    if rng_back == QMC_RANGE_2_GAUSS and srp_back == 0x06:
+                        rng_back = bus.read_byte_data(SRC1_ADDRESS, 0x0B)
+                        srp_back = bus.read_byte_data(SRC1_ADDRESS, 0x29)
+                    if rng_back == SRC1_RANGE_2_GAUSS and srp_back == 0x06:
                         break
                     stop.wait(0.05)
-                lsb_per_ut = QMC_LSB_PER_UT_BY_RANGE.get((rng_back >> 2) & 3, QMC_LSB_PER_UT)
-                if rng_back != QMC_RANGE_2_GAUSS:
-                    logger.warning("QMC5883P range register reads 0x%02X after %d attempts; scaling by %.1f LSB/uT", rng_back, attempt + 1, lsb_per_ut)
+                lsb_per_val = SRC1_LSB_PER_VAL_BY_RANGE.get((rng_back >> 2) & 3, SRC1_LSB_PER_VAL)
+                if rng_back != SRC1_RANGE_2_GAUSS:
+                    logger.warning("SRC1 range register reads 0x%02X after %d attempts; scaling by %.1f LSB/uT", rng_back, attempt + 1, lsb_per_val)
                 with I2C_LOCK:
-                    odr_hz = int(ns.get("_d4_config", lambda: {})().get("mag_odr_hz", 200) or 200)
-                    ctrl1 = QMC_ODR_CODES.get(odr_hz, QMC_NORMAL_50_HZ)
-                    bus.write_byte_data(QMC_ADDRESS, 0x0A, ctrl1)
-                    if bus.read_byte_data(QMC_ADDRESS, 0x0A) != ctrl1:
+                    odr_hz = int(ns.get("_d4_config", lambda: {})().get("c1_odr_hz", 200) or 200)
+                    ctrl1 = SRC1_ODR_CODES.get(odr_hz, SRC1_NORMAL_50_HZ)
+                    bus.write_byte_data(SRC1_ADDRESS, 0x0A, ctrl1)
+                    if bus.read_byte_data(SRC1_ADDRESS, 0x0A) != ctrl1:
                         raise IOError('Source 1 mode readback did not match')
-                configured_rate = odr_hz if ctrl1 != QMC_NORMAL_50_HZ else 50
-                with ns["mag_lock"]:
-                    ns["magnetic_data"].update(chip_id=identity, chip_warning=None, calibration_warning=warning,
+                configured_rate = odr_hz if ctrl1 != SRC1_NORMAL_50_HZ else 50
+                with ns["c1_lock"]:
+                    ns["ch1_data"].update(chip_id=identity, chip_warning=None, calibration_warning=warning,
                                                 calibrated=bool(profile), calibration_metadata=profile.get("metadata", {}) if profile else {},
-                                                error=None, reconnect_count=ns["magnetic_data"]["reconnect_count"] + 1)
-                engine.baseline("magnetic", relock=True)
+                                                error=None, reconnect_count=ns["ch1_data"]["reconnect_count"] + 1)
+                engine.baseline("ch1", relock=True)
                 last_sample = time.monotonic()
                 missed_estimate = 0
                 attempts = 0
                 while not stop.is_set():
-                    with ns["mag_cmd_lock"]:
-                        relock = bool(ns["mag_cmd"].get("recalibrate"))
-                        ns["mag_cmd"]["recalibrate"] = False
+                    with ns["c1_cmd_lock"]:
+                        relock = bool(ns["c1_cmd"].get("recalibrate"))
+                        ns["c1_cmd"]["recalibrate"] = False
                     if relock:
-                        engine.baseline("magnetic", relock=True)
+                        engine.baseline("ch1", relock=True)
                     with I2C_LOCK:
-                        status = bus.read_byte_data(QMC_ADDRESS, 0x09)
-                        data = bus.read_i2c_block_data(QMC_ADDRESS, 0x01, 6) if status & 1 else None
+                        status = bus.read_byte_data(SRC1_ADDRESS, 0x09)
+                        data = bus.read_i2c_block_data(SRC1_ADDRESS, 0x01, 6) if status & 1 else None
                     if data is None:
                         if time.monotonic() - last_sample > 2:
                             raise TimeoutError('Source 1 data ready signal stopped')
@@ -322,16 +322,16 @@ def install(ns, engine):
                         raise IOError('Incomplete Source 1 vector')
                     now, mono = time.time(), time.monotonic()
                     codes = [signed16(data[index] | data[index + 1] << 8) for index in (0, 2, 4)]
-                    raw = [value / lsb_per_ut for value in codes]
-                    with ns["mag_cmd_lock"]:
-                        if ns["mag_cmd"].get("reload_calibration"):
-                            ns["mag_cmd"]["reload_calibration"] = False
-                            profile, reload_warning = ns["_load_magnetometer_calibration"]()
-                            warning = str(reload_warning or "iv_config.json hard/soft iron profile active").replace("—", ";").replace("-", " ")
-                    vector = ns["_apply_magnetometer_calibration"](*raw, profile)
+                    raw = [value / lsb_per_val for value in codes]
+                    with ns["c1_cmd_lock"]:
+                        if ns["c1_cmd"].get("reload_calibration"):
+                            ns["c1_cmd"]["reload_calibration"] = False
+                            profile, reload_warning = ns["_load_ch1probe_calibration"]()
+                            warning = str(reload_warning or "i3_config.json hard/soft iron profile active").replace("—", ";").replace("-", " ")
+                    vector = ns["_apply_ch1probe_calibration"](*raw, profile)
                     with ns["raw_ring_lock"]:
-                        ns["RAW_RING"]["magnetic_raw"].append((now, *raw))
-                        ns["RAW_RING"]["magnetic"].append((now, *vector))
+                        ns["RAW_RING"]["ch1_raw"].append((now, *raw))
+                        ns["RAW_RING"]["ch1"].append((now, *vector))
                     clipped = bool(status & 2) or any(abs(code) >= 30000 for code in codes)
                     missed_estimate += max(0, round((mono - last_sample) * configured_rate) - 1)
                     last_sample = mono
@@ -339,21 +339,21 @@ def install(ns, engine):
                     filt = ns.get("_d4_filter")
                     if filt is not None:
                         magnitude = filt(magnitude)
-                    item = engine.ingest("magnetic", magnitude, now, "µT", raw=raw, vector=vector,
+                    item = engine.ingest("ch1", magnitude, now, "unit", raw=raw, vector=vector,
                                          clipped=clipped, metadata={"monotonic": mono, "codes": codes,
                                          "configured_rate": configured_rate, "missed_estimate": missed_estimate,
                                          "missed_estimate_note": "Timing estimate; sensor exposes no sample counter",
-                                         "vector_profile": bool(profile), "resolution_ut": 1 / lsb_per_ut, "range_register": rng_back})
+                                         "vector_profile": bool(profile), "resolution_val": 1 / lsb_per_val, "range_register": rng_back})
                     axial = item["axial"]
                     baseline = item["baseline"]
                     bx, by, bz = item["baseline_vector"]
                     x, y, z = axial["x"], axial["y"], axial["z"]
                     m = item["deviation"]
-                    mag_feed = ns.get("_v238_mag_feed")
-                    if mag_feed is not None:
-                        mag_feed(m, item["sample_rate"])
-                    with ns["mag_lock"]:
-                        target = ns["magnetic_data"]
+                    c1_feed = ns.get("_v238_c1_feed")
+                    if c1_feed is not None:
+                        c1_feed(m, item["sample_rate"])
+                    with ns["c1_lock"]:
+                        target = ns["ch1_data"]
                         target.update(x=x, y=y, z=z, magnitude=m, raw_x=raw[0], raw_y=raw[1], raw_z=raw[2],
                                       baseline_x=bx, baseline_y=by, baseline_z=bz, baseline_magnitude=math.sqrt(bx*bx + by*by + bz*bz),
                                       baseline_delta=m, baseline_calibrated=not baseline["settling"],
@@ -363,25 +363,25 @@ def install(ns, engine):
                                       raw_magnitude=magnitude, missed_estimate=missed_estimate)
                         target["history"].append(m)
                         target["xyz_history"].append((x, y, z))
-                        target["min_mag"] = min(target["min_mag"], m)
-                        target["max_mag"] = max(target["max_mag"], m)
+                        target["min_c1"] = min(target["min_c1"], m)
+                        target["max_c1"] = max(target["max_c1"], m)
                         target["overflow_count"] += int(clipped)
                     trusted = not clipped
-                    ns["CSV_LOG"].log_mag(now, *vector, magnitude, raw, bool(profile) or item["calibration"]["calibrated"], trusted)
-                    ns["ARCHIVE"].put("mag", {"t": now, "x": raw[0], "y": raw[1], "z": raw[2], "mag": math.sqrt(sum(v*v for v in raw)),
+                    ns["CSV_LOG"].log_c1(now, *vector, magnitude, raw, bool(profile) or item["calibration"]["calibrated"], trusted)
+                    ns["ARCHIVE"].put("c1", {"t": now, "x": raw[0], "y": raw[1], "z": raw[2], "c1": math.sqrt(sum(v*v for v in raw)),
                                               "trusted": trusted, "warning": "Clipped" if clipped else warning,
                                               "raw_codes": codes, "monotonic": mono, "deviation": m,
                                               "calibration": item["calibration"]})
             except Exception as exc:
                 if not stop.is_set():
-                    publish_error("magnetic", "magnetic_data", "mag_lock", exc, attempts)
+                    publish_error("ch1", "ch1_data", "c1_lock", exc, attempts)
                     attempts += 1
             finally:
                 if bus is not None:
                     if identity_ok:
                         try:
                             with I2C_LOCK:
-                                bus.write_byte_data(QMC_ADDRESS, 0x0A, 0x00)
+                                bus.write_byte_data(SRC1_ADDRESS, 0x0A, 0x00)
                         except OSError:
                             logger.debug('Channel 1 suspend failed', exc_info=True)
                     try:
@@ -398,7 +398,7 @@ def install(ns, engine):
     def arduino_adc_ports():
         """Return only credible Arduino USB serial candidates.
 
-        The spectrum analyser is also serial, so this must never probe every
+        The sweep3 analyser is also serial, so this must never probe every
         port and accidentally consume its text shell.  Uno boards normally use
         ttyACM; the explicit override covers clones that present differently.
         """
@@ -421,7 +421,7 @@ def install(ns, engine):
                 ranked.append(device)
         return ranked
 
-    def arduino_efield_reader():
+    def arduino_ch2f_reader():
         """Read the Uno's three real 10-bit ADC channels over USB serial.
 
         Raw counts remain the primary measurement.  For the requested provisional
@@ -432,11 +432,11 @@ def install(ns, engine):
         try:
             import serial
         except ImportError as exc:
-            publish_error("electric", "efield_data", "efield_lock", exc, 0)
+            publish_error("ch2", "ch2f_data", "ch2f_lock", exc, 0)
             return
         attempts = 0
-        mag_profile, mag_warning = ns["_load_magnetometer_calibration"]()
-        mag_warning = str(mag_warning or "Factory nominal sensitivity; vector accuracy requires calibration").replace("—", ";").replace("-", " ")
+        c1_profile, c1_warning = ns["_load_ch1probe_calibration"]()
+        c1_warning = str(c1_warning or "Factory nominal sensitivity; vector accuracy requires calibration").replace("—", ";").replace("-", " ")
         while not stop.is_set():
             port_handle = None
             listener = None
@@ -444,7 +444,7 @@ def install(ns, engine):
                 candidates = arduino_adc_ports()
                 if candidates:
                     port = candidates[0]
-                    engine.status("electric", "initialising", 'Opening Source 6 USB ADC')
+                    engine.status("ch2", "initialising", 'Opening Source 6 USB ADC')
                     port_handle = serial.Serial(port, ARDUINO_ADC_BAUD, timeout=0.4,
                                                 write_timeout=1)
                     port_handle.reset_input_buffer()
@@ -455,7 +455,7 @@ def install(ns, engine):
                     listener.bind((host, int(port_text)))
                     listener.listen(1)
                     listener.settimeout(1.0)
-                    engine.status("electric", "initialising", 'Waiting for Mac source bridge')
+                    engine.status("ch2", "initialising", 'Waiting for Mac source bridge')
                     while not stop.is_set():
                         try:
                             connection, _peer = listener.accept()
@@ -473,31 +473,31 @@ def install(ns, engine):
                     raise IOError('no local Source 6 or Mac source bridge configured')
                 samples = deque(maxlen=40)
                 static_baseline = None
-                engine.baseline("electric", relock=True)
-                engine.baseline("magnetic", relock=True)
+                engine.baseline("ch2", relock=True)
+                engine.baseline("ch1", relock=True)
                 attempts = 0
                 while not stop.is_set():
                     raw = port_handle.readline().decode("ascii", errors="ignore").strip()
-                    mag_match = ARDUINO_MAG_LINE.fullmatch(raw)
-                    if mag_match:
+                    c1_match = ARDUINO_C1_LINE.fullmatch(raw)
+                    if c1_match:
                         now, mono = time.time(), time.monotonic()
-                        codes = tuple(int(part) for part in mag_match.groups())
-                        raw_vector = tuple(value / QMC_LSB_PER_UT for value in codes)
-                        vector = ns["_apply_magnetometer_calibration"](*raw_vector, mag_profile)
+                        codes = tuple(int(part) for part in c1_match.groups())
+                        raw_vector = tuple(value / SRC1_LSB_PER_VAL for value in codes)
+                        vector = ns["_apply_ch1probe_calibration"](*raw_vector, c1_profile)
                         magnitude = math.sqrt(sum(value * value for value in vector))
-                        item = engine.ingest("magnetic", magnitude, now, "µT", raw=raw_vector,
+                        item = engine.ingest("ch1", magnitude, now, "unit", raw=raw_vector,
                                              vector=vector, clipped=any(abs(value) >= 30000 for value in codes),
                                              metadata={"monotonic": mono, "codes": codes,
-                                                       "configured_rate": 50, "vector_profile": bool(mag_profile),
-                                                       "resolution_ut": 1 / QMC_LSB_PER_UT,
+                                                       "configured_rate": 50, "vector_profile": bool(c1_profile),
+                                                       "resolution_val": 1 / SRC1_LSB_PER_VAL,
                                                        "transport": "ARDUINO_UNO_USB"})
                         axial, baseline = item["axial"], item["baseline"]
                         bx, by, bz = item["baseline_vector"]
                         with ns["raw_ring_lock"]:
-                            ns["RAW_RING"]["magnetic_raw"].append((now, *raw_vector))
-                            ns["RAW_RING"]["magnetic"].append((now, *vector))
-                        with ns["mag_lock"]:
-                            target = ns["magnetic_data"]
+                            ns["RAW_RING"]["ch1_raw"].append((now, *raw_vector))
+                            ns["RAW_RING"]["ch1"].append((now, *vector))
+                        with ns["c1_lock"]:
+                            target = ns["ch1_data"]
                             target.update(x=axial["x"], y=axial["y"], z=axial["z"],
                                           magnitude=item["deviation"], raw_x=raw_vector[0],
                                           raw_y=raw_vector[1], raw_z=raw_vector[2], baseline_x=bx,
@@ -505,14 +505,14 @@ def install(ns, engine):
                                           baseline_magnitude=math.sqrt(bx*bx + by*by + bz*bz),
                                           baseline_delta=item["deviation"],
                                           baseline_calibrated=not baseline["settling"],
-                                          calibrated=bool(mag_profile) or item["calibration"]["calibrated"],
-                                          last_rx=now, error=None, warning=mag_warning,
+                                          calibrated=bool(c1_profile) or item["calibration"]["calibrated"],
+                                          last_rx=now, error=None, warning=c1_warning,
                                           clipped=item["clipped"], sample_rate=item["sample_rate"],
                                           uncertainty=item["uncertainty"], raw_magnitude=magnitude)
                             target["history"].append(item["deviation"])
                             target["xyz_history"].append((axial["x"], axial["y"], axial["z"]))
-                            target["min_mag"] = min(target["min_mag"], item["deviation"])
-                            target["max_mag"] = max(target["max_mag"], item["deviation"])
+                            target["min_c1"] = min(target["min_c1"], item["deviation"])
+                            target["max_c1"] = max(target["max_c1"], item["deviation"])
                         continue
                     match = ARDUINO_LINE.fullmatch(raw)
                     if not match:
@@ -541,9 +541,9 @@ def install(ns, engine):
                     millivolts_per_count = ARDUINO_ADC_VREF_VOLTS * 1000.0 / 1023.0
                     axis_mv = tuple(value * millivolts_per_count for value in rms)
                     magnitude_mv = magnitude * millivolts_per_count
-                    to_v_m = ns.get("_ef_v_per_m") or (lambda mv: None)
-                    axis_v_m = tuple(to_v_m(value) for value in axis_mv)
-                    magnitude_v_m = to_v_m(magnitude_mv)
+                    to_vu = ns.get("_c2_scale") or (lambda mv: None)
+                    axis_vu = tuple(to_vu(value) for value in axis_mv)
+                    magnitude_vu = to_vu(magnitude_mv)
                     times = [row[0] for row in samples]
                     duration = times[-1] - times[0]
                     sample_rate = (len(times) - 1) / duration if duration > 0 else 0.0
@@ -553,11 +553,11 @@ def install(ns, engine):
                     clipped_axes = [axis.upper() for axis, is_clipped in axis_clipped.items() if is_clipped]
                     clipped = bool(clipped_axes)
                     with ns["raw_ring_lock"]:
-                        ns["RAW_RING"]["efield"].extend((now - mono + timestamp, value)
+                        ns["RAW_RING"]["ch2f"].extend((now - mono + timestamp, value)
                                                           for timestamp, value in zip(times, columns[0]))
                     audio_feed = ns.get("_v238_audio_feed")
                     if audio_feed is not None and bool(ns.get("_v238_audio_active", lambda: False)()):
-                        # A 10 Hz Uno cannot reproduce mains audio.  This is an
+                        # A 10 Hz Uno cannot reproduce linefreq audio.  This is an
                         # honest low-rate sonification of its first analogue axis,
                         # centred on mid-scale; the UI states the limitation.
                         # Map the real three-axis RMS magnitude directly to the
@@ -565,13 +565,13 @@ def install(ns, engine):
                         # the measured samples below.
                         audio_feed([magnitude, magnitude], sample_rate, 1.0)
                     item = engine.ingest(
-                        "electric", magnitude, now, "ADC counts RMS relative", clipped=clipped,
+                        "ch2", magnitude, now, "ADC counts RMS relative", clipped=clipped,
                         metadata={"monotonic": mono, "adc_sample_rate": sample_rate,
                                   "sample_count": len(samples), "peak_mv": None, "gain": None,
                                   "data_source": "ARDUINO_UNO_USB", "raw_unit": "10-bit ADC counts",
                                   "axis_rms_counts": {"x": rms[0], "y": rms[1], "z": rms[2]},
-                                  "axis_v_m": {"x": axis_v_m[0], "y": axis_v_m[1], "z": axis_v_m[2]},
-                                  "magnitude_v_m": magnitude_v_m,
+                                  "axis_vu": {"x": axis_vu[0], "y": axis_vu[1], "z": axis_vu[2]},
+                                  "magnitude_vu": magnitude_vu,
                                   "provisional": True,
                                   "note": "Uno USB ADC; nominal-reference V/m estimate pending prototype calibration"},
                     )
@@ -583,11 +583,11 @@ def install(ns, engine):
                     static_activity = math.sqrt(sum(value * value for value in static_delta))
                     ratio = magnitude / max(abs(baseline), 1e-9)
                     relative = min(100.0, max(0.0, (ratio - 1.0) / 9.0 * 100.0))
-                    with ns["efield_lock"]:
-                        target = ns["efield_data"]
+                    with ns["ch2f_lock"]:
+                        target = ns["ch2f_data"]
                         target.update(rms_mv=magnitude, raw_rms_mv=magnitude, rms_counts=magnitude,
                                       mean_mv=statistics.fmean(means) * millivolts_per_count, peak_mv=None,
-                                      field_v_m=magnitude_v_m, peak_v_m=None, baseline_v_m=0.0,
+                                      field_vu=magnitude_vu, peak_vu=None, baseline_vu=0.0,
                                       baseline_mv=baseline, rel_index=relative, ratio=ratio,
                                       level="OVER" if clipped else "HIGH" if item["snr"] >= 6 else "LOW",
                                       gain=None, min_code=min(codes), max_code=max(codes),
@@ -610,8 +610,8 @@ def install(ns, engine):
                         # measured AC-RMS count values, not volts and not a
                         # calibrated spatial field direction.
                         target.update(triaxial=True, ex_mv=rms[0], ey_mv=rms[1], ez_mv=rms[2],
-                                      ex_v_m=axis_v_m[0], ey_v_m=axis_v_m[1], ez_v_m=axis_v_m[2],
-                                      e_magnitude_mv=magnitude, e_magnitude_v_m=magnitude_v_m,
+                                      ex_vu=axis_vu[0], ey_vu=axis_vu[1], ez_vu=axis_vu[2],
+                                      e_magnitude_mv=magnitude, e_magnitude_vu=magnitude_vu,
                                       uno_vref_v=ARDUINO_ADC_VREF_VOLTS,
                                       axis_status={axis: ("railed" if axis_clipped[axis] else "raw counts")
                                                    for axis in ("x", "y", "z")},
@@ -624,7 +624,7 @@ def install(ns, engine):
                         target["history"].append(magnitude)
                         target["rel_history"].append(relative)
                         target["exyz_history"].append((rms[0], rms[1], rms[2]))
-                        target["emag_history"].append(magnitude)
+                        target["sgm_history"].append(magnitude)
                         target["min_rms"] = min(target["min_rms"], magnitude)
                         target["max_rms"] = max(target["max_rms"], magnitude)
                 # There is deliberately no CSV/Archive V/m record for this
@@ -632,7 +632,7 @@ def install(ns, engine):
                 # writing counts into either would corrupt future analysis.
             except Exception as exc:
                 if not stop.is_set():
-                    publish_error("electric", "efield_data", "efield_lock", exc, attempts)
+                    publish_error("ch2", "ch2f_data", "ch2f_lock", exc, attempts)
                     attempts += 1
             finally:
                 if port_handle is not None:
@@ -644,11 +644,11 @@ def install(ns, engine):
                     listener.close()
             stop.wait(min(15.0, 2.0 + attempts))
 
-    def ads1115_efield_reader():
+    def src2_ch2f_reader():
         try:
             from smbus2 import SMBus
         except ImportError as exc:
-            publish_error("electric", "efield_data", "efield_lock", exc, 0)
+            publish_error("ch2", "ch2f_data", "ch2f_lock", exc, 0)
             if CLAMP_ENABLED:
                 engine.status("current", "offline", "smbus2 unavailable")
             return
@@ -656,42 +656,42 @@ def install(ns, engine):
         while not stop.is_set():
             bus = None
             try:
-                engine.status("electric", "initialising",
+                engine.status("ch2", "initialising",
                               'Opening Source 2 %s at +-%.3f V'
-                              % (EFIELD_MUX_NAME.get(EFIELD_MUX, "input %d" % EFIELD_MUX),
-                                 ADS_PGA[EFIELD_GAIN][1]))
+                              % (CH2F_MUX_NAME.get(CH2F_MUX, "input %d" % CH2F_MUX),
+                                 ADS_PGA[CH2F_GAIN][1]))
                 bus = SMBus(ns.get("I2C_BUS", 1))
-                adc = ADS1115Reader(bus, stop, mux=EFIELD_MUX, gain=EFIELD_GAIN)
-                clamp = ADS1115Reader(bus, stop, mux=CLAMP_MUX, gain=2) if CLAMP_ENABLED else None
+                adc = SRC2Reader(bus, stop, mux=CH2F_MUX, gain=CH2F_GAIN)
+                clamp = SRC2Reader(bus, stop, mux=CLAMP_MUX, gain=2) if CLAMP_ENABLED else None
                 if clamp is not None:
                     engine.baseline("current", relock=True)
                 # +-4.096 V (gain 1) is on the ladder because an AC-coupled probe
                 # rests at a DC bias -- 2.29 V measured on 2026-09-24 -- and every
                 # coarser-than-2 range used to be unreachable, so auto-range would
                 # walk down to +-2.048 V, clip on the bias alone, and stay clipped
-                # forever. It also used to overwrite EFIELD_GAIN on the first block,
+                # forever. It also used to overwrite CH2F_GAIN on the first block,
                 # which made that setting look like it did nothing.
                 gains = [16, 8, 4, 2, 1]
-                gain_index = gains.index(EFIELD_GAIN) if EFIELD_GAIN in gains else len(gains) - 1
+                gain_index = gains.index(CH2F_GAIN) if CH2F_GAIN in gains else len(gains) - 1
                 low_blocks = 0
-                engine.baseline("electric", relock=True)
+                engine.baseline("ch2", relock=True)
                 attempts = 0
                 stuck_blocks = railed_blocks = 0
                 while not stop.is_set():
-                    with ns["efield_cmd_lock"]:
-                        relock = bool(ns["efield_cmd"].get("recalibrate"))
-                        ns["efield_cmd"]["recalibrate"] = False
+                    with ns["ch2f_cmd_lock"]:
+                        relock = bool(ns["ch2f_cmd"].get("recalibrate"))
+                        ns["ch2f_cmd"]["recalibrate"] = False
                     if relock:
-                        engine.baseline("electric", relock=True)
+                        engine.baseline("ch2", relock=True)
                     adc.gain = gains[gain_index]
                     count = ns.get("SAMPLES_PER_BLOCK", 100)
-                    if ns["BURST_REQUEST"]["efield"] > 0:
-                        count = min(8600, int(ns["BURST_REQUEST"]["efield"])); ns["BURST_REQUEST"]["efield"] = 0
+                    if ns["BURST_REQUEST"]["ch2f"] > 0:
+                        count = min(8600, int(ns["BURST_REQUEST"]["ch2f"])); ns["BURST_REQUEST"]["ch2f"] = 0
                     block = adc.read_block(count)
                     now, mono = time.time(), block["monotonic_times"][-1]
                     wall = now - mono
                     with ns["raw_ring_lock"]:
-                        ns["RAW_RING"]["efield"].extend((wall + tm, code) for tm, code in zip(block["monotonic_times"], block["codes"]))
+                        ns["RAW_RING"]["ch2f"].extend((wall + tm, code) for tm, code in zip(block["monotonic_times"], block["codes"]))
                     audio_feed = ns.get("_v238_audio_feed")
                     audio_active = bool(ns.get("_v238_audio_active", lambda: False)())
                     if audio_feed is not None and audio_active:
@@ -711,7 +711,7 @@ def install(ns, engine):
                     else:
                         probe_health = "ok"
                     probe_ok = probe_health == "ok"
-                    item = engine.ingest("electric", block["rms_mv"], now, "mV RMS relative", clipped=clipped or not probe_ok,
+                    item = engine.ingest("ch2", block["rms_mv"], now, "mV RMS relative", clipped=clipped or not probe_ok,
                                          metadata={"monotonic": mono, "adc_sample_rate": block["sample_rate"],
                                                    "configured_adc_rate": 860, "sample_count": len(block["codes"]),
                                                    "mean_mv": block["mean_mv"], "peak_mv": block["peak_mv"],
@@ -732,16 +732,16 @@ def install(ns, engine):
                         note = "Probe " + probe_health
                     # ── triaxial ─────────────────────────────────────────
                     tri = {"triaxial": False}
-                    if EFIELD_TRIAXIAL:
+                    if CH2F_TRIAXIAL:
                         # Resolved per block rather than imported at module level:
                         # acquisition is not one of _shared.ORDER's modules, so its
                         # namespace is handed in rather than injected. A missing key
                         # here would raise inside the reader thread and take the whole
-                        # E-field channel down, so it degrades to raw mV instead.
-                        to_v_m = ns.get("_ef_v_per_m") or (lambda mv: None)
+                        # Ch2 channel down, so it degrades to raw mV instead.
+                        to_vu = ns.get("_c2_scale") or (lambda mv: None)
                         axis_mv, axis_status = {}, {}
-                        for name, mux in EFIELD_AXIS_MUX.items():
-                            if mux == EFIELD_MUX:
+                        for name, mux in CH2F_AXIS_MUX.items():
+                            if mux == CH2F_MUX:
                                 # Reuse the block already read rather than paying
                                 # for a fourth conversion set per cycle.
                                 mv = None if not probe_ok else block["rms_mv"]
@@ -751,7 +751,7 @@ def install(ns, engine):
                                 mv, status, _ = axis_block(adc, mux, min(count, 100))
                                 axis_mv[name] = mv
                                 axis_status[name] = status
-                        scaled = {a: (axis_mv[a] * EFIELD_AXIS_SCALE[a]) if axis_mv[a] is not None else None
+                        scaled = {a: (axis_mv[a] * CH2F_AXIS_SCALE[a]) if axis_mv[a] is not None else None
                                   for a in axis_mv}
                         live = [v for v in scaled.values() if v is not None]
                         # Magnitude over the axes that actually reported. With fewer
@@ -760,18 +760,18 @@ def install(ns, engine):
                         magnitude = math.sqrt(sum(v * v for v in live)) if live else None
                         tri = {"triaxial": True,
                                "ex_mv": scaled["x"], "ey_mv": scaled["y"], "ez_mv": scaled["z"],
-                               "ex_v_m": None if scaled["x"] is None else to_v_m(scaled["x"]),
-                               "ey_v_m": None if scaled["y"] is None else to_v_m(scaled["y"]),
-                               "ez_v_m": None if scaled["z"] is None else to_v_m(scaled["z"]),
+                               "ex_vu": None if scaled["x"] is None else to_vu(scaled["x"]),
+                               "ey_vu": None if scaled["y"] is None else to_vu(scaled["y"]),
+                               "ez_vu": None if scaled["z"] is None else to_vu(scaled["z"]),
                                "e_magnitude_mv": magnitude,
-                               "e_magnitude_v_m": None if magnitude is None else to_v_m(magnitude),
+                               "e_magnitude_vu": None if magnitude is None else to_vu(magnitude),
                                "axis_status": axis_status, "axes_live": len(live)}
 
-                    with ns["efield_lock"]:
-                        target = ns["efield_data"]
+                    with ns["ch2f_lock"]:
+                        target = ns["ch2f_data"]
                         target.update(rms_mv=block["rms_mv"], raw_rms_mv=block["rms_mv"], mean_mv=block["mean_mv"],
-                                      peak_mv=block["peak_mv"], field_v_m=max(0.0, item["deviation"]),
-                                      peak_v_m=(block["peak_mv"] - baseline_mv) * scale, baseline_v_m=0.0,
+                                      peak_mv=block["peak_mv"], field_vu=max(0.0, item["deviation"]),
+                                      peak_vu=(block["peak_mv"] - baseline_mv) * scale, baseline_vu=0.0,
                                       baseline_mv=baseline_mv, rel_index=relative, ratio=ratio,
                                       level="OVER" if clipped else "HIGH" if item["snr"] >= 6 else "LOW",
                                       gain=adc.gain, min_code=block["minimum"], max_code=block["maximum"],
@@ -788,7 +788,7 @@ def install(ns, engine):
                         target["history"].append(block["rms_mv"])
                         target["rel_history"].append(relative)
                         if tri["triaxial"]:
-                            # Same shape the magnetometer publishes, so every chart
+                            # Same shape the ch1probe publishes, so every chart
                             # written for its xyz_history works on this unchanged.
                             # None becomes 0.0 only here, at the plotting boundary,
                             # because a chart cannot draw a gap in a 3D vector --
@@ -797,20 +797,20 @@ def install(ns, engine):
                                                            tri["ey_mv"] or 0.0,
                                                            tri["ez_mv"] or 0.0))
                             if tri["e_magnitude_mv"] is not None:
-                                target["emag_history"].append(tri["e_magnitude_mv"])
+                                target["sgm_history"].append(tri["e_magnitude_mv"])
                         target["min_rms"] = min(target["min_rms"], block["rms_mv"])
                         target["max_rms"] = max(target["max_rms"], block["rms_mv"])
                     trusted = not clipped and probe_ok
                     # Empty physical field columns preserve scientific meaning before calibration.
-                    ns["CSV_LOG"]._put({"unix_time": now, "channel": "efield", "ef_rms_mv": block["rms_mv"],
-                                       "ef_peak_mv": block["peak_mv"], "ef_baseline_mv": baseline_mv,
-                                       "ef_field_v_m": item["deviation"] if profile.get("unit") == "V/m" else None,
-                                       "ef_peak_v_m": (block["peak_mv"] - baseline_mv) * scale if profile.get("unit") == "V/m" else None,
-                                       "ef_baseline_v_m": 0.0 if profile.get("unit") == "V/m" else None,
-                                       "ef_ratio": ratio, "ef_rel_index_pct": relative, "ef_gain": adc.gain,
-                                       "ef_utilisation_pct": block["utilisation"] * 100, "ef_clipped": int(clipped),
-                                       "ef_calibrated": int(calibrated), "ef_trusted": int(trusted), "note": note})
-                    ns["ARCHIVE"].put("efield", {"t": now, "rms_mv": block["rms_mv"], "peak_mv": block["peak_mv"],
+                    ns["CSV_LOG"]._put({"unix_time": now, "channel": "ch2f", "c2_rms_mv": block["rms_mv"],
+                                       "c2_peak_mv": block["peak_mv"], "c2_baseline_mv": baseline_mv,
+                                       "c2_field_vu": item["deviation"] if profile.get("unit") == "V/m" else None,
+                                       "c2_peak_vu": (block["peak_mv"] - baseline_mv) * scale if profile.get("unit") == "V/m" else None,
+                                       "c2_baseline_vu": 0.0 if profile.get("unit") == "V/m" else None,
+                                       "c2_ratio": ratio, "c2_rel_index_pct": relative, "c2_gain": adc.gain,
+                                       "c2_utilisation_pct": block["utilisation"] * 100, "c2_clipped": int(clipped),
+                                       "c2_calibrated": int(calibrated), "c2_trusted": int(trusted), "note": note})
+                    ns["ARCHIVE"].put("ch2f", {"t": now, "rms_mv": block["rms_mv"], "peak_mv": block["peak_mv"],
                                                  "baseline_mv": baseline_mv, "ratio": ratio, "rel_index": relative,
                                                  "gain": adc.gain, "clipped": clipped, "trusted": trusted, "warning": note,
                                                  "raw_codes": block["codes"], "sample_times": block["monotonic_times"],
@@ -852,7 +852,7 @@ def install(ns, engine):
                         low_blocks = 0
             except Exception as exc:
                 if not stop.is_set():
-                    publish_error("electric", "efield_data", "efield_lock", exc, attempts)
+                    publish_error("ch2", "ch2f_data", "ch2f_lock", exc, attempts)
                     if CLAMP_ENABLED:
                         engine.status("current", "offline", str(exc).replace("-", " ")[:200])
                     attempts += 1
@@ -864,53 +864,53 @@ def install(ns, engine):
                         logger.debug('bus handle close failed', exc_info=True)
             stop.wait(min(15.0, 2.0 + attempts))
 
-    def read_until_prompt(tsa, timeout):
+    def read_until_prompt(s3, timeout):
         output = bytearray()
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline and not stop.is_set():
-            chunk = tsa.read(max(1, min(4096, getattr(tsa, "in_waiting", 0) or 1)))
+            chunk = s3.read(max(1, min(4096, getattr(s3, "in_waiting", 0) or 1)))
             if chunk:
                 output.extend(chunk)
                 if output.rstrip().endswith(b"ch>"):
                     return bytes(output)
                 if len(output) > 4_000_000:
-                    raise ns["TinySAProtocolError"]("TinySA response exceeded its size limit")
-        raise TimeoutError(f"TinySA response incomplete after {timeout:.1f} seconds; received {len(output)} bytes")
+                    raise ns["Src3ProtocolError"]("Src3 response exceeded its size limit")
+        raise TimeoutError(f"Src3 response incomplete after {timeout:.1f} seconds; received {len(output)} bytes")
 
-    def command(tsa, cmd, timeout=6.0):
+    def command(s3, cmd, timeout=6.0):
         if any(c in cmd for c in "\r\n"):
-            raise ValueError("TinySA commands must contain one line")
-        tsa.reset_input_buffer()
+            raise ValueError("Src3 commands must contain one line")
+        s3.reset_input_buffer()
         data = (cmd + "\r").encode("ascii")
-        count = tsa.write(data)
+        count = s3.write(data)
         if count != len(data):
-            raise ns["TinySAProtocolError"]("Incomplete TinySA command write")
-        reply = read_until_prompt(tsa, timeout).decode("utf8", errors="replace")
+            raise ns["Src3ProtocolError"]("Incomplete Src3 command write")
+        reply = read_until_prompt(s3, timeout).decode("utf8", errors="replace")
         if any(marker in reply.lower() for marker in ("unknown command", "command error", "invalid command")):
-            raise ns["TinySAProtocolError"]("TinySA rejected the requested command")
+            raise ns["Src3ProtocolError"]("Src3 rejected the requested command")
         return reply
 
     def validate(freqs, levels, start_hz, stop_hz, points):
-        return validate_text_sweep(freqs, levels, start_hz, stop_hz, points, ns["TinySAProtocolError"])
+        return validate_text_sweep(freqs, levels, start_hz, stop_hz, points, ns["Src3ProtocolError"])
 
-    original_scan = ns["_tsa_scan"]
-    rf_grid = [None]
-    rf_baselines = []
-    rf_history = deque(maxlen=400)
-    rf_summary = {"count": 0, "min": float("inf"), "max": float("-inf"), "sum": 0.0, "strongest": {"level": 0.0, "freq": 0.0, "t": 0.0}}
+    original_scan = ns["_s3_scan"]
+    ch3_grid = [None]
+    ch3_baselines = []
+    ch3_history = deque(maxlen=400)
+    ch3_summary = {"count": 0, "min": float("inf"), "max": float("-inf"), "sum": 0.0, "strongest": {"level": 0.0, "freq": 0.0, "t": 0.0}}
 
-    def scan(tsa, start_hz, stop_hz, points, timeout=40.0):
+    def scan(s3, start_hz, stop_hz, points, timeout=40.0):
         started = time.monotonic()
         try:
-            result = original_scan(tsa, start_hz, stop_hz, points, timeout)
+            result = original_scan(s3, start_hz, stop_hz, points, timeout)
         except Exception as exc:
-            engine.status("rf", "offline", str(exc).replace("—", ";").replace("-", " "))
+            engine.status("ch3", "offline", str(exc).replace("—", ";").replace("-", " "))
             raise
         freqs, levels, raw_reply, warnings = result
-        if (start_hz, stop_hz, points) == (ns["TSA_PROBE_START"], ns["TSA_PROBE_STOP"], ns["TSA_PROBE_POINTS"]):
+        if (start_hz, stop_hz, points) == (ns["S3_PROBE_START"], ns["S3_PROBE_STOP"], ns["S3_PROBE_POINTS"]):
             return result
-        if warnings or statistics.median(levels) > ns.get("TSA_SANE_MAX_DBM", 0.0):
-            engine.status("rf", "error", "Sweep levels require verification")
+        if warnings or statistics.median(levels) > ns.get("S3_SANE_MAX_DBM", 0.0):
+            engine.status("ch3", "error", "Sweep levels require verification")
             return result
         publish_sweep(freqs, levels, started)
         return result
@@ -918,174 +918,174 @@ def install(ns, engine):
     def publish_sweep(freqs, levels, started, source="HARDWARE"):
         grid = tuple(freqs)
         mono = time.monotonic()
-        if rf_grid[0] != grid:
+        if ch3_grid[0] != grid:
             from .analysis import BaselineLock
-            rf_grid[0] = grid
+            ch3_grid[0] = grid
             with engine.lock:
-                window = engine.baselines["rf"].window
-            rf_baselines[:] = [BaselineLock(window, 0.5) for _ in grid]
-            engine.baseline("rf", relock=True)
+                window = engine.baselines["ch3"].window
+            ch3_baselines[:] = [BaselineLock(window, 0.5) for _ in grid]
+            engine.baseline("ch3", relock=True)
         with engine.lock:
-            scalar_base = engine.baselines["rf"]
-            for baseline in rf_baselines:
+            scalar_base = engine.baselines["ch3"]
+            for baseline in ch3_baselines:
                 if baseline.window != scalar_base.window or scalar_base.started is None:
                     baseline.window = scalar_base.window
                     baseline.reset()
                 baseline.frozen = scalar_base.frozen
-        deviations = [baseline.update(level, mono) for baseline, level in zip(rf_baselines, levels)]
+        deviations = [baseline.update(level, mono) for baseline, level in zip(ch3_baselines, levels)]
         strongest_index = max(range(len(deviations)), key=lambda i: abs(deviations[i]))
         delta = deviations[strongest_index]
         with engine.lock:
-            rf_history.append(delta)
-            rf_summary["count"] += 1
-            rf_summary["min"] = min(rf_summary["min"], delta)
-            rf_summary["max"] = max(rf_summary["max"], delta)
-            rf_summary["sum"] += delta
-            if abs(delta) >= abs(rf_summary["strongest"]["level"]):
-                rf_summary["strongest"] = {"level": delta, "freq": freqs[strongest_index], "t": time.time()}
-        item = engine.ingest("rf", max(levels), time.time(), "dB", raw={"frequencies": freqs, "levels_dbm": levels},
+            ch3_history.append(delta)
+            ch3_summary["count"] += 1
+            ch3_summary["min"] = min(ch3_summary["min"], delta)
+            ch3_summary["max"] = max(ch3_summary["max"], delta)
+            ch3_summary["sum"] += delta
+            if abs(delta) >= abs(ch3_summary["strongest"]["level"]):
+                ch3_summary["strongest"] = {"level": delta, "freq": freqs[strongest_index], "t": time.time()}
+        item = engine.ingest("ch3", max(levels), time.time(), "dB", raw={"frequencies": freqs, "levels_dbm": levels},
                              metadata={"monotonic": mono, "sweep_seconds": mono - started, "data_source": source,
                                        "frequencies": freqs, "deviations_db": deviations,
                                        "deviation_db": max(deviations, key=abs),
-                                       "noise_db": statistics.median(b.noise for b in rf_baselines),
-                                       "bin_baselines_dbm": [baseline.value for baseline in rf_baselines],
-                                       "spectrum_settling": any(b.settling for b in rf_baselines),
+                                       "noise_db": statistics.median(b.noise for b in ch3_baselines),
+                                       "bin_baselines_dbm": [baseline.value for baseline in ch3_baselines],
+                                       "sweep3_settling": any(b.settling for b in ch3_baselines),
                                        "peak_frequency_hz": freqs[levels.index(max(levels))],
                                        "noise_floor_dbm": statistics.median(levels),
-                                       "measurement_note": "Swept bins acquired sequentially; absolute RF accuracy unknown until reference calibration"})
+                                       "measurement_note": "Swept bins acquired sequentially; absolute CH3 accuracy unknown until reference calibration"})
         return item
 
     def demo_reader():
         if not ns.get("RUNTIME", {}).get("demo"):
             raise RuntimeError("Simulation requires the explicit demo option")
         began = time.monotonic()
-        last_rf = began - 1.0
+        last_ch3 = began - 1.0
         focus_bands = []
         focus_idx = -1
-        ef_clock = [time.time()]
+        c2_clock = [time.time()]
         while not stop.is_set():
             now, mono = time.time(), time.monotonic()
             phase = (mono - began) * 0.75
             raw_vector = [21 + 1.8 * math.sin(phase), -6.5 + 1.2 * math.cos(phase * 0.8), 38 + 0.9 * math.sin(phase * 0.4)]
-            # SIMULATED raw rings for the D4 engine: a 50 µT field seen through a slowly tumbling,
-            # hard/soft iron distorted magnetometer, and 860 SPS E-field blocks with a 50 Hz line.
+            # SIMULATED raw rings for the D4 engine: a 50 unit field seen through a slowly tumbling,
+            # hard/soft iron distorted ch1probe, and 860 SPS Ch2 blocks with a 50 Hz line.
             th, ph = phase * 0.37, phase * 0.23
             fld = [50 * math.cos(th) * math.cos(ph), 50 * math.sin(th) * math.cos(ph), 50 * math.sin(ph)]
             dist = [1.08 * fld[0] + 0.03 * fld[1] - 47.3 + random.gauss(0, .4), 0.03 * fld[0] + 0.95 * fld[1] + 21.8 + random.gauss(0, .4), 1.02 * fld[2] - 12.4 + random.gauss(0, .4)]
             with ns["raw_ring_lock"]:
-                ns["RAW_RING"]["magnetic_raw"].append((now, *dist))
-                ns["RAW_RING"]["magnetic"].append((now, *raw_vector))
+                ns["RAW_RING"]["ch1_raw"].append((now, *dist))
+                ns["RAW_RING"]["ch1"].append((now, *raw_vector))
                 nblk = 100
-                if ns["BURST_REQUEST"]["efield"] > 0:
-                    nblk = min(8600, int(ns["BURST_REQUEST"]["efield"])); ns["BURST_REQUEST"]["efield"] = 0
+                if ns["BURST_REQUEST"]["ch2f"] > 0:
+                    nblk = min(8600, int(ns["BURST_REQUEST"]["ch2f"])); ns["BURST_REQUEST"]["ch2f"] = 0
                 # a continuous simulated ADC clock: blocks abut exactly like a real 860 SPS stream
-                t0 = ef_clock[0]; ef_clock[0] = t0 + nblk / 860.0
-                if now - ef_clock[0] > 2.0:
-                    t0 = now - nblk / 860.0; ef_clock[0] = now
-                ns["RAW_RING"]["efield"].extend((t0 + i / 860.0, 12000 + 900 * math.sin(2 * math.pi * 50.02 * (t0 + i / 860.0)) + 60 * math.sin(2 * math.pi * 100.04 * (t0 + i / 860.0)) + 35 * math.sin(2 * math.pi * 150.06 * (t0 + i / 860.0)) + random.gauss(0, 25)) for i in range(nblk))
-            raw_mag = math.sqrt(sum(v * v for v in raw_vector))
-            mag = engine.ingest("magnetic", raw_mag, now, "µT", raw=raw_vector, vector=raw_vector,
+                t0 = c2_clock[0]; c2_clock[0] = t0 + nblk / 860.0
+                if now - c2_clock[0] > 2.0:
+                    t0 = now - nblk / 860.0; c2_clock[0] = now
+                ns["RAW_RING"]["ch2f"].extend((t0 + i / 860.0, 12000 + 900 * math.sin(2 * math.pi * 50.02 * (t0 + i / 860.0)) + 60 * math.sin(2 * math.pi * 100.04 * (t0 + i / 860.0)) + 35 * math.sin(2 * math.pi * 150.06 * (t0 + i / 860.0)) + random.gauss(0, 25)) for i in range(nblk))
+            raw_c1 = math.sqrt(sum(v * v for v in raw_vector))
+            c1 = engine.ingest("ch1", raw_c1, now, "unit", raw=raw_vector, vector=raw_vector,
                                 metadata={"monotonic": mono, "data_source": "SIMULATED"})
-            with ns["mag_lock"]:
-                data = ns["magnetic_data"]
-                x, y, z = [mag["axial"][key] for key in ("x", "y", "z")]
-                data.update(x=x, y=y, z=z, magnitude=mag["deviation"], raw_x=raw_vector[0], raw_y=raw_vector[1],
-                            raw_z=raw_vector[2], raw_magnitude=raw_mag, error=None, warning="SIMULATED DATA", chip_warning=None,
+            with ns["c1_lock"]:
+                data = ns["ch1_data"]
+                x, y, z = [c1["axial"][key] for key in ("x", "y", "z")]
+                data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=raw_vector[0], raw_y=raw_vector[1],
+                            raw_z=raw_vector[2], raw_magnitude=raw_c1, error=None, warning="SIMULATED DATA", chip_warning=None,
                             chip_id=None, calibrated=False, calibration_warning="SIMULATED DATA", last_rx=now,
-                            baseline_delta=mag["deviation"], baseline_calibrated=not mag["baseline"]["settling"],
-                            baseline_magnitude=math.sqrt(sum(v*v for v in mag["baseline_vector"])))
-                data["history"].append(mag["deviation"])
+                            baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
+                            baseline_magnitude=math.sqrt(sum(v*v for v in c1["baseline_vector"])))
+                data["history"].append(c1["deviation"])
                 data["xyz_history"].append((x, y, z))
-                data["min_mag"] = min(data["min_mag"], mag["deviation"])
-                data["max_mag"] = max(data["max_mag"], mag["deviation"])
+                data["min_c1"] = min(data["min_c1"], c1["deviation"])
+                data["max_c1"] = max(data["max_c1"], c1["deviation"])
             rms = 0.8 + 0.25 * (1 + math.sin(phase * 1.7))
-            electric = engine.ingest("electric", rms, now, "mV RMS relative", metadata={"monotonic": mono, "data_source": "SIMULATED"})
-            profile = electric["calibration"]["profile"]
-            baseline_mv = (electric["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
+            ch2 = engine.ingest("ch2", rms, now, "mV RMS relative", metadata={"monotonic": mono, "data_source": "SIMULATED"})
+            profile = ch2["calibration"]["profile"]
+            baseline_mv = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
             ratio = rms / max(baseline_mv, 0.008)
             relative = min(100.0, max(0.0, (ratio - 1) / 9 * 100))
-            with ns["efield_lock"]:
-                data = ns["efield_data"]
+            with ns["ch2f_lock"]:
+                data = ns["ch2f_data"]
                 data.update(rms_mv=rms, raw_rms_mv=rms, mean_mv=0.0, peak_mv=rms*1.7,
-                            field_v_m=electric["deviation"], peak_v_m=(rms*1.7 - baseline_mv)*profile.get("scale", 1),
-                            baseline_v_m=0.0, baseline_mv=baseline_mv, ratio=ratio, rel_index=relative, level="LOW", gain=16,
+                            field_vu=ch2["deviation"], peak_vu=(rms*1.7 - baseline_mv)*profile.get("scale", 1),
+                            baseline_vu=0.0, baseline_mv=baseline_mv, ratio=ratio, rel_index=relative, level="LOW", gain=16,
                             clipped=False, error=None, warning=None, last_rx=now, status="SIMULATED DATA",
-                            calibrated=not electric["baseline"]["settling"], probe_calibrated=False, unit=electric["unit"])
-                data["history"].append(electric["deviation"])
+                            calibrated=not ch2["baseline"]["settling"], probe_calibrated=False, unit=ch2["unit"])
+                data["history"].append(ch2["deviation"])
                 data["rel_history"].append(relative)
                 data["min_rms"] = min(data["min_rms"], rms)
                 data["max_rms"] = max(data["max_rms"], rms)
-            ns["CSV_LOG"].log_mag(now, *raw_vector, raw_mag, raw_vector, False, False, note="SIMULATED DATA")
-            ns["CSV_LOG"]._put({"unix_time": now, "channel": "efield", "ef_rms_mv": rms, "ef_peak_mv": rms*1.7,
-                               "ef_baseline_mv": baseline_mv, "ef_ratio": ratio, "ef_rel_index_pct": relative, "ef_gain": 16,
-                               "ef_clipped": 0, "ef_calibrated": 0, "ef_trusted": 0, "note": "SIMULATED DATA", "data_source": "SIMULATED"})
-            ns["ARCHIVE"].put("mag", {"t": now, "x": raw_vector[0], "y": raw_vector[1], "z": raw_vector[2], "mag": raw_mag,
+            ns["CSV_LOG"].log_c1(now, *raw_vector, raw_c1, raw_vector, False, False, note="SIMULATED DATA")
+            ns["CSV_LOG"]._put({"unix_time": now, "channel": "ch2f", "c2_rms_mv": rms, "c2_peak_mv": rms*1.7,
+                               "c2_baseline_mv": baseline_mv, "c2_ratio": ratio, "c2_rel_index_pct": relative, "c2_gain": 16,
+                               "c2_clipped": 0, "c2_calibrated": 0, "c2_trusted": 0, "note": "SIMULATED DATA", "data_source": "SIMULATED"})
+            ns["ARCHIVE"].put("c1", {"t": now, "x": raw_vector[0], "y": raw_vector[1], "z": raw_vector[2], "c1": raw_c1,
                                       "trusted": False, "warning": "SIMULATED DATA", "data_source": "SIMULATED", "monotonic": mono})
-            ns["ARCHIVE"].put("efield", {"t": now, "rms_mv": rms, "peak_mv": rms*1.7, "baseline_mv": baseline_mv,
+            ns["ARCHIVE"].put("ch2f", {"t": now, "rms_mv": rms, "peak_mv": rms*1.7, "baseline_mv": baseline_mv,
                                          "ratio": ratio, "rel_index": relative, "gain": 16, "clipped": False, "trusted": False,
                                          "warning": "SIMULATED DATA", "data_source": "SIMULATED", "monotonic": mono})
-            with ns["tinysa_cmd_lock"]:
-                command_state = ns["tinysa_cmd"]
+            with ns["src3_cmd_lock"]:
+                command_state = ns["src3_cmd"]
                 paused = command_state["paused"]
                 new_range, new_points, clear = command_state["range"], command_state["points"], command_state["reset_hold"]
                 command_state.update(range=None, points=None, reset_hold=False)
                 new_preset = command_state.get("preset")
                 command_state["preset"] = None
                 new_bands = command_state.get("bands"); command_state["bands"] = None
-            with ns["spectrum_lock"]:
-                spectrum = ns["spectrum_data"]
+            with ns["sweep3_lock"]:
+                sweep3 = ns["sweep3_data"]
                 if new_bands is not None:
                     focus_bands = [(int(a), int(b)) for a, b in new_bands if int(b) > int(a)]
                     focus_idx = -1
-                    spectrum["bands"] = {}
-                    spectrum["focus"] = [list(b) for b in focus_bands]
-                    spectrum["maxhold"] = []
+                    sweep3["bands"] = {}
+                    sweep3["focus"] = [list(b) for b in focus_bands]
+                    sweep3["maxhold"] = []
                 if new_range:
-                    spectrum["span_start"], spectrum["span_stop"] = new_range
+                    sweep3["span_start"], sweep3["span_stop"] = new_range
                 if new_points:
-                    spectrum["points"] = int(new_points)
+                    sweep3["points"] = int(new_points)
                 if new_preset:
-                    spectrum["preset"] = new_preset
+                    sweep3["preset"] = new_preset
                 if new_range or new_points or clear:
-                    spectrum["maxhold"] = []
-                    spectrum["waterfall"].clear()
-                    spectrum["waterfall_times"].clear()
-                start_hz, stop_hz, points = spectrum["span_start"], spectrum["span_stop"], spectrum["points"]
+                    sweep3["maxhold"] = []
+                    sweep3["waterfall"].clear()
+                    sweep3["waterfall_times"].clear()
+                start_hz, stop_hz, points = sweep3["span_start"], sweep3["span_stop"], sweep3["points"]
                 if focus_bands:
                     # advance only when a sweep is about to run, so every band gets its turn
-                    if not paused and mono - last_rf >= 1:
+                    if not paused and mono - last_ch3 >= 1:
                         focus_idx = (focus_idx + 1) % len(focus_bands)
                     start_hz, stop_hz = focus_bands[max(0, focus_idx)]
                 if paused:
-                    spectrum["status"] = "SIMULATED DATA; paused"
+                    sweep3["status"] = "SIMULATED DATA; paused"
             if paused:
-                engine.status("rf", "paused", "SIMULATED DATA; paused")
-            if not paused and mono - last_rf >= 1:
+                engine.status("ch3", "paused", "SIMULATED DATA; paused")
+            if not paused and mono - last_ch3 >= 1:
                 started = time.monotonic()
                 freqs = [start_hz + i * (stop_hz - start_hz) / (points - 1) for i in range(points)]
                 levels = [-103 + 1.2 * math.sin(i * 0.31 + phase)
                           + 34 * math.exp(-((f - 98500000) / max((stop_hz-start_hz)/80, 250000))**2)
                           + 26 * math.exp(-((f - 2437000000) / max((stop_hz-start_hz)/70, 1000000))**2) for i, f in enumerate(freqs)]
                 floor = statistics.median(levels)
-                peaks = ns["_tsa_peaks"](freqs, levels, floor)
+                peaks = ns["_s3_peaks"](freqs, levels, floor)
                 peak_index = levels.index(max(levels))
                 publish_sweep(freqs, levels, started, source="SIMULATED")
                 duration = time.monotonic() - started
-                with ns["spectrum_lock"]:
-                    previous = spectrum["maxhold"]
+                with ns["sweep3_lock"]:
+                    previous = sweep3["maxhold"]
                     hold = [max(a, b) for a, b in zip(previous, levels)] if len(previous) == points else list(levels)
-                    spectrum.update(freqs=freqs, levels=levels, maxhold=hold, peaks=peaks, floor=floor,
+                    sweep3.update(freqs=freqs, levels=levels, maxhold=hold, peaks=peaks, floor=floor,
                                     peak_level=levels[peak_index], peak_freq=freqs[peak_index], sweep_s=duration,
-                                    sweeps=spectrum["sweeps"] + 1, device="Software simulator", device_info="SIMULATED DATA",
+                                    sweeps=sweep3["sweeps"] + 1, device="Software simulator", device_info="SIMULATED DATA",
                                     help_summary="Simulation", port="SIMULATED", leveloffset="Not applicable", level_sane=True,
                                     trusted=False, warnings=["SIMULATED DATA"], level_note="SIMULATED DATA", present=False,
                                     status="SIMULATED DATA", error=None, last_rx=now)
-                    spectrum["waterfall"].append(list(levels))
-                    spectrum["waterfall_times"].append(now)
-                    spectrum["peak_history"].append(levels[peak_index])
+                    sweep3["waterfall"].append(list(levels))
+                    sweep3["waterfall_times"].append(now)
+                    sweep3["peak_history"].append(levels[peak_index])
                     if focus_bands:
                         key = f"{start_hz}-{stop_hz}"
-                        band = spectrum.setdefault("bands", {}).get(key) or {
+                        band = sweep3.setdefault("bands", {}).get(key) or {
                             "start": start_hz, "stop": stop_hz, "freqs": [], "levels": [], "prev": [], "delta": [],
                             "waterfall": deque(maxlen=48), "times": deque(maxlen=48), "sweeps": 0}
                         prev = band["levels"] if len(band["levels"]) == len(levels) else []
@@ -1094,10 +1094,10 @@ def install(ns, engine):
                                     sweeps=band["sweeps"] + 1, last_rx=now, sweep_s=duration,
                                     peak_level=levels[peak_index], peak_freq=freqs[peak_index], trusted=False, floor=floor)
                         band["waterfall"].append(list(levels)); band["times"].append(now)
-                        spectrum["bands"][key] = band
-                ns["CSV_LOG"].log_rf(now, start_hz, stop_hz, points, duration, freqs[peak_index], levels[peak_index], floor, False, note="SIMULATED DATA")
-                ns["ARCHIVE"].put("rf", {"started_at": now, "completed_at": now + duration, "duration_s": duration,
-                                         "profile": spectrum["preset"], "start_hz": start_hz, "stop_hz": stop_hz,
+                        sweep3["bands"][key] = band
+                ns["CSV_LOG"].log_ch3(now, start_hz, stop_hz, points, duration, freqs[peak_index], levels[peak_index], floor, False, note="SIMULATED DATA")
+                ns["ARCHIVE"].put("ch3", {"started_at": now, "completed_at": now + duration, "duration_s": duration,
+                                         "profile": sweep3["preset"], "start_hz": start_hz, "stop_hz": stop_hz,
                                          "requested_points": points, "repeat": 1, "bin_width_hz": (stop_hz-start_hz)/(points-1),
                                          "frequencies": freqs, "levels": levels, "peaks": peaks, "warnings": ["SIMULATED DATA"],
                                          "trusted": False, "firmware": "SIMULATED", "port": "SIMULATED", "transport": "SIMULATED",
@@ -1112,33 +1112,33 @@ def install(ns, engine):
                                                  "vendor": "Software simulator", "services": 1, "tx": -4, "kind": "BLE"}],
                                          adapter="SIMULATED", backend="Software simulator", scan_mode="simulated discovery", paused=False,
                                          error=None, last_rx=now, scans=ns["bt_data"]["scans"]+1)
-                last_rf = mono
+                last_ch3 = mono
             stop.wait(0.1)
 
-    def rf_rows(rows, freqs):
-        if tuple(freqs) != rf_grid[0] or not rf_baselines:
+    def ch3_rows(rows, freqs):
+        if tuple(freqs) != ch3_grid[0] or not ch3_baselines:
             return []
         with engine.lock:
-            reference = [baseline.value for baseline in rf_baselines]
-            scale = engine.calibrations.get("rf").get("scale", 1.0)
+            reference = [baseline.value for baseline in ch3_baselines]
+            scale = engine.calibrations.get("ch3").get("scale", 1.0)
         return [[(level - baseline) * scale for level, baseline in zip(row, reference)]
                 for row in rows if len(row) == len(reference)]
 
-    def rf_display(snapshot):
+    def ch3_display(snapshot):
         result = dict(snapshot)
         with engine.lock:
-            metadata = dict(engine.channels["rf"]["metadata"])
-            scalar = engine.baselines["rf"].value
-            scale = engine.calibrations.get("rf").get("scale", 1.0)
+            metadata = dict(engine.channels["ch3"]["metadata"])
+            scalar = engine.baselines["ch3"].value
+            scale = engine.calibrations.get("ch3").get("scale", 1.0)
         freqs = result.get("freqs", [])
-        if tuple(freqs) != rf_grid[0] or not rf_baselines:
+        if tuple(freqs) != ch3_grid[0] or not ch3_baselines:
             result.update(levels=[], maxhold=[], peaks=[], waterfall=[], peak_history=[],
                           peak_level=0.0, floor=0.0, level_note="Baseline settling")
             return result
-        reference = [baseline.value for baseline in rf_baselines]
+        reference = [baseline.value for baseline in ch3_baselines]
         result["levels"] = [(level - baseline) * scale for level, baseline in zip(result.get("levels", []), reference)]
         result["maxhold"] = [(level - baseline) * scale for level, baseline in zip(result.get("maxhold", []), reference)]
-        result["waterfall"] = rf_rows(result.get("waterfall", []), freqs)
+        result["waterfall"] = ch3_rows(result.get("waterfall", []), freqs)
         result["floor"] = statistics.median(result["levels"]) if result["levels"] else 0.0
         peaks = []
         for peak in result.get("peaks", []):
@@ -1148,26 +1148,26 @@ def install(ns, engine):
             peaks.append(peak)
         result["peaks"] = peaks
         result["peak_level"] = max(result["levels"], key=abs) if result["levels"] else 0.0
-        result["peak_history"] = [value * scale for value in rf_history]
+        result["peak_history"] = [value * scale for value in ch3_history]
         result["level_note"] = "Deviation from Baseline Lock in dB"
-        result["baseline_settling"] = metadata.get("spectrum_settling", True)
+        result["baseline_settling"] = metadata.get("sweep3_settling", True)
         return result
 
-    def rf_stats():
+    def ch3_stats():
         with engine.lock:
-            result = dict(rf_summary)
-            result["strongest"] = dict(rf_summary["strongest"])
-            scale = engine.calibrations.get("rf").get("scale", 1.0)
+            result = dict(ch3_summary)
+            result["strongest"] = dict(ch3_summary["strongest"])
+            scale = engine.calibrations.get("ch3").get("scale", 1.0)
             for key in ("min", "max", "sum"):
                 result[key] *= scale
             result["strongest"]["level"] *= scale
             return result
 
-    def electric_unit():
-        return engine.calibrations.get("electric").get("unit", "mV RMS relative")
+    def ch2_unit():
+        return engine.calibrations.get("ch2").get("unit", "mV RMS relative")
 
-    def electric_calibration_label():
-        profile = engine.calibrations.get("electric")
+    def ch2_calibration_label():
+        profile = engine.calibrations.get("ch2")
         return (f"Reference scale {profile['scale']:.4g} {profile['unit']} per mV" if profile else "Not calibrated")
 
     def health(channel):
@@ -1176,10 +1176,10 @@ def install(ns, engine):
         note = f"{item['state']}; {item['transient']['state']}; {item['uncertainty']}"
         return item["confidence"], note
 
-    def rf_health():
-        score, note = health("rf")
-        with ns["spectrum_lock"]:
-            present = bool(ns["spectrum_data"].get("present"))
+    def ch3_health():
+        score, note = health("ch3")
+        with ns["sweep3_lock"]:
+            present = bool(ns["sweep3_data"].get("present"))
         return score, note, present
 
     def mtdi_loop():
@@ -1190,7 +1190,7 @@ def install(ns, engine):
                 target = ns["mtdi_data"]
                 target.update(active_health=fusion["confidence"], completeness=fusion["breakdown"]["completeness"],
                               confidence_breakdown=fusion["breakdown"])
-                for channel, prefix in (("magnetic", "mag"), ("electric", "efield"), ("rf", "rf")):
+                for channel, prefix in (("ch1", "c1"), ("ch2", "ch2f"), ("ch3", "ch3")):
                     item = channels[channel]
                     target[prefix + "_health"] = item["confidence"]
                     target[prefix + "_note"] = f"{item['state']}; {item['transient']['state']}; {item['uncertainty']}"
@@ -1198,50 +1198,50 @@ def install(ns, engine):
 
     def aligned_histories():
         with engine.lock:
-            magnetic = list(engine.histories["magnetic"])
-            electric = list(engine.histories["electric"])
-        if not magnetic or not electric:
+            ch1 = list(engine.histories["ch1"])
+            ch2 = list(engine.histories["ch2"])
+        if not ch1 or not ch2:
             return [], []
-        end = min(magnetic[-1][0], electric[-1][0])
+        end = min(ch1[-1][0], ch2[-1][0])
         pairs = []
-        magnetic_times = [point[0] for point in magnetic]
-        for timestamp, value, _noise in electric:
+        ch1_times = [point[0] for point in ch1]
+        for timestamp, value, _noise in ch2:
             if not end - 20 <= timestamp <= end:
                 continue
-            position = bisect_left(magnetic_times, timestamp)
-            candidates = magnetic[max(0, position - 1):min(len(magnetic), position + 1)]
+            position = bisect_left(ch1_times, timestamp)
+            candidates = ch1[max(0, position - 1):min(len(ch1), position + 1)]
             nearest = min(candidates, key=lambda point: abs(point[0] - timestamp))
             if abs(nearest[0] - timestamp) <= 0.3:
                 pairs.append((nearest[1], value))
         return [b for b, _ in pairs], [e for _, e in pairs]
 
-    def efield_reader():
-        """Select the measured E-field transport once, before acquisition starts."""
-        source = EFIELD_SOURCE
-        if source not in {"auto", "ads1115", "arduino"}:
-            publish_error("electric", "efield_data", "efield_lock",
-                          ValueError("STUDIO_EFIELD_SOURCE must be auto, ads1115, or arduino"), 0)
+    def ch2f_reader():
+        """Select the measured Ch2 transport once, before acquisition starts."""
+        source = CH2F_SOURCE
+        if source not in {"auto", "src2", "arduino"}:
+            publish_error("ch2", "ch2f_data", "ch2f_lock",
+                          ValueError("STUDIO_CH2F_SOURCE must be auto, src2, or arduino"), 0)
             return
         if source == "arduino" or (source == "auto" and (arduino_adc_ports() or ARDUINO_TCP_LISTEN)):
-            arduino_efield_reader()
+            arduino_ch2f_reader()
         else:
-            ads1115_efield_reader()
+            src2_ch2f_reader()
 
     ns["_v238_aligned_histories"] = aligned_histories
-    ns["_mag_health"] = lambda: health("magnetic")
-    ns["_efield_health"] = lambda: health("electric")
-    ns["_rf_health"] = rf_health
+    ns["_c1_health"] = lambda: health("ch1")
+    ns["_ch2f_health"] = lambda: health("ch2")
+    ns["_ch3_health"] = ch3_health
     ns["mtdi_loop"] = mtdi_loop
-    ns["_v238_electric_unit"] = electric_unit
-    ns["_v238_electric_calibration_label"] = electric_calibration_label
-    ns["_v238_rf_stats"] = rf_stats
-    ns["_v238_rf_display"] = rf_display
-    ns["_v238_rf_rows"] = rf_rows
+    ns["_v238_ch2_unit"] = ch2_unit
+    ns["_v238_ch2_calibration_label"] = ch2_calibration_label
+    ns["_v238_ch3_stats"] = ch3_stats
+    ns["_v238_ch3_display"] = ch3_display
+    ns["_v238_ch3_rows"] = ch3_rows
     ns["demo_reader"] = demo_reader
-    ns["qmc_reader"] = qmc_reader
-    ns["efield_reader"] = efield_reader
-    ns["_tsa_read_until_prompt"] = read_until_prompt
-    ns["_tsa_cmd"] = command
+    ns["src1_reader"] = src1_reader
+    ns["ch2f_reader"] = ch2f_reader
+    ns["_s3_read_until_prompt"] = read_until_prompt
+    ns["_s3_cmd"] = command
     ns["validate_sweep"] = validate
-    ns["_tsa_scan"] = scan
-    return {"qmc_reader": qmc_reader, "efield_reader": efield_reader}
+    ns["_s3_scan"] = scan
+    return {"src1_reader": src1_reader, "ch2f_reader": ch2f_reader}

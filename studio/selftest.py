@@ -17,12 +17,12 @@ def run(ns, runtime):
         engine = AnalysisEngine(Path(directory) / 'calibration.json', window=2)
         for i in range(120):
             t = 1 + i * .025
-            engine.ingest('magnetic', 0, timestamp=t, vector=[0, 0, 0], metadata={'monotonic': t})
-        engine.ingest('magnetic', 13, timestamp=5, vector=[3, 4, 12], metadata={'monotonic': 5})
+            engine.ingest('ch1', 0, timestamp=t, vector=[0, 0, 0], metadata={'monotonic': t})
+        engine.ingest('ch1', 13, timestamp=5, vector=[3, 4, 12], metadata={'monotonic': 5})
         data = engine.snapshot(now=5)
         check(math.isclose(data['fusion']['axial']['magnitude'], 13), 'Triaxial magnitude')
-        check(data['fusion']['axial']['unit'] == 'µT', 'Channel 1 unit')
-        check(data['channels']['electric']['deviation'] is None, 'Offline channels have no numeric reading')
+        check(data['fusion']['axial']['unit'] == 'unit', 'Channel 1 unit')
+        check(data['channels']['ch2']['deviation'] is None, 'Offline channels have no numeric reading')
         for i in range(120):
             t = 1 + i * .12
             engine.ingest('current', 0.5, timestamp=t, unit='A', metadata={'monotonic': t})
@@ -35,10 +35,10 @@ def run(ns, runtime):
         encoded, level, peak, clipped = processor.process(_struct.pack('<%dh' % 64, *([12000, -12000] * 32)))
         check(len(encoded) == 128 and clipped and max(abs(v) for v in _struct.unpack('<64h', encoded)) <= 32767, 'Audio soft limiter bounds output')
         check(wav_header()[:4] == b'RIFF' and len(wav_header()) == 44, 'Streaming WAV header')
-        engine.calibrate('electric', [0, 10], [0, 100], 2, 'V/m', 'Software fixture')
+        engine.calibrate('ch2', [0, 10], [0, 100], 2, 'V/m', 'Software fixture')
         restored = AnalysisEngine(Path(directory) / 'calibration.json')
-        check(restored.calibrations.get('electric')['scale'] == 10, 'Calibration persistence')
-        check(engine.snapshot(now=100)['channels']['magnetic']['state'] == 'stale', 'Stale channel state')
+        check(restored.calibrations.get('ch2')['scale'] == 10, 'Calibration persistence')
+        check(engine.snapshot(now=100)['channels']['ch1']['state'] == 'stale', 'Stale channel state')
         json.dumps(data, allow_nan=False)
     for raw in ('100000 -90.0\n200000 -88.5\n300000 -91.0\n',
                 'scan 100000 300000 3 3\n100000 -90.0 0\n200000 -88.5 0\n300000 -91.0 0\nch>'):
@@ -47,10 +47,10 @@ def run(ns, runtime):
     try:
         ns['validate_sweep']([100000, 200000], [-90, -89], 100000, 300000, 3)
         failures.append('Partial CH 3 sweep was accepted')
-    except ns['TinySAProtocolError']:
+    except ns['Src3ProtocolError']:
         check(True, 'Partial CH 3 rejection')
     client = ns['server'].test_client()
-    for route in ('/', '/em', '/spectrum', '/mtdi', '/settings', '/sixth-sense', '/api/instrument', '/api/diagnostics'):
+    for route in ('/', '/page-1', '/page-2', '/mtdi', '/settings', '/page-3', '/api/instrument', '/api/diagnostics'):
         response = client.get(route)
         check(response.status_code == 200, f'Route {route}')
     for route, builder in ns['PAGES'].items():

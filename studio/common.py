@@ -6,7 +6,7 @@
 This is the intentionally self-contained distribution requested for field use.  It
 imports without starting hardware, never generates measurements unless ``--demo`` is
 explicitly selected, owns every worker through one lifecycle, and archives full
-TinySA sweeps to SQLite.
+Src3 sweeps to SQLite.
 
 v2.6.1 — one active HTTPS link for first and repeated terminal launches.
 """
@@ -339,7 +339,7 @@ def _cloud_encrypt(text):
         ).digest())
         counter += 1
     ciphertext = bytes(a ^ b for a, b in zip(raw, stream))
-    body = b"IVC1" + nonce + ciphertext
+    body = b"I3C1" + nonce + ciphertext
     tag = hmac.new(mac_key, body, hashlib.sha256).digest()
     return base64.urlsafe_b64encode(body + tag).decode("ascii")
 
@@ -351,7 +351,7 @@ def _cloud_decrypt(encoded):
         return ""
     try:
         packed = base64.urlsafe_b64decode(encoded.encode("ascii"))
-        if len(packed) < 4 + 24 + 32 or packed[:4] != b"IVC1":
+        if len(packed) < 4 + 24 + 32 or packed[:4] != b"I3C1":
             return ""
         body, supplied_tag = packed[:-32], packed[-32:]
         mac_key = hmac.new(
@@ -444,7 +444,7 @@ class ArchiveStore:
               id INTEGER PRIMARY KEY, started_at REAL NOT NULL, ended_at REAL,
               source_tag TEXT NOT NULL, app_version TEXT NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS rf_sweeps(
+            CREATE TABLE IF NOT EXISTS ch3_sweeps(
               id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, started_at REAL NOT NULL,
               completed_at REAL NOT NULL, duration_s REAL NOT NULL, profile TEXT NOT NULL,
               start_hz INTEGER NOT NULL, stop_hz INTEGER NOT NULL, requested_points INTEGER NOT NULL,
@@ -454,22 +454,22 @@ class ArchiveStore:
               device_port TEXT, transport TEXT NOT NULL, raw_response TEXT,
               FOREIGN KEY(session_id) REFERENCES sessions(id)
             );
-            CREATE INDEX IF NOT EXISTS idx_rf_sweeps_time ON rf_sweeps(started_at);
-            CREATE TABLE IF NOT EXISTS magnetometer_samples(
+            CREATE INDEX IF NOT EXISTS idx_ch3_sweeps_time ON ch3_sweeps(started_at);
+            CREATE TABLE IF NOT EXISTS ch1probe_samples(
               id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, captured_at REAL NOT NULL,
-              x_ut REAL NOT NULL, y_ut REAL NOT NULL, z_ut REAL NOT NULL, magnitude_ut REAL NOT NULL,
+              x_val REAL NOT NULL, y_val REAL NOT NULL, z_val REAL NOT NULL, magnitude_val REAL NOT NULL,
               trusted INTEGER NOT NULL, warning TEXT,
               FOREIGN KEY(session_id) REFERENCES sessions(id)
             );
-            CREATE INDEX IF NOT EXISTS idx_mag_time ON magnetometer_samples(captured_at);
-            CREATE TABLE IF NOT EXISTS efield_samples(
+            CREATE INDEX IF NOT EXISTS idx_c1_time ON ch1probe_samples(captured_at);
+            CREATE TABLE IF NOT EXISTS ch2f_samples(
               id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, captured_at REAL NOT NULL,
               rms_mv REAL NOT NULL, peak_activity_mv REAL NOT NULL, baseline_mv REAL NOT NULL,
               relative_ratio REAL NOT NULL, relative_index REAL NOT NULL, gain REAL NOT NULL,
               clipped INTEGER NOT NULL, trusted INTEGER NOT NULL, warning TEXT,
               FOREIGN KEY(session_id) REFERENCES sessions(id)
             );
-            CREATE INDEX IF NOT EXISTS idx_efield_time ON efield_samples(captured_at);
+            CREATE INDEX IF NOT EXISTS idx_ch2f_time ON ch2f_samples(captured_at);
             CREATE TABLE IF NOT EXISTS wifi_discoveries(
               id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, captured_at REAL NOT NULL,
               scan_mode TEXT NOT NULL, interface TEXT, records_json TEXT NOT NULL,
@@ -505,9 +505,9 @@ class ArchiveStore:
 
     def _write(self, con, kind, p):
         sid = self.session_id
-        if kind == "rf":
+        if kind == "ch3":
             con.execute(
-                """INSERT INTO rf_sweeps(
+                """INSERT INTO ch3_sweeps(
                 session_id,started_at,completed_at,duration_s,profile,start_hz,stop_hz,
                 requested_points,returned_points,repeat_count,bin_width_hz,frequencies_json,
                 levels_json,peaks_json,warnings_json,trusted,firmware,device_port,transport,
@@ -524,16 +524,16 @@ class ArchiveStore:
                     p.get("raw_response"),
                 ),
             )
-        elif kind == "mag":
+        elif kind == "c1":
             con.execute(
-                """INSERT INTO magnetometer_samples(
-                session_id,captured_at,x_ut,y_ut,z_ut,magnitude_ut,trusted,warning)
+                """INSERT INTO ch1probe_samples(
+                session_id,captured_at,x_val,y_val,z_val,magnitude_val,trusted,warning)
                 VALUES(?,?,?,?,?,?,?,?)""",
-                (sid, p["t"], p["x"], p["y"], p["z"], p["mag"], int(p["trusted"]), p.get("warning")),
+                (sid, p["t"], p["x"], p["y"], p["z"], p["c1"], int(p["trusted"]), p.get("warning")),
             )
-        elif kind == "efield":
+        elif kind == "ch2f":
             con.execute(
-                """INSERT INTO efield_samples(
+                """INSERT INTO ch2f_samples(
                 session_id,captured_at,rms_mv,peak_activity_mv,baseline_mv,relative_ratio,
                 relative_index,gain,clipped,trusted,warning) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
                 (sid, p["t"], p["rms_mv"], p["peak_mv"], p["baseline_mv"], p["ratio"],
@@ -582,7 +582,7 @@ class ArchiveStore:
         points = max(10, min(int(points), 2000))
         since = time.time() - minutes * 60.0
         out = {"since": since, "minutes": minutes, "points": points,
-               "magnetometer": [], "efield": [], "rf": [], "events": []}
+               "ch1probe": [], "ch2f": [], "ch3": [], "events": []}
         if not self.path.exists():
             return out
         width = minutes * 60.0 / points
@@ -594,21 +594,21 @@ class ArchiveStore:
         try:
             bucket = f"CAST((captured_at - {since!r}) / {width!r} AS INTEGER)"
             for row in con.execute(
-                    f"SELECT MIN(captured_at), AVG(magnitude_ut), MIN(magnitude_ut), MAX(magnitude_ut), "
-                    f"AVG(x_ut), AVG(y_ut), AVG(z_ut), COUNT(*), MIN(trusted) FROM magnetometer_samples "
+                    f"SELECT MIN(captured_at), AVG(magnitude_val), MIN(magnitude_val), MAX(magnitude_val), "
+                    f"AVG(x_val), AVG(y_val), AVG(z_val), COUNT(*), MIN(trusted) FROM ch1probe_samples "
                     f"WHERE captured_at >= ? GROUP BY {bucket} ORDER BY 1", (since,)):
-                out["magnetometer"].append({"t": row[0], "magnitude_ut": row[1], "min_ut": row[2], "max_ut": row[3],
-                                            "x_ut": row[4], "y_ut": row[5], "z_ut": row[6], "n": row[7],
+                out["ch1probe"].append({"t": row[0], "magnitude_val": row[1], "min_val": row[2], "max_val": row[3],
+                                            "x_val": row[4], "y_val": row[5], "z_val": row[6], "n": row[7],
                                             "trusted": bool(row[8])})
             for row in con.execute(
                     f"SELECT MIN(captured_at), AVG(rms_mv), MIN(rms_mv), MAX(rms_mv), AVG(baseline_mv), "
-                    f"AVG(relative_index), COUNT(*), MAX(clipped), MIN(trusted) FROM efield_samples "
+                    f"AVG(relative_index), COUNT(*), MAX(clipped), MIN(trusted) FROM ch2f_samples "
                     f"WHERE captured_at >= ? GROUP BY {bucket} ORDER BY 1", (since,)):
-                out["efield"].append({"t": row[0], "rms_mv": row[1], "min_mv": row[2], "max_mv": row[3],
+                out["ch2f"].append({"t": row[0], "rms_mv": row[1], "min_mv": row[2], "max_mv": row[3],
                                       "baseline_mv": row[4], "relative_index": row[5], "n": row[6],
                                       "clipped": bool(row[7]), "trusted": bool(row[8])})
             for row in con.execute(
-                    "SELECT completed_at, start_hz, stop_hz, peaks_json, levels_json, trusted FROM rf_sweeps "
+                    "SELECT completed_at, start_hz, stop_hz, peaks_json, levels_json, trusted FROM ch3_sweeps "
                     "WHERE completed_at >= ? ORDER BY completed_at DESC LIMIT ?", (since, points)):
                 try:
                     peaks = json.loads(row[3] or "[]")[:3]
@@ -616,9 +616,9 @@ class ArchiveStore:
                 except ValueError:
                     peaks, levels = [], []
                 floor = sorted(levels)[len(levels) // 4] if levels else None
-                out["rf"].append({"t": row[0], "start_hz": row[1], "stop_hz": row[2], "floor_dbm": floor,
+                out["ch3"].append({"t": row[0], "start_hz": row[1], "stop_hz": row[2], "floor_dbm": floor,
                                   "peak_dbm": max(levels) if levels else None, "peaks": peaks, "trusted": bool(row[5])})
-            out["rf"].reverse()
+            out["ch3"].reverse()
             for row in con.execute(
                     "SELECT captured_at, severity, source, message FROM events WHERE captured_at >= ? "
                     "ORDER BY captured_at DESC LIMIT 200", (since,)):
@@ -639,7 +639,7 @@ class ArchiveStore:
     # on a 29 GB card with 7.0 GB free, over a 46.1 day span - about 235 MB a day,
     # so roughly 30 days from filling the card. The service does not survive a full
     # card. The bulk is not the four channel tables; it is `raw_samples`, at 15.1
-    # million rows, one JSON document per magnetometer sample, each one repeating
+    # million rows, one JSON document per ch1probe sample, each one repeating
     # the whole calibration profile and warning string - measured at 416 B average
     # over a 20,000-row sample, so 6.31 GB of JSON text out of a 10.92 GB file.
     # That table is not in the PDF's table list, so it grew entirely unseen.
@@ -647,8 +647,8 @@ class ArchiveStore:
     # Only the high-rate sample tables are pruned. Sessions, events and calibration
     # profiles are small and are the provenance record, so they are never touched.
     RETENTION_TABLES = (("raw_samples", "captured_at"),
-                        ("magnetometer_samples", "captured_at"),
-                        ("efield_samples", "captured_at"),
+                        ("ch1probe_samples", "captured_at"),
+                        ("ch2f_samples", "captured_at"),
                         ("system_health", "captured_at"))
     RETENTION_INTERVAL = 900.0     # seconds between prune passes
     # Stop recording before the card fills rather than after. A full filesystem
@@ -785,11 +785,11 @@ class SessionCSVLogger:
 
     WHY THIS EXISTS, AND HOW IT DIFFERS FROM ``ArchiveStore``
     --------------------------------------------------------
-    ``ArchiveStore`` persists to SQLite, but its magnetometer and E-field rows are
+    ``ArchiveStore`` persists to SQLite, but its ch1probe and Ch2 rows are
     written by ``archive_loop()``, which snapshots the *current* value once every
     3 seconds (see the ``STOP_EVENT.wait(3)`` at the end of that loop). The
-    magnetometer read loop runs at roughly 20 Hz, so approximately 59 of every 60
-    magnetometer samples were never persisted anywhere. Any results table or graph
+    ch1probe read loop runs at roughly 20 Hz, so approximately 59 of every 60
+    ch1probe samples were never persisted anywhere. Any results table or graph
     built from the SQLite archive is therefore a 0.33 Hz decimation of the signal,
     not the signal itself.
 
@@ -802,16 +802,16 @@ class SessionCSVLogger:
     metadata header carrying the fields needed to caption a figure: start time,
     location label, source label, distance in cm, and operator notes.
 
-    Rows are long-format: one ``channel`` column ("mag", "efield", "rf") and a
+    Rows are long-format: one ``channel`` column ("c1", "ch2f", "ch3") and a
     superset of columns, with unused columns left empty. This keeps a single file
     per session (as required) while remaining directly loadable:
 
         import pandas as pd
         df = pd.read_csv(path, comment="#", parse_dates=["iso_time"])
-        mag = df[df.channel == "mag"].dropna(axis=1, how="all")
+        c1 = df[df.channel == "c1"].dropna(axis=1, how="all")
 
-    An RF row is one completed sweep, summarised (peak, floor, span). The full
-    per-bin arrays are large and stay in SQLite; ``export_rf_csv_bytes()`` already
+    An CH3 row is one completed sweep, summarised (peak, floor, span). The full
+    per-bin arrays are large and stay in SQLite; ``export_ch3_csv_bytes()`` already
     flattens those to one row per frequency bin when needed.
 
     Writes go through a queue and a single writer thread so that a slow SD card
@@ -824,18 +824,18 @@ class SessionCSVLogger:
     # matter how the file is later handled.
     COLUMNS = [
         "iso_time", "unix_time", "channel", "data_source",
-        # magnetometer
-        "mag_x_ut", "mag_y_ut", "mag_z_ut", "mag_total_ut",
-        "mag_raw_x_ut", "mag_raw_y_ut", "mag_raw_z_ut",
-        "mag_calibrated", "mag_trusted",
-        # e-field
-        "ef_rms_mv", "ef_peak_mv", "ef_baseline_mv",
-        "ef_field_v_m", "ef_peak_v_m", "ef_baseline_v_m", "ef_ratio",
-        "ef_rel_index_pct", "ef_gain", "ef_utilisation_pct",
-        "ef_clipped", "ef_calibrated", "ef_trusted",
-        # spectrum
-        "rf_start_hz", "rf_stop_hz", "rf_points", "rf_sweep_s",
-        "rf_peak_hz", "rf_peak_dbm", "rf_floor_dbm", "rf_trusted",
+        # ch1probe
+        "c1_x_val", "c1_y_val", "c1_z_val", "c1_total_val",
+        "c1_raw_x_val", "c1_raw_y_val", "c1_raw_z_val",
+        "c1_calibrated", "c1_trusted",
+        # ch2
+        "c2_rms_mv", "c2_peak_mv", "c2_baseline_mv",
+        "c2_field_vu", "c2_peak_vu", "c2_baseline_vu", "c2_ratio",
+        "c2_rel_index_pct", "c2_gain", "c2_utilisation_pct",
+        "c2_clipped", "c2_calibrated", "c2_trusted",
+        # sweep3
+        "ch3_start_hz", "ch3_stop_hz", "ch3_points", "ch3_sweep_s",
+        "ch3_peak_hz", "ch3_peak_dbm", "ch3_floor_dbm", "ch3_trusted",
         "note",
     ]
 
@@ -865,36 +865,36 @@ class SessionCSVLogger:
             if self.dropped in (1, 100, 1000) or self.dropped % 10000 == 0:
                 LOG.error("CSV logger queue full; %d sample(s) dropped", self.dropped)
 
-    def log_mag(self, t, x, y, z, total, raw, calibrated, trusted, note=None):
+    def log_c1(self, t, x, y, z, total, raw, calibrated, trusted, note=None):
         self._put({
-            "unix_time": t, "channel": "mag",
-            "mag_x_ut": x, "mag_y_ut": y, "mag_z_ut": z, "mag_total_ut": total,
-            "mag_raw_x_ut": raw[0], "mag_raw_y_ut": raw[1], "mag_raw_z_ut": raw[2],
-            "mag_calibrated": int(bool(calibrated)), "mag_trusted": int(bool(trusted)),
+            "unix_time": t, "channel": "c1",
+            "c1_x_val": x, "c1_y_val": y, "c1_z_val": z, "c1_total_val": total,
+            "c1_raw_x_val": raw[0], "c1_raw_y_val": raw[1], "c1_raw_z_val": raw[2],
+            "c1_calibrated": int(bool(calibrated)), "c1_trusted": int(bool(trusted)),
             "note": note,
         })
 
-    def log_efield(self, t, rms_mv, peak_mv, baseline_mv, ratio, rel_index,
+    def log_ch2f(self, t, rms_mv, peak_mv, baseline_mv, ratio, rel_index,
                    gain, utilisation, clipped, calibrated, trusted, note=None):
         self._put({
-            "unix_time": t, "channel": "efield",
-            "ef_rms_mv": rms_mv, "ef_peak_mv": peak_mv, "ef_baseline_mv": baseline_mv,
-            "ef_field_v_m": _ef_v_per_m(rms_mv),
-            "ef_peak_v_m": _ef_v_per_m(peak_mv),
-            "ef_baseline_v_m": _ef_v_per_m(baseline_mv),
-            "ef_ratio": ratio, "ef_rel_index_pct": rel_index, "ef_gain": gain,
-            "ef_utilisation_pct": utilisation, "ef_clipped": int(bool(clipped)),
-            "ef_calibrated": int(bool(calibrated)), "ef_trusted": int(bool(trusted)),
+            "unix_time": t, "channel": "ch2f",
+            "c2_rms_mv": rms_mv, "c2_peak_mv": peak_mv, "c2_baseline_mv": baseline_mv,
+            "c2_field_vu": _c2_scale(rms_mv),
+            "c2_peak_vu": _c2_scale(peak_mv),
+            "c2_baseline_vu": _c2_scale(baseline_mv),
+            "c2_ratio": ratio, "c2_rel_index_pct": rel_index, "c2_gain": gain,
+            "c2_utilisation_pct": utilisation, "c2_clipped": int(bool(clipped)),
+            "c2_calibrated": int(bool(calibrated)), "c2_trusted": int(bool(trusted)),
             "note": note,
         })
 
-    def log_rf(self, t, start_hz, stop_hz, points, sweep_s,
+    def log_ch3(self, t, start_hz, stop_hz, points, sweep_s,
                peak_hz, peak_dbm, floor_dbm, trusted, note=None):
         self._put({
-            "unix_time": t, "channel": "rf",
-            "rf_start_hz": start_hz, "rf_stop_hz": stop_hz, "rf_points": points,
-            "rf_sweep_s": sweep_s, "rf_peak_hz": peak_hz, "rf_peak_dbm": peak_dbm,
-            "rf_floor_dbm": floor_dbm, "rf_trusted": int(bool(trusted)),
+            "unix_time": t, "channel": "ch3",
+            "ch3_start_hz": start_hz, "ch3_stop_hz": stop_hz, "ch3_points": points,
+            "ch3_sweep_s": sweep_s, "ch3_peak_hz": peak_hz, "ch3_peak_dbm": peak_dbm,
+            "ch3_floor_dbm": floor_dbm, "ch3_trusted": int(bool(trusted)),
             "note": note,
         })
 
@@ -914,16 +914,16 @@ class SessionCSVLogger:
             f"# source_label: {fmt(md.get('source_label'))}",
             f"# distance_cm: {fmt(md.get('distance_cm'))}",
             f"# operator_notes: {fmt(md.get('operator_notes'))}",
-            f"# magnetometer_lsb_per_ut: {LSB_PER_UT}",
-            f"# magnetometer_calibration_file: "
-            f"{fmt(os.environ.get('STUDIO_MAG_CALIBRATION') or None)}",
-            f"# efield_samples_per_block: {SAMPLES_PER_BLOCK}",
-            f"# efield_adc_sps: {ADS_DATA_RATE}",
-            f"# efield_probe_scale_v_per_m_per_input_v: {EF_V_PER_M_PER_VOLT}",
-            f"# efield_units: *_mv columns preserve ADC input voltage; *_v_m columns "
-            f"use the configured probe scale. 1 V/m = 1 N/C. ef_rel_index_pct is "
+            f"# ch1probe_lsb_per_val: {LSB_PER_VAL}",
+            f"# ch1probe_calibration_file: "
+            f"{fmt(os.environ.get('STUDIO_C1_CALIBRATION') or None)}",
+            f"# ch2f_samples_per_block: {SAMPLES_PER_BLOCK}",
+            f"# ch2f_adc_sps: {ADS_DATA_RATE}",
+            f"# ch2f_probe_scale_scale_per_input_v: {C2_SCALE_PER_VOLT}",
+            f"# ch2f_units: *_mv columns preserve ADC input voltage; *_vu columns "
+            f"use the configured probe scale. 1 V/m = 1 N/C. c2_rel_index_pct is "
             f"relative to the learned session baseline",
-            f"# rf_units: unit as returned by the TinySA text scan, no conversion applied",
+            f"# ch3_units: unit as returned by the Src3 text scan, no conversion applied",
             "# one row per sample; empty columns are not applicable to that channel",
         ]
 
@@ -1003,7 +1003,7 @@ def export_archive_json_bytes():
     try:
         output = {"app_version":APP_VERSION, "exported_at":time.time(), "tables":{}}
         tables = (
-            "sessions", "rf_sweeps", "magnetometer_samples", "efield_samples",
+            "sessions", "ch3_sweeps", "ch1probe_samples", "ch2f_samples",
             "wifi_discoveries", "bluetooth_discoveries", "system_health",
             "events", "calibration_profiles", "raw_samples",
         )
@@ -1027,8 +1027,8 @@ def export_archive_json_bytes():
         con.close()
 
 
-def export_rf_csv_bytes():
-    """Flatten archived RF sweeps to one frequency/level row per returned bin."""
+def export_ch3_csv_bytes():
+    """Flatten archived CH3 sweeps to one frequency/level row per returned bin."""
     import csv
     import io
     stream = io.StringIO(newline="")
@@ -1042,7 +1042,7 @@ def export_rf_csv_bytes():
         try:
             for row in con.execute(
                 "SELECT id,session_id,completed_at,profile,trusted,frequencies_json,levels_json "
-                "FROM rf_sweeps ORDER BY id"
+                "FROM ch3_sweeps ORDER BY id"
             ):
                 frequencies = json.loads(row[5])
                 levels = json.loads(row[6])

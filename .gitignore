@@ -6,4 +6,4 @@ __pycache__/
 .DS_Store
 
 # generated at runtime by precompress_mediapipe
-studio/assets/mediapipe/*.gz
+public/assets/mediapipe/*.gz

@@ -143,16 +143,16 @@ def fig_pie(x, y, z, height=250):
     return fig
 
 
-def fig_gauge(mag, height=250, unit="unit"):
-    if mag is None:
+def fig_gauge(c1, height=250, unit="unit"):
+    if c1 is None:
         fig = go.Figure()
         fig.add_annotation(text='TEXT', x=0.5, y=0.5,
                            showarrow=False, font=dict(color=SUBTEXT, size=11))
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=height, autosize=False,
                           transition=NO_TRANSITION, margin=dict(l=14,r=14,t=18,b=6), uirevision="gauge")
         return fig
-    top = max(1.0 if unit == "normalized" else 80.0, mag * 1.3)
-    fig = go.Figure(go.Indicator(mode="gauge+number", value=mag,
+    top = max(1.0 if unit == "normalized" else 80.0, c1 * 1.3)
+    fig = go.Figure(go.Indicator(mode="gauge+number", value=c1,
         number=dict(font=dict(family=FONT, color=CYAN, size=24), suffix=" " + unit),
         gauge=dict(axis=dict(range=[0, top], tickcolor=SUBTEXT, tickfont=dict(color=SUBTEXT, size=8)),
                    bar=dict(color=CYAN, thickness=0.28), bgcolor="rgba(255,255,255,0.03)", bordercolor="rgba(255,255,255,0.08)",
@@ -167,8 +167,8 @@ def fig_gauge(mag, height=250, unit="unit"):
 def fig_bar(mn, avg, mx, height=250, unit="unit", quantity='channel 1 magnitude'):
     """Session min/average/max.
 
-    unit and quantity are parameters because the E-field channel needs the same
-    chart in mV RMS. Defaulting them to the magnetic pair keeps every existing
+    unit and quantity are parameters because the Ch2 channel needs the same
+    chart in mV RMS. Defaulting them to the ch1 pair keeps every existing
     call unchanged -- a second near-identical function would have been the
     alternative, and the two would have drifted apart the first time either was
     touched."""
@@ -222,7 +222,7 @@ def fig_2d_scatter(xyz, height=280, unit="unit"):
         yaxis=dict(title=f"Dependent variable — Y component ({unit})", gridcolor="rgba(128,128,128,0.12)",
                    zerolinecolor="rgba(0,229,255,0.20)", tickfont=dict(color=SUBTEXT, size=9),
                    scaleanchor="x", scaleratio=1),
-        uirevision="mag-scatter",
+        uirevision="c1-scatter",
     )
     return fig
 
@@ -247,7 +247,7 @@ def fig_2d_delta(xyz, height=280, unit="unit"):
                    tickfont=dict(color=SUBTEXT, size=9)),
         yaxis=dict(title=f"Dependent variable — sample change Δ ({unit})", gridcolor="rgba(128,128,128,0.12)",
                    tickfont=dict(color=SUBTEXT, size=9)),
-        uirevision="mag-delta",
+        uirevision="c1-delta",
     )
     return fig
 
@@ -452,7 +452,7 @@ def fig_3d_error_plane(xyz, height=300, direction_state=None):
     state = direction_state or _direction_plot_state(xyz)
     if xyz:
         a,b,c=state["raw"]
-        mag=state["magnitude"]
+        c1=state["magnitude"]
         error=state["error"]
         direction=state["direction"]
         display_length=state["display_length"]
@@ -463,13 +463,13 @@ def fig_3d_error_plane(xyz, height=300, direction_state=None):
         shaft_vertices,shaft_faces,head_vertices,head_faces=_unit_arrow_geometry()
         shaft=_rotate_arrow_points(shaft_vertices,direction,display_length)
         head=_rotate_arrow_points(head_vertices,direction,display_length)
-        hover=("MAGNETIC FIELD DIRECTION"
+        hover=("CH1 FIELD DIRECTION"
                f"<br>Sensor X {a:.3f} unit<br>Sensor Y {b:.3f} unit"
-               f"<br>Sensor Z {c:.3f} unit<br>|B| {mag:.3f} unit"
+               f"<br>Sensor Z {c:.3f} unit<br>|B| {c1:.3f} unit"
                f"<br>Log display length {display_length:.3f}<extra></extra>")
         fig.add_trace(_mesh_trace(shaft,shaft_faces,color,hover))
         fig.add_trace(_mesh_trace(head,head_faces,color,hover))
-        fig.add_annotation(text=f"FIELD DIRECTION · |B| {mag:.3f} unit · Δ {error:.3f} unit",
+        fig.add_annotation(text=f"FIELD DIRECTION · |B| {c1:.3f} unit · Δ {error:.3f} unit",
                            x=0.02,y=0.98,
                            xref="paper",yref="paper",showarrow=False,
                            font=dict(family=FONT,color=color,size=10))
@@ -486,8 +486,8 @@ def fig_3d_error_plane(xyz, height=300, direction_state=None):
     return fig
 
 
-def fig_3d_dipole_field(xyz, height=420, direction_state=None):
-    """Dipole field lines plus floor needles for the current smoothed B direction."""
+def fig_3d_dipolch2f(xyz, height=420, direction_state=None):
+    """Twopole field lines plus floor needles for the current smoothed B direction."""
     fig = go.Figure()
     state = direction_state or _direction_plot_state(xyz)
     moment = _normalise3(state["direction"])
@@ -495,7 +495,7 @@ def fig_3d_dipole_field(xyz, height=420, direction_state=None):
     e1 = _normalise3(_cross3(helper,moment),(1.0,0.0,0.0))
     e2 = _normalise3(_cross3(moment,e1),(0.0,0.0,1.0))
 
-    # Analytic dipole field lines: r = L sin²(theta), revolved about the moment.
+    # Analytic twopole field lines: r = L sin²(theta), revolved about the moment.
     line_x,line_y,line_z=[],[],[]
     for phi_index in range(6):
         phi=2.0*math.pi*phi_index/6
@@ -520,7 +520,7 @@ def fig_3d_dipole_field(xyz, height=420, direction_state=None):
         hoverinfo="skip",showlegend=False,
     ))
 
-    # Floor needles use the physical dipole field:
+    # Floor needles use the physical twopole field:
     # B(r) ∝ [3 r_hat (m·r_hat) - m] / |r|³.
     nx,ny,nz=[],[],[]
     cone_x,cone_y,cone_z=[],[],[]
@@ -555,7 +555,7 @@ def fig_3d_dipole_field(xyz, height=420, direction_state=None):
         marker=dict(size=8,color=WHITE,line=dict(color=CYAN,width=2)),
         hovertemplate="DIPOLE ORIGIN<extra></extra>",showlegend=False,
     ))
-    fig.update_layout(uirevision="dipole-field", **_scene(height))
+    fig.update_layout(uirevision="twopole-field", **_scene(height))
     fig.update_layout(scene=dict(
         xaxis=dict(title=dict(text='Text')),
         yaxis=dict(title=dict(text='Text')),
@@ -576,13 +576,13 @@ def fig_3d_dipole_field(xyz, height=420, direction_state=None):
 def fig_archive(height=220, series=None, unit="unit"):
     """The rolling signal archive.
 
-    series lets a caller supply its own sequence; with none it reads the magnetic
-    archive as before, so existing calls are untouched. The E-field channel needs
+    series lets a caller supply its own sequence; with none it reads the ch1
+    archive as before, so existing calls are untouched. The Ch2 channel needs
     this identical view over its own vector magnitude, and passing the data in
     beats reaching for a second module-level global."""
     if series is None:
         with archive_lock:
-            arch = [a["mag"] for a in signal_archive]
+            arch = [a["c1"] for a in signal_archive]
     else:
         arch = list(series)
     fig = go.Figure()
@@ -599,8 +599,8 @@ def fig_archive(height=220, series=None, unit="unit"):
     return fig
 
 
-# ── E-field visualisations (scalar only — gauge / bullet / bars) ──
-def fig_ef_gauge(rel, height=250):
+# ── Ch2 visualisations (scalar only — gauge / bullet / bars) ──
+def fig_c2_gauge(rel, height=250):
     if rel is None:
         fig = go.Figure()
         fig.add_annotation(text='TEXT', x=0.5, y=0.5,
@@ -620,13 +620,13 @@ def fig_ef_gauge(rel, height=250):
     return fig
 
 
-def fig_ef_bullet(rel, level, height=250):
+def fig_c2_bullet(rel, level, height=250):
     if rel is None:
         fig = go.Figure()
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=height, autosize=False,
                           transition=NO_TRANSITION, margin=dict(l=10,r=10,t=30,b=14), uirevision="efbullet")
         return fig
-    col = _ef_level_color(level)
+    col = _c2_level_color(level)
     fig = go.Figure(go.Indicator(mode="number+gauge", value=rel,
         number=dict(font=dict(family=FONT, color=col, size=22), suffix=" %"),
         gauge=dict(shape="bullet", axis=dict(range=[0,100], tickcolor=SUBTEXT, tickfont=dict(color=SUBTEXT, size=8)),
@@ -639,7 +639,7 @@ def fig_ef_bullet(rel, level, height=250):
     return fig
 
 
-def fig_ef_basebar(baseline, rms, peak, height=250):
+def fig_c2_basebar(baseline, rms, peak, height=250):
     fig = go.Figure()
     if baseline is not None and rms is not None and peak is not None:
         fig.add_trace(go.Bar(x=["BASELINE","AC RMS","PEAK"], y=[baseline, rms, peak], marker=dict(color=[SUBTEXT, CYAN, AMBER]),
@@ -653,11 +653,11 @@ def fig_ef_basebar(baseline, rms, peak, height=250):
     return fig
 
 
-def fig_ef_b_correlation(mag_history, ef_relative_history, height=280):
+def fig_c2_b_correlation(c1_history, c2_relative_history, height=280):
     """Relative E activity against B magnitude; association only, never causation."""
-    count=min(len(mag_history),len(ef_relative_history),160)
-    b=list(mag_history)[-count:] if count else []
-    e=list(ef_relative_history)[-count:] if count else []
+    count=min(len(c1_history),len(c2_relative_history),160)
+    b=list(c1_history)[-count:] if count else []
+    e=list(c2_relative_history)[-count:] if count else []
     fig=go.Figure()
     if count:
         fig.add_trace(go.Scatter(
@@ -686,16 +686,16 @@ def fig_ef_b_correlation(mag_history, ef_relative_history, height=280):
                    gridcolor="rgba(128,128,128,0.12)",tickfont=dict(color=SUBTEXT,size=9)),
         yaxis=dict(title='Title',
                    gridcolor="rgba(128,128,128,0.12)",tickfont=dict(color=SUBTEXT,size=9)),
-        uirevision="ef-b-correlation",
+        uirevision="c2-b-correlation",
     )
     return fig
 
 
-def fig_ef_induction_proxy(mag_history, ef_relative_history, height=280):
-    """Compare |ΔB| per magnetic sample with relative E activity."""
-    count=min(len(mag_history),len(ef_relative_history),160)
-    b=list(mag_history)[-count:] if count else []
-    e=list(ef_relative_history)[-count:] if count else []
+def fig_c2_induction_proxy(c1_history, c2_relative_history, height=280):
+    """Compare |ΔB| per ch1 sample with relative E activity."""
+    count=min(len(c1_history),len(c2_relative_history),160)
+    b=list(c1_history)[-count:] if count else []
+    e=list(c2_relative_history)[-count:] if count else []
     delta=[0.0]+[abs(b[index]-b[index-1]) for index in range(1,count)] if count else []
     fig=go.Figure()
     if count:
@@ -721,16 +721,16 @@ def fig_ef_induction_proxy(mag_history, ef_relative_history, height=280):
                     showgrid=False,tickfont=dict(color=CYAN,size=9)),
         legend=dict(orientation="h",y=1.12,x=0,font=dict(color=SUBTEXT,size=9),
                     bgcolor="rgba(0,0,0,0)"),
-        uirevision="ef-induction-proxy",
+        uirevision="c2-induction-proxy",
     )
     return fig
 
 
-def fig_em_overlay(mag_history, ef_rms_history, height=320):
-    """Sample-aligned B magnitude and reference-scaled E-field on independent axes."""
-    count = min(len(mag_history), len(ef_rms_history), 200)
-    b = list(mag_history)[-count:] if count else []
-    e = list(ef_rms_history)[-count:] if count else []
+def fig_p1_overlay(c1_history, c2_rms_history, height=320):
+    """Sample-aligned B magnitude and reference-scaled Ch2 on independent axes."""
+    count = min(len(c1_history), len(c2_rms_history), 200)
+    b = list(c1_history)[-count:] if count else []
+    e = list(c2_rms_history)[-count:] if count else []
     fig = go.Figure()
     if count:
         fig.add_trace(go.Scatter(
@@ -757,16 +757,16 @@ def fig_em_overlay(mag_history, ef_rms_history, height=320):
                     showgrid=False, tickfont=dict(color=AMBER, size=9)),
         legend=dict(orientation="h", y=1.14, x=0,
                     font=dict(color=WHITE, size=10), bgcolor="rgba(0,0,0,0)"),
-        uirevision="em-overlay",
+        uirevision="p1-overlay",
     )
     return fig
 
 
-def fig_em_normalized_overlay(mag_history, ef_relative_history, height=300):
+def fig_p1_normalized_overlay(c1_history, c2_relative_history, height=300):
     """Overlay field movement on one 0–100 scale without pretending the units match."""
-    count = min(len(mag_history), len(ef_relative_history), 200)
-    b = list(mag_history)[-count:] if count else []
-    e = list(ef_relative_history)[-count:] if count else []
+    count = min(len(c1_history), len(c2_relative_history), 200)
+    b = list(c1_history)[-count:] if count else []
+    e = list(c2_relative_history)[-count:] if count else []
 
     def normalize(values):
         if not values:
@@ -793,22 +793,22 @@ def fig_em_normalized_overlay(mag_history, ef_relative_history, height=300):
         yaxis_range=[0, 100], showlegend=True,
         legend=dict(orientation="h", y=1.14, x=0,
                     font=dict(color=WHITE, size=10), bgcolor="rgba(0,0,0,0)"),
-        uirevision="em-normalized-overlay",
+        uirevision="p1-normalized-overlay",
     )
     return fig
 
 
-def _em_normalized_vectors(rows, count):
+def _p1_normalized_vectors(rows, count):
     rows = [tuple(float(v) for v in row[:3]) for row in list(rows)[-count:]]
     scale = max((math.sqrt(sum(v * v for v in row)) for row in rows), default=1.0) or 1.0
     return [tuple(v / scale for v in row) for row in rows]
 
 
-def fig_em_vector_overlay_3d(magnetic_xyz, electric_xyz, height=470):
+def fig_p1_vector_overlay_3d(ch1_xyz, ch2_xyz, height=470):
     """Two measured vector histories in one normalized 3D coordinate frame."""
-    count = min(len(magnetic_xyz), len(electric_xyz), 160)
-    b = _em_normalized_vectors(magnetic_xyz, count)
-    e = _em_normalized_vectors(electric_xyz, count)
+    count = min(len(ch1_xyz), len(ch2_xyz), 160)
+    b = _p1_normalized_vectors(ch1_xyz, count)
+    e = _p1_normalized_vectors(ch2_xyz, count)
     fig = go.Figure()
     if count:
         for rows, name, color in ((b, 'Text', CYAN), (e, 'Text', AMBER)):
@@ -822,16 +822,16 @@ def fig_em_vector_overlay_3d(magnetic_xyz, electric_xyz, height=470):
                                        mode="lines", showlegend=False, hoverinfo="skip",
                                        line=dict(color="rgba(230,240,255,.18)", width=2)))
     fig.update_layout(**_scene(height))
-    fig.update_layout(showlegend=True, legend=dict(orientation="h", y=1.03, x=0), uirevision="em-vector-overlay-3d",
+    fig.update_layout(showlegend=True, legend=dict(orientation="h", y=1.03, x=0), uirevision="p1-vector-overlay-3d",
                       scene=dict(xaxis_title="Normalized X", yaxis_title="Normalized Y", zaxis_title="Normalized Z"))
     return fig
 
 
-def fig_em_cross_proxy_3d(magnetic_xyz, electric_xyz, height=470):
+def fig_p1_cross_proxy_3d(ch1_xyz, ch2_xyz, height=470):
     """Normalized E cross B direction history; a geometry proxy, not power flux."""
-    count = min(len(magnetic_xyz), len(electric_xyz), 160)
-    b = _em_normalized_vectors(magnetic_xyz, count)
-    e = _em_normalized_vectors(electric_xyz, count)
+    count = min(len(ch1_xyz), len(ch2_xyz), 160)
+    b = _p1_normalized_vectors(ch1_xyz, count)
+    e = _p1_normalized_vectors(ch2_xyz, count)
     cross = [(ey*bz-ez*by, ez*bx-ex*bz, ex*by-ey*bx)
              for (ex, ey, ez), (bx, by, bz) in zip(e, b)]
     fig = go.Figure()
@@ -844,21 +844,21 @@ def fig_em_cross_proxy_3d(magnetic_xyz, electric_xyz, height=470):
         fig.add_trace(go.Cone(x=[0], y=[0], z=[0], u=[cx], v=[cy], w=[cz], name='Label',
                               colorscale=[[0, PURPLE], [1, CYAN]], showscale=False, sizemode="absolute", sizeref=.35))
     fig.update_layout(**_scene(height))
-    fig.update_layout(uirevision="em-cross-proxy-3d",
+    fig.update_layout(uirevision="p1-cross-proxy-3d",
                       scene=dict(xaxis_title="E×B X", yaxis_title="E×B Y", zaxis_title="E×B Z"))
     return fig
 
 
-# ── spectrum visualisations (sweep / waterfall / peak trend) ──
-def _rf_x(freqs):
+# ── sweep3 visualisations (sweep / waterfall / peak trend) ──
+def _ch3_x(freqs):
     """Plot in MHz — raw Hz on the axis is unreadable across a 6 GHz span."""
     return [f / 1e6 for f in freqs]
 
 
-def fig_spectrum(freqs, levels, maxhold, peaks, floor, logx=False, height=380, bands=True):
+def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, bands=True):
     fig = go.Figure()
     if freqs and levels:
-        x = _rf_x(freqs)
+        x = _ch3_x(freqs)
         # Shade the named services behind the trace so a peak can be read without
         # doing frequency arithmetic. Only bands that occupy a visible slice of the
         # current span are drawn, otherwise a wide sweep turns into stripes.
@@ -912,7 +912,7 @@ def fig_spectrum(freqs, levels, maxhold, peaks, floor, logx=False, height=380, b
                    title=dict(text='Text', font=dict(color=SUBTEXT, size=10))),
         showlegend=True, legend=dict(orientation="h", y=1.14, x=0,
                                      font=dict(color=SUBTEXT, size=9), bgcolor="rgba(0,0,0,0)"),
-        uirevision="spectrum")
+        uirevision="sweep3")
     return fig
 
 
@@ -942,7 +942,7 @@ def fig_waterfall(rows, freqs, times=None, height=320):
             if times and len(times) == len(z) and all(t is not None for t in times)
             else [f"sweep {index + 1}" for index in range(len(z))]
         )
-        fig.add_trace(go.Heatmap(z=z, x=_rf_x(freqs), y=y,
+        fig.add_trace(go.Heatmap(z=z, x=_ch3_x(freqs), y=y,
             colorscale=[[0.0,"#050912"],[0.35,"#0d2f5e"],[0.6,"#2979ff"],
                         [0.82,"#00e5ff"],[1.0,"#ff5252"]],
             colorbar=dict(title=dict(text='Text', font=dict(color=SUBTEXT, size=9)),
@@ -985,7 +985,7 @@ def fig_focus_bands(bands, height_per=230):
                         specs=[[{"secondary_y": True}], [{}]] * n)
     for i, b in enumerate(items):
         r = 2 * i + 1
-        x = _rf_x(b["freqs"])
+        x = _ch3_x(b["freqs"])
         if b.get("prev"):
             fig.add_trace(go.Scatter(x=x, y=b["prev"], mode="lines", name='Label',
                                      line=dict(color="rgba(160,190,220,.35)", width=1, dash="dot"),
@@ -1021,7 +1021,7 @@ def fig_focus_bands(bands, height_per=230):
     return fig
 
 
-def fig_rf_trend(history, height=220):
+def fig_ch3_trend(history, height=220):
     fig = go.Figure()
     if history:
         fig.add_trace(go.Scatter(y=list(history), mode="lines",
@@ -1037,7 +1037,7 @@ def fig_rf_trend(history, height=220):
     return fig
 
 
-def fig_rf_bands(peaks, height=250):
+def fig_ch3_bands(peaks, height=250):
     """Which named services the current peaks fall in — the 'what is on air' view."""
     fig = go.Figure()
     if peaks:
@@ -1062,26 +1062,26 @@ def _peak_rows(peaks, floor):
     """Peak tracker table body. Rendered as divs so it re-themes with the rest of the UI."""
     if not peaks:
         return [html.Div('Paragraph. Enter your text here.',
-                         className="rf-peak-empty")]
+                         className="ch3-peak-empty")]
     rows = []
     for i, p in enumerate(peaks):
         delta = p.get("prominence", p["level"] - floor)
         col = AMBER if i == 0 else CYAN
         rows.append(html.Div([
-            html.Div(f"{i+1:02d}", className="rf-peak-idx"),
-            html.Div(_freq_label(p["freq"]), className=f"rf-peak-freq {_cls(col)}"),
-            html.Div(f"{p['level']:+.1f} unit", className="rf-peak-lvl"),
-            html.Div(f"+{delta:.1f} dB", className="rf-peak-delta"),
-            html.Div(p["band"], className="rf-peak-band"),
-        ], className="rf-peak-row"))
+            html.Div(f"{i+1:02d}", className="ch3-peak-idx"),
+            html.Div(_freq_label(p["freq"]), className=f"ch3-peak-freq {_cls(col)}"),
+            html.Div(f"{p['level']:+.1f} unit", className="ch3-peak-lvl"),
+            html.Div(f"+{delta:.1f} dB", className="ch3-peak-delta"),
+            html.Div(p["band"], className="ch3-peak-band"),
+        ], className="ch3-peak-row"))
     return rows
 
 
-def emi_findings(s):
-    """Heuristic screen of the real sweep for possible EMI and unusual signals.
+def sg_findings(s):
+    """Heuristic screen of the real sweep for possible SG and unusual signals.
 
     Every finding is a pattern test on measured levels (no synthetic values); the
-    labels say 'possible' because a spectrum analyser cannot identify a source.
+    labels say 'possible' because a sweep3 analyser cannot identify a source.
     Returns a list of dicts: {"kind","title","detail","severity"} (severity: info|warn|high).
     """
     freqs = list(s.get("freqs") or []); levels = list(s.get("levels") or [])
@@ -1159,19 +1159,19 @@ def emi_findings(s):
     return out
 
 
-def emi_rows(s):
-    findings = emi_findings(s)
+def sg_rows(s):
+    findings = sg_findings(s)
     if s.get("last_rx") is None or not s.get("levels"):
-        return [html.Div('Text', className="rf-peak-empty")]
+        return [html.Div('Text', className="ch3-peak-empty")]
     if not s.get("level_sane", True):
-        return [html.Div('Paragraph. Enter your text here.', className="rf-peak-empty")]
+        return [html.Div('Paragraph. Enter your text here.', className="ch3-peak-empty")]
     if not findings:
-        return [html.Div('Paragraph. Enter your text here.', className="rf-peak-empty")]
+        return [html.Div('Paragraph. Enter your text here.', className="ch3-peak-empty")]
     return [html.Div([
-        html.Div(className=f"rf-emi-dot rf-emi-{f['severity']}"),
-        html.Div([html.Div(f["title"], className="rf-emi-title"), html.Div(f["detail"], className="rf-emi-detail")]),
-        html.Div(f["kind"].upper(), className="rf-emi-kind"),
-    ], className="rf-emi-row") for f in findings]
+        html.Div(className=f"ch3-sg-dot ch3-sg-{f['severity']}"),
+        html.Div([html.Div(f["title"], className="ch3-sg-title"), html.Div(f["detail"], className="ch3-sg-detail")]),
+        html.Div(f["kind"].upper(), className="ch3-sg-kind"),
+    ], className="ch3-sg-row") for f in findings]
 
 
 def _sig_bar(pct, color):
@@ -1254,7 +1254,7 @@ def _lan_rows(hosts, self_ip):
 
 def _dbm_scale():
     """Plain-language reference for the unit axis — the scale is logarithmic and
-    negative, which is the single most confusing thing about reading a spectrum."""
+    negative, which is the single most confusing thing about reading a sweep3."""
     steps = [('Text', RED, 'Paragraph. Enter your text here.'),
              ('Text', AMBER, 'Text'),
              ('Text', GREEN, 'Text'),
@@ -1406,7 +1406,7 @@ def fig_sdr_sweep(sweep, height=320):
 
 
 # ── RTL-SDR: the receiver's own samples ────────────────────────────────────────
-# Everything above this point is a spectrum, and a spectrum has already thrown the
+# Everything above this point is a sweep3, and a sweep3 has already thrown the
 # phase away. These four views keep it. They are the only place in the instrument
 # where the raw output of the converter is visible, and between them they cover
 # three dimensions, two, one and the 8-bit codes themselves.
@@ -1415,7 +1415,7 @@ _SDR_SCALE = [[0.0, "#050912"], [0.35, "#0d2f5e"], [0.6, "#2979ff"],
               [0.82, "#00e5ff"], [1.0, "#ff5252"]]
 
 
-def _rf_scene(height, xt, yt, zt, eye=(1.7, -1.5, 1.0), aspect=None):
+def _ch3_scene(height, xt, yt, zt, eye=(1.7, -1.5, 1.0), aspect=None):
     ax = dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="rgba(128,128,128,0.14)",
               zerolinecolor="rgba(128,128,128,0.18)", tickfont=dict(color=SUBTEXT, size=8),
               showbackground=True)
@@ -1458,10 +1458,10 @@ def fig_sdr_terrain(rows, freqs, times=None, height=460):
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             contours=dict(z=dict(show=True, usecolormap=True, project_z=True, width=1)),
             hovertemplate="%{x:.4f} MHz · %{y} s · %{z:.1f} dBFS<extra></extra>"))
-        fig.update_layout(**_rf_scene(height, "MHz", ylab, "dBFS", eye=(1.05, -1.1, 0.62),
+        fig.update_layout(**_ch3_scene(height, "MHz", ylab, "dBFS", eye=(1.05, -1.1, 0.62),
                                       aspect=(1.9, 1.0, 0.72)))
     else:
-        fig.update_layout(**_rf_scene(height, "MHz", "time", "dBFS"))
+        fig.update_layout(**_ch3_scene(height, "MHz", "time", "dBFS"))
         fig.add_annotation(text='Text',
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
@@ -1519,10 +1519,10 @@ def fig_sdr_iq_3d(i_vals, q_vals, dt_s, height=380):
                                     tickfont=dict(color=SUBTEXT, size=8), thickness=10,
                                     outlinewidth=0)),
             hovertemplate="I %{x:.3f} · Q %{y:.3f} · %{z:.2f} µs<extra></extra>"))
-        fig.update_layout(**_rf_scene(height, "I", "Q", "µs", eye=(1.15, -1.3, 0.9),
+        fig.update_layout(**_ch3_scene(height, "I", "Q", "µs", eye=(1.15, -1.3, 0.9),
                                       aspect=(1.0, 1.0, 1.45)))
     else:
-        fig.update_layout(**_rf_scene(height, "I", "Q", "µs"))
+        fig.update_layout(**_ch3_scene(height, "I", "Q", "µs"))
         fig.add_annotation(text='Text', x=.5, y=.5,
                            xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
@@ -1565,9 +1565,9 @@ def fig_sdr_codes(hist, height=240):
 
 
 def fig_sdr_envelope(env, dt_s, height=240):
-    """|IQ| against time inside one burst: the amplitude the spectrum averages away.
+    """|IQ| against time inside one burst: the amplitude the sweep3 averages away.
     A steady carrier is a flat line. A pulsed or switching source is visible here as
-    structure that no spectrum of the same burst can show."""
+    structure that no sweep3 of the same burst can show."""
     fig = go.Figure()
     if env and len(env) > 4:
         t = [k * (dt_s or 0) * 1e3 for k in range(len(env))]
@@ -1589,15 +1589,15 @@ def fig_sdr_envelope(env, dt_s, height=240):
     return fig
 
 
-def fig_mains_spectrogram(spec, height=460, title_hz=50.0):
-    """The E-field spectrogram as a surface: frequency across, time into the screen,
-    level as height. The mains fundamental is a ridge running the full depth of the
+def fig_linefreq_spectrogram(spec, height=460, title_hz=50.0):
+    """The Ch2 spectrogram as a surface: frequency across, time into the screen,
+    level as height. The linefreq fundamental is a ridge running the full depth of the
     picture because it never stops. Anything that starts or stops partway through the
     capture is a ridge that does not reach both edges - which is the whole reason for
     plotting it this way instead of taking one FFT of the lot."""
     fig = go.Figure()
     if spec and spec.get("db") and spec.get("hz") and len(spec["db"]) >= 2:
-        # The floor of an E-field capture is broadband and only a few tens of dB down, so
+        # The floor of an Ch2 capture is broadband and only a few tens of dB down, so
         # a colour scale spread across the whole range paints most of the picture bright
         # and buries the lines that matter. The scale is pinned instead: everything below
         # -45 dB is floor and stays dark, and only the top ~15 dB lights up.
@@ -1611,33 +1611,33 @@ def fig_mains_spectrogram(spec, height=460, title_hz=50.0):
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             contours=dict(z=dict(show=True, usecolormap=True, project_z=True, width=1)),
             hovertemplate="%{x:.1f} Hz · %{y:.2f} s · %{z:.1f} dB<extra></extra>"))
-        fig.update_layout(**_rf_scene(height, "Hz", "seconds into the capture", "dB relative",
+        fig.update_layout(**_ch3_scene(height, "Hz", "seconds into the capture", "dB relative",
                                       eye=(1.05, -1.05, 0.62), aspect=(1.9, 1.0, 0.72)))
     else:
-        fig.update_layout(**_rf_scene(height, "Hz", "time", "dB relative"))
+        fig.update_layout(**_ch3_scene(height, "Hz", "time", "dB relative"))
         fig.add_annotation(text='Text',
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
-    fig.update_layout(uirevision="mains-spectrogram")
+    fig.update_layout(uirevision="linefreq-spectrogram")
     return fig
 
 
-def fig_em_trajectory_3d(mag_history, ef_relative_history, height=440):
-    """B magnitude, electric activity and time as three axes of one path.
+def fig_p1_trajectory_3d(c1_history, c2_relative_history, height=440):
+    """B magnitude, ch2 activity and time as three axes of one path.
 
     The two overlays above plot the same pair against a shared sample order, which
     shows that both move but not how they move together. Here the same aligned
     samples are a single curve through a space whose floor is the E-B plane: a
     genuine coupling draws a diagonal, one channel drifting alone draws a line
     parallel to its own axis, and the shadow cast on the floor is the E-B phase
-    portrait with time removed. Scalar magnitudes only - the E-field probe has no
+    portrait with time removed. Scalar magnitudes only - the Ch2 probe has no
     direction, so this is not a field vector.
     """
-    count = min(len(mag_history or []), len(ef_relative_history or []), 240)
+    count = min(len(c1_history or []), len(c2_relative_history or []), 240)
     fig = go.Figure()
     if count >= 8:
-        b = list(mag_history)[-count:]
-        e = list(ef_relative_history)[-count:]
+        b = list(c1_history)[-count:]
+        e = list(c2_relative_history)[-count:]
         t = list(range(count))
         fig.add_trace(go.Scatter3d(
             x=b, y=e, z=t, mode="lines",
@@ -1653,7 +1653,7 @@ def fig_em_trajectory_3d(mag_history, ef_relative_history, height=440):
         fig.add_trace(go.Scatter3d(
             x=[b[-1]], y=[e[-1]], z=[t[-1]], mode="markers",
             marker=dict(size=5, color="#ff5252"), name="now", hoverinfo="skip"))
-        fig.update_layout(**_rf_scene(height, 'B magnitude (unit)', "E activity (%)",
+        fig.update_layout(**_ch3_scene(height, 'B magnitude (unit)', "E activity (%)",
                                       "sample order", eye=(1.45, -1.5, 0.95),
                                       aspect=(1.25, 1.25, 1.0)))
         fig.update_layout(showlegend=True,
@@ -1661,16 +1661,16 @@ def fig_em_trajectory_3d(mag_history, ef_relative_history, height=440):
                                       font=dict(color=SUBTEXT, size=9),
                                       bgcolor="rgba(0,0,0,0)"))
     else:
-        fig.update_layout(**_rf_scene(height, 'B magnitude (unit)', "E activity (%)", "sample order"))
+        fig.update_layout(**_ch3_scene(height, 'B magnitude (unit)', "E activity (%)", "sample order"))
         fig.add_annotation(text='Text',
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
-    fig.update_layout(uirevision="em-traj3d")
+    fig.update_layout(uirevision="p1-traj3d")
     return fig
 
 
-def fig_rf_terrain(rows, freqs, times=None, height=460):
-    """The tinySA's sweeps as a surface: frequency across, sweep time into the screen,
+def fig_ch3_terrain(rows, freqs, times=None, height=460):
+    """The src3's sweeps as a surface: frequency across, sweep time into the screen,
     level as height. Same treatment as the SDR terrain, over a far wider span at far
     coarser resolution - which is exactly the trade between the two receivers."""
     fig = go.Figure()
@@ -1694,14 +1694,14 @@ def fig_rf_terrain(rows, freqs, times=None, height=460):
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             contours=dict(z=dict(show=True, usecolormap=True, project_z=True, width=1)),
             hovertemplate="%{x:.3f} MHz · %{y} s · %{z:.1f} unit<extra></extra>"))
-        fig.update_layout(**_rf_scene(height, "Axis", ylab, "unit", eye=(1.05, -1.1, 0.62),
+        fig.update_layout(**_ch3_scene(height, "Axis", ylab, "unit", eye=(1.05, -1.1, 0.62),
                                       aspect=(1.9, 1.0, 0.72)))
     else:
-        fig.update_layout(**_rf_scene(height, "Axis", "sweep", "unit"))
+        fig.update_layout(**_ch3_scene(height, "Axis", "sweep", "unit"))
         fig.add_annotation(text='Text',
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
-    fig.update_layout(uirevision="rf-terrain")
+    fig.update_layout(uirevision="ch3-terrain")
     return fig
 
 
@@ -1750,7 +1750,7 @@ def fig_repeatability(result, height=300):
 #
 #  These tabs were tables only. The instrument already scans both radios and keeps
 #  RSSI, channel, band, security and vendor, so the data was there - it simply had
-#  no picture. The channel view below is the one that matters for an EMI
+#  no picture. The channel view below is the one that matters for an SG
 #  instrument: it places every access point on the frequency axis at its real
 #  centre and width, so congestion is visible as overlap rather than inferred
 #  from a column of numbers.
@@ -1771,7 +1771,7 @@ def fig_wifi_channels(nets, band="2.4 GHz", height=300):
     """Every access point drawn at its real centre frequency and 20 MHz width.
 
     Height is the reported signal, so a tall overlapping cluster is a congested
-    channel. This is the same picture the spectrum page draws from the tinySA,
+    channel. This is the same picture the sweep3 page draws from the src3,
     built instead from what the Wi-Fi radio itself reports.
     """
     fig = go.Figure()

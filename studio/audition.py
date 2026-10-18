@@ -370,16 +370,16 @@ class SdrAudioSource(AudioSource):
                 "-r", str(SAMPLE_RATE), "-g", "30", "-E", "deemp", "-"]
 
 
-class EfieldAudioSource(AudioSource):
-    """The electric probe ADS1115 stream made audible.
+class Ch2fAudioSource(AudioSource):
+    """The ch2 probe SRC2 stream made audible.
 
     The converter runs at 860 samples per second, so the audible band is limited to
-    about 430 Hz: mains hum, its low harmonics and switching envelopes. Blocks are
+    about 430 Hz: linefreq hum, its low harmonics and switching envelopes. Blocks are
     resampled to 16 kHz by linear interpolation. No subprocess is involved; the
     acquisition loop feeds each measured block through ``feed``.
     """
 
-    name = "efield"
+    name = "ch2f"
     label = 'Channel 2 probe audio'
 
     def __init__(self, channel_state=None):
@@ -479,21 +479,21 @@ class EfieldAudioSource(AudioSource):
                 queue_.append(encoded)
 
 
-class MagAudioSource(EfieldAudioSource):
-    """The magnetometer made audible, honestly labelled as a sonification.
+class C1AudioSource(Ch2fAudioSource):
+    """The ch1probe made audible, honestly labelled as a sonification.
 
-    The QMC5883P is read about 50 times a second, so its fluctuations occupy 0 to 25 Hz,
-    below hearing. Each deviation sample (µT from the ambient baseline) is interpolated
+    The SRC1 is read about 50 times a second, so its fluctuations occupy 0 to 25 Hz,
+    below hearing. Each deviation sample (unit from the ambient baseline) is interpolated
     to 16 kHz and multiplied onto a 220 Hz carrier: what is heard is a tone whose
-    loudness and texture follow the magnetic field exactly; the pitch itself is the
-    carrier, not the field. Mains hum cannot appear here: at 50 samples per second the
+    loudness and texture follow the ch1 field exactly; the pitch itself is the
+    carrier, not the field. Linefreq hum cannot appear here: at 50 samples per second the
     50 Hz line frequency aliases to a constant and is removed with the baseline.
     """
 
-    name = "mag"
+    name = "c1"
     label = 'Channel 1 audio'
     CARRIER_HZ = 220.0
-    FULL_SCALE_UT = 2.0
+    FULL_SCALE_VAL = 2.0
 
     def __init__(self, channel_state=None):
         super().__init__(channel_state)
@@ -506,23 +506,23 @@ class MagAudioSource(EfieldAudioSource):
             return True, None, 'Source 1 channel 1 (50 SPS, 0 to 25 Hz fluctuations on a 220 Hz carrier)'
         return False, f"Channel 1 is {state}", None
 
-    def feed_value(self, deviation_ut, sample_rate):
-        """Called from the acquisition thread with one magnetometer reading."""
+    def feed_value(self, deviation_val, sample_rate):
+        """Called from the acquisition thread with one ch1probe reading."""
         if not self.state["enabled"]:
             return
         rate = sample_rate if sample_rate and 5 < sample_rate < 400 else 50.0
         count = max(1, int(round(SAMPLE_RATE / rate)))
-        start, end = self.last_value, float(deviation_ut)
+        start, end = self.last_value, float(deviation_val)
         self.last_value = end
         step = 2 * math.pi * self.CARRIER_HZ / SAMPLE_RATE
         if np is not None:
-            env = np.linspace(start, end, count, endpoint=False, dtype=np.float32) / self.FULL_SCALE_UT
+            env = np.linspace(start, end, count, endpoint=False, dtype=np.float32) / self.FULL_SCALE_VAL
             phases = self.phase + step * np.arange(count, dtype=np.float32)
             samples = np.clip(env * np.sin(phases) * 32767.0, -32768, 32767).astype("<i2").tobytes()
         else:
             out = []
             for index in range(count):
-                env = (start + (end - start) * index / count) / self.FULL_SCALE_UT
+                env = (start + (end - start) * index / count) / self.FULL_SCALE_VAL
                 out.append(int(max(-32768, min(32767, env * math.sin(self.phase + step * index) * 32767.0))))
             samples = struct.pack("<%dh" % len(out), *out)
         self.phase = (self.phase + step * count) % (2 * math.pi)
@@ -538,8 +538,8 @@ class MagAudioSource(EfieldAudioSource):
 class FieldAudition:
     """Owns the sources and exposes snapshots and streaming generators."""
 
-    def __init__(self, channel_state=None, mag_state=None):
-        self.sources = {"efield": EfieldAudioSource(channel_state), "mag": MagAudioSource(mag_state),
+    def __init__(self, channel_state=None, c1_state=None):
+        self.sources = {"ch2f": Ch2fAudioSource(channel_state), "c1": C1AudioSource(c1_state),
                         "coil": CoilAudioSource(), "sdr": SdrAudioSource()}
         self.last_probe = time.monotonic()
 
@@ -553,7 +553,7 @@ class FieldAudition:
                     except Exception:  # pragma: no cover
                         pass
         return {"sources": {key: source.snapshot() for key, source in self.sources.items()},
-                "efield_audio_active": self.sources["efield"].state["enabled"],
+                "ch2f_audio_active": self.sources["ch2f"].state["enabled"],
                 "note": "Audio is monitoring only. Levels are dBFS relative to the capture chain, not field strength."}
 
     def control(self, data):

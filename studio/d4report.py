@@ -1,4 +1,4 @@
-"""IV_D4_Validation_Report.pdf: generated from the live D4 packet, the trial store and the
+"""I3_D4_Validation_Report.pdf: generated from the live D4 packet, the trial store and the
 reference database with matplotlib (the only PDF capable library on this host). Every number is
 one the engine measured; sections without data say so instead of inventing a figure."""
 from __future__ import annotations
@@ -45,13 +45,13 @@ def build_report(runtime):
             "", "## Equipment",
             'Source 1 three axis channel 1 (bus), Source 2 Channel 2 plate (860 SPS), channel 4 on Source 2, Source 3 (USB), host computer',
             *[f"{k:>10}: {v.get('state')} · {v.get('message', '')[:70]}" for k, v in ch.items()],
-            "", "## Configuration (iv_config.json)",
+            "", "## Configuration (i3_config.json)",
             f"source: {cfg.get('source')}",
             f"weights: {cfg.get('mtdi_weights')}",
-            f"thresholds: CH 3 {cfg.get('rf_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')} sigma · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')} x MAD",
-            f"baseline: {cfg.get('baseline_method')} alpha {cfg.get('baseline_alpha')} · reference {cfg.get('mains_hz')} Hz · channel 1 ODR {cfg.get('mag_odr_hz')} Hz",
+            f"thresholds: CH 3 {cfg.get('ch3_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')} sigma · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')} x MAD",
+            f"baseline: {cfg.get('baseline_method')} alpha {cfg.get('baseline_alpha')} · reference {cfg.get('linefreq_hz')} Hz · channel 1 ODR {cfg.get('c1_odr_hz')} Hz",
             "", "## Calibration",
-            f"offsets (unit): {cfg.get('mag_offsets')} · scale {cfg.get('mag_scale')} · quality {cfg.get('mag_calibration_quality')}",
+            f"offsets (unit): {cfg.get('c1_offsets')} · scale {cfg.get('c1_scale')} · quality {cfg.get('c1_calibration_quality')}",
             f"health: {(p.get('calibration_health') or {}).get('status')} · spread {(p.get('calibration_health') or {}).get('magnitude_spread_pct')} % · {(p.get('calibration_health') or {}).get('recalibration', '')}",
             "", "## MTDI 2.0 at report time",
             f"MTDI {p.get('mtdi')} · confidence {p.get('confidence')} % · agreement {p.get('consensus')} %",
@@ -61,8 +61,8 @@ def build_report(runtime):
         ]
         _fig_text(pdf, "MTDI Studio · D4 Validation Report", lines, plt)
 
-        # ── measurements: mains, RF, noise, transients, correlation ──
-        m = p.get("mains") or {}; mm = p.get("mains_magnetic") or {}; r = p.get("rf") or {}
+        # ── measurements: linefreq, CH3, noise, transients, correlation ──
+        m = p.get("linefreq") or {}; mm = p.get("linefreq_ch1") or {}; r = p.get("ch3") or {}
         pn = p.get("power_network") or {}
         lines = ['## Power network analysis (Channel 2 ADC)']
         if m.get("error"):
@@ -80,7 +80,7 @@ def build_report(runtime):
             lines += [f"primary peak {r.get('primary_peak_hz')} Hz · {r.get('primary_peak_dbm')} unit · floor {r.get('noise_floor_dbm')} unit · SNR {r.get('snr_db')} dB",
                       f"OBW {r.get('occupied_bandwidth_hz')} Hz · occupancy {r.get('occupancy_pct')} % · {r.get('interference_islands')} islands", r.get("band_note", ""),
                       f"trusted sweep: {r.get('trusted')}"]
-        ne, nm = p.get("noise_electric") or {}, p.get("noise_magnetic") or {}
+        ne, nm = p.get("noise_ch2") or {}, p.get("noise_ch1") or {}
         lines += ["", "## Noise characterisation",
                   f"Channel 2 ADC: RMS {ne.get('rms')} · peak {ne.get('peak')} · sigma {ne.get('std')} · NSD {ne.get('nsd_per_sqrt_hz')} /sqrt(Hz)" if ne else 'Channel 2: no data',
                   f"channel 1: RMS {nm.get('rms')} unit · peak {nm.get('peak')} unit · NSD {nm.get('nsd_per_sqrt_hz')} unit/sqrt(Hz)" if nm else 'channel 1: no data']
@@ -88,12 +88,12 @@ def build_report(runtime):
         lines += ["", "## Transients", f"{tr.get('count', 0)} events in {tr.get('window_s')} s · threshold {tr.get('threshold')} · repetition {tr.get('repetition_hz')} Hz"]
         lines += ["", "## Correlation"] + [f"{k}: r = {v.get('r')} · {v.get('text')}" for k, v in (p.get("correlation") or {}).items()]
         fp = p.get("fingerprint") or {}; chg = p.get("fingerprint_change") or {}
-        lines += ["", "## Environmental fingerprint", f"channel 1 {fp.get('magnetic_ut')} unit · channel 2 {fp.get('electric')} · CH 3 floor {fp.get('rf_floor_dbm')} unit · transients {fp.get('transient_rate_per_min')} /min",
+        lines += ["", "## Environmental fingerprint", f"channel 1 {fp.get('ch1_val')} unit · channel 2 {fp.get('ch2')} · CH 3 floor {fp.get('ch3_floor_dbm')} unit · transients {fp.get('transient_rate_per_min')} /min",
                   f"vs reference: {chg}" if p.get("fingerprint_reference") else "no reference recorded"]
         _fig_text(pdf, "Measurements", lines, plt)
 
         # ── figures ──
-        sp = m.get("spectrum") or {}
+        sp = m.get("sweep3") or {}
         if sp.get("hz"):
             fig, ax = plt.subplots(figsize=(8.27, 4.5))
             ax.semilogy(sp["hz"], np.maximum(1e-9, np.array(sp["amp"], dtype=float)), lw=.8)
@@ -102,7 +102,7 @@ def build_report(runtime):
                     ax.axvline(h["hz"], color="orange", lw=.6, ls=":")
             ax.set_xlim(0, min(450, m.get("nyquist_hz") or 450)); ax.set_xlabel("Hz"); ax.set_title(f"Channel 2 channel 3{sim}"); ax.grid(alpha=.3)
             pdf.savefig(fig); plt.close(fig)
-        sweep = d4s._spectrum() or {}
+        sweep = d4s._sweep3() or {}
         if sweep.get("freqs"):
             fig, ax = plt.subplots(figsize=(8.27, 4.5))
             ax.plot(np.array(sweep["freqs"]) / 1e6, sweep["levels"], lw=.8)
@@ -118,7 +118,7 @@ def build_report(runtime):
             pdf.savefig(fig); plt.close(fig)
         hist = d4s._histories()
         fig, axes = plt.subplots(3, 1, figsize=(8.27, 8), sharex=False)
-        for ax, key in zip(axes, ("magnetic", "electric", "rf")):
+        for ax, key in zip(axes, ("ch1", "ch2", "ch3")):
             rows = hist.get(key) or []
             if rows:
                 t0 = rows[0][0]

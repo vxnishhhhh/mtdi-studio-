@@ -1,4 +1,4 @@
-/* Two circuit boards in 3D: the QMC/GY-271 magnetometer breakout and the E-field
+/* Two circuit boards in 3D: the SRC1/GY-271 ch1probe breakout and the Ch2
    board. Adapted from the operator's own three.js scene so the geometry, the
    procedural surface textures and the lighting are his, unchanged in substance.
 
@@ -9,11 +9,11 @@
      - the clear colour is transparent, because the instrument is dark and the
        original page was white;
      - it only renders while the canvas is on screen and the tab is visible, so a
-       scrolled-away board costs nothing on a Raspberry Pi.
+       scrolled-away board costs nothing on a small board.
 
    THREE is expected on window; the loader below fetches it once. */
 (function(){
-  if (window.__ivBoards) return;
+  if (window.__i3Boards) return;
   const THREE = null; // resolved at mount time from window.THREE
 
   function build(T, canvas){
@@ -88,7 +88,7 @@
         for(let k=0;k<3;k++)box(g,x+3.51,yy,1.55+k*.25,.025,2.5,.07,M.silver);
         if(i<n-1)box(g,x-.8,yy+2.54,5.97,5,.055,.035,mat('#0766ac'));
         cyl(g,x,yy,-.8,.35,2.1,M.silver)}}
-    function electrolytic(g,x,y,r=3.5,h=10){
+    function bulkcap(g,x,y,r=3.5,h=10){
       cyl(g,x,y,.35,r+.08,.55,M.dark);cyl(g,x,y,h/2+.3,r,h,M.black);
       for(let z of [.9,h-.15])mesh(g,new T.TorusGeometry(r-.12,.13,8,40),M.dark,x,y,z);
       cyl(g,x,y,h+.33,r*.87,.1,M.silver);cyl(g,x,y,h+.4,r*.74,.035,M.silver);
@@ -119,7 +119,7 @@
         disc(g,-2,y-9);disc(g,5,y-9)}
       terminal(g,15,46,2);box(g,-7,44,3,6,2.7,5,M.blue);box(g,4,44,3,6,2.7,5,M.blue);
       inductor(g,-2,50,11);inductor(g,12,37,9);inductor(g,-10,29,8);inductor(g,10,27,8);
-      for(let p of [[-18,34],[-18,24],[19,33],[19,25]])electrolytic(g,p[0],p[1],3.2,9.5);
+      for(let p of [[-18,34],[-18,24],[19,33],[19,25]])bulkcap(g,p[0],p[1],3.2,9.5);
       for(let x of [-5,4]){box(g,x,41,2.9,3,2.2,3.5,M.black);
         for(let a of [-.8,0,.8])line(g,[[x+a,40,2],[x+a,39.2,.1]],.13,M.silver)}
       resistor(g,-9,39);resistor(g,8,39);disc(g,-1,25);disc(g,5,23);disc(g,1,44);
@@ -145,7 +145,7 @@
       for(let k=0;k<25;k++){let x=-16+(k%5)*7,y=26+Math.floor(k/5)*5;
         ball(g,x,y,-1.9,1,.75,.4,M.solder);
         if(k%3)trace(g,[[x,y],[x+3,y],[x+3,y+3]],-1.64,.8)}
-      label(g,'EFIELD',-18,44,-1.72,8,1.9,'#bd8555',true);return g}
+      label(g,'CH2F',-18,44,-1.72,8,1.9,'#bd8555',true);return g}
 
     function small(){let g=new T.Group(),holes=[];
       for(let i=0;i<5;i++)holes.push([-5.08+i*2.54,-6.2,.62]);
@@ -214,13 +214,13 @@
     const pmrem=new T.PMREMGenerator(renderer);const environment=pmrem.fromScene(studio,.07).texture;pmrem.dispose();
 
     /* Which board this canvas shows. The Sensor Showcase wants both side by
-       side; the Magnetic and Electric tabs each want only the sensor that
+       side; the Ch1 and Ch2 tabs each want only the sensor that
        actually takes that measurement, so a canvas can ask for one. Building
        only what is asked for also means a single-board canvas pays for one
        scene rather than two. */
-    const which=(canvas.getAttribute('data-iv-boards')||'both').toLowerCase();
-    const wantMag=(which==='both'||which==='mag'||which==='magnetic'||which==='true');
-    const wantEf=(which==='both'||which==='ef'||which==='efield'||which==='electric'||which==='true');
+    const which=(canvas.getAttribute('data-i3-boards')||'both').toLowerCase();
+    const wantMag=(which==='both'||which==='c1'||which==='ch1'||which==='true');
+    const wantEf=(which==='both'||which==='ef'||which==='ch2f'||which==='ch2'||which==='true');
     const specs=[];
     if(wantMag)specs.push([small(),20]);
     if(wantEf)specs.push([big(),118]);
@@ -266,7 +266,7 @@
     /* Same hand-control contract used by the Earth and Plotly scenes. A pinch
        selects this canvas; palm motion supplies inertial rotation and two-hand
        spread supplies zoom. */
-    canvas.__ivLegacyHandControls={
+    canvas.__i3LegacyHandControls={
       physics(delta){const v=active||views[0];if(!v)return;const q=new T.Quaternion().setFromEuler(new T.Euler(delta[1],delta[0],delta[2]||0));v.pivot.quaternion.premultiply(q)},
       rotate(dx,dy){const v=active||views[0];if(!v)return;const q=new T.Quaternion().setFromEuler(new T.Euler(dy*.009,dx*.009,0));v.pivot.quaternion.premultiply(q)},
       zoom(delta){for(const v of views)v.zoom=Math.max(.35,Math.min(2.5,v.zoom*Math.exp(delta*.001)))},
@@ -291,7 +291,7 @@
         v.camera.updateProjectionMatrix();renderer.render(v.scene,v.camera)});
     }
     frame();
-    return {dispose(){cancelAnimationFrame(raf);io.disconnect();delete canvas.__ivLegacyHandControls;renderer.dispose()}};
+    return {dispose(){cancelAnimationFrame(raf);io.disconnect();delete canvas.__i3LegacyHandControls;renderer.dispose()}};
   }
 
   let loading=null;
@@ -299,7 +299,7 @@
     if(window.THREE)return Promise.resolve(window.THREE);
     if(loading)return loading;
     loading=new Promise((res,rej)=>{const s=document.createElement('script');
-      s.src='/_iv/three.js';s.onload=()=>res(window.THREE);
+      s.src='/_i3/three.js';s.onload=()=>res(window.THREE);
       s.onerror=()=>rej(new Error('three.js failed to load'));document.head.appendChild(s)});
     return loading;
   }
@@ -307,12 +307,12 @@
   function mount(canvas){
     if(!canvas||canvas.dataset.boardsInit==='1')return;
     canvas.dataset.boardsInit='1';
-    ensureThree().then(T=>{try{canvas.__ivBoards=build(T,canvas)}
+    ensureThree().then(T=>{try{canvas.__i3Boards=build(T,canvas)}
       catch(err){console.error('[studio] boards scene failed',err);canvas.dataset.boardsInit='0'}})
       .catch(err=>{console.error('[studio]',err);canvas.dataset.boardsInit='0'});
   }
-  function scan(){document.querySelectorAll('canvas[data-iv-boards]').forEach(mount)}
-  window.__ivBoards={mount,scan};
+  function scan(){document.querySelectorAll('canvas[data-i3-boards]').forEach(mount)}
+  window.__i3Boards={mount,scan};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scan);else scan();
   new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
 })();

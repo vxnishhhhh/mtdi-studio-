@@ -3,7 +3,7 @@
 Everything here is plain numpy so it runs on this host without the laptop. The MATLAB
 toolbox in ``matlab/`` implements the same functions with the same names and the same
 JSON contract, so coefficients, weights and thresholds developed in MATLAB drop into
-``iv_config.json`` and this host loads them. Nothing in this module invents a value: every
+``i3_config.json`` and this host loads them. Nothing in this module invents a value: every
 figure is computed from the samples it is given and every function reports the sample
 rate, window length or count it worked from so the limits are visible.
 """
@@ -21,32 +21,32 @@ import numpy as np
 CONFIG_DEFAULT = {
     "version": 1,
     "source": "defaults",
-    "mag_offsets": [0.0, 0.0, 0.0],
-    "mag_soft_iron": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-    "mag_scale": [1.0, 1.0, 1.0],
-    "mag_calibration_quality": None,
-    "mtdi_weights": {"rf": 0.30, "electric": 0.25, "magnetic": 0.30, "transient": 0.15},
+    "c1_offsets": [0.0, 0.0, 0.0],
+    "c1_soft_iron": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    "c1_scale": [1.0, 1.0, 1.0],
+    "c1_calibration_quality": None,
+    "mtdi_weights": {"ch3": 0.30, "ch2": 0.25, "ch1": 0.30, "transient": 0.15},
     "confidence_weights": {"snr": 0.25, "repeatability": 0.15, "agreement": 0.25, "baseline_deviation": 0.20, "calibration": 0.15},
-    "rf_threshold_db": 10.0,          # dB above the noise floor that counts as activity
+    "ch3_threshold_db": 10.0,          # dB above the noise floor that counts as activity
     "anomaly_sigma": 3.0,             # z-score that counts as an anomaly
     "event_mtdi": 60.0,               # MTDI 2.0 score that opens an event
     "transient_threshold": 3.4,       # multiples of the noise MAD
     "baseline_method": "ema",         # ema | moving_median | moving_mean
     "baseline_alpha": 0.025,
-    "mains_hz": 50.0,
-    "mag_odr_hz": 200,               # QMC5883P output data rate (10/50/100/200)
-    "auto_burst_s": 60,              # seconds between automatic 4 s E-field burst captures (0 = manual only)
+    "linefreq_hz": 50.0,
+    "c1_odr_hz": 200,               # SRC1 output data rate (10/50/100/200)
+    "auto_burst_s": 60,              # seconds between automatic 4 s Ch2 burst captures (0 = manual only)
     "d3_reference": {},              # metrics typed from the D3 report for the comparison table
     "filter": {"type": "butterworth", "order": 4, "cutoff_hz": 20.0, "kind": "low", "b": None, "a": None, "fs": None, "apply": False},
 }
 
 
 def config_path():
-    return Path(os.environ.get("STUDIO_D4_CONFIG", str(Path.home() / ".config/mtdi_studio/iv_config.json"))).expanduser()
+    return Path(os.environ.get("STUDIO_D4_CONFIG", str(Path.home() / ".config/mtdi_studio/i3_config.json"))).expanduser()
 
 
 def load_config():
-    """iv_config.json as exported by MATLAB (or saved from the instrument), validated."""
+    """i3_config.json as exported by MATLAB (or saved from the instrument), validated."""
     cfg = json.loads(json.dumps(CONFIG_DEFAULT))
     path = config_path()
     if not path.exists():
@@ -56,10 +56,10 @@ def load_config():
         for key, value in data.items():
             if key in cfg:
                 cfg[key] = value
-        offsets = [float(v) for v in cfg["mag_offsets"]]
-        matrix = np.array(cfg["mag_soft_iron"], dtype=float)
+        offsets = [float(v) for v in cfg["c1_offsets"]]
+        matrix = np.array(cfg["c1_soft_iron"], dtype=float)
         if len(offsets) != 3 or matrix.shape != (3, 3) or not np.all(np.isfinite(matrix)) or abs(np.linalg.det(matrix)) < 1e-9:
-            raise ValueError("mag_offsets must be 3 values and mag_soft_iron a non singular 3x3 matrix")
+            raise ValueError("c1_offsets must be 3 values and c1_soft_iron a non singular 3x3 matrix")
         w = cfg["mtdi_weights"]
         total = sum(float(v) for v in w.values())
         if total <= 0:
@@ -71,7 +71,7 @@ def load_config():
         cfg["source"] = str(path)
         return cfg, None
     except Exception as exc:
-        return json.loads(json.dumps(CONFIG_DEFAULT)), f"iv_config.json rejected: {exc}"
+        return json.loads(json.dumps(CONFIG_DEFAULT)), f"i3_config.json rejected: {exc}"
 
 
 def save_config(cfg):
@@ -101,7 +101,7 @@ def _mad(x):
     return 1.4826 * np.median(np.abs(x - med)), med
 
 
-# ── 1/2. magnetometer calibration (hard iron, soft iron, scale, misalignment) ─
+# ── 1/2. ch1probe calibration (hard iron, soft iron, scale, misalignment) ─
 def ellipsoid_fit(points):
     """Least squares ellipsoid fit to raw XYZ samples.
 
@@ -145,14 +145,14 @@ def ellipsoid_fit(points):
     target = float(np.mean(radii))
     W = evecs @ np.diag(target / radii) @ evecs.T
     corrected = (P - centre) @ W.T
-    mag_before = np.linalg.norm(P - centre, axis=1)
-    mag_after = np.linalg.norm(corrected, axis=1)
+    c1_before = np.linalg.norm(P - centre, axis=1)
+    c1_after = np.linalg.norm(corrected, axis=1)
     # quality: how close the corrected magnitudes are to one sphere (1 - relative spread)
-    spread_before = float(np.std(mag_before) / max(1e-9, np.mean(mag_before)))
-    spread_after = float(np.std(mag_after) / max(1e-9, np.mean(mag_after)))
+    spread_before = float(np.std(c1_before) / max(1e-9, np.mean(c1_before)))
+    spread_after = float(np.std(c1_after) / max(1e-9, np.mean(c1_after)))
     # coverage: how evenly the corrected directions fill the sphere (covariance of the unit
     # vectors is isotropic, 1/3 per axis, for a full tumble); a one pose capture scores low
-    units = corrected / np.maximum(1e-9, mag_after)[:, None]
+    units = corrected / np.maximum(1e-9, c1_after)[:, None]
     ev = np.linalg.eigvalsh(np.cov(units.T))
     coverage = float(max(0.0, min(1.0, (ev.min() / max(1e-12, ev.max())))))
     quality = float(max(0.0, min(1.0, (1.0 - spread_after * 4.0) * min(1.0, coverage / 0.6))))
@@ -161,11 +161,11 @@ def ellipsoid_fit(points):
     misalignment_deg = float(np.degrees(np.arctan(np.max(np.abs(off_diag)))))
     return {
         "samples": int(P.shape[0]),
-        "offsets_ut": [_f(c) for c in centre],
+        "offsets_val": [_f(c) for c in centre],
         "soft_iron_matrix": [[_f(W[i, j], 5) for j in range(3)] for i in range(3)],
         "scale": [_f(s, 4) for s in scale],
-        "radii_ut": [_f(r) for r in radii],
-        "field_magnitude_ut": _f(target),
+        "radii_val": [_f(r) for r in radii],
+        "field_magnitude_val": _f(target),
         "misalignment_deg": _f(misalignment_deg, 2),
         "residual_before_pct": _f(spread_before * 100, 2),
         "residual_after_pct": _f(spread_after * 100, 2),
@@ -177,29 +177,29 @@ def ellipsoid_fit(points):
 
 
 def apply_calibration(vec, cfg):
-    W = np.array(cfg["mag_soft_iron"], dtype=float)
-    return (W @ (np.asarray(vec, dtype=float) - np.asarray(cfg["mag_offsets"], dtype=float))).tolist()
+    W = np.array(cfg["c1_soft_iron"], dtype=float)
+    return (W @ (np.asarray(vec, dtype=float) - np.asarray(cfg["c1_offsets"], dtype=float))).tolist()
 
 
-def calibration_health(recent_points, cfg, noise_ut=None):
+def calibration_health(recent_points, cfg, noise_val=None):
     """Is the stored calibration still good? Uses recent samples: magnitude spread after
     correction and the drift of the centre versus the stored offsets."""
     P = np.asarray(recent_points, dtype=float)
     if P.shape[0] < 30:
         return {"status": "insufficient", "samples": int(P.shape[0]), "text": "Need 30 recent samples"}
     corrected = np.array([apply_calibration(p, cfg) for p in P])
-    mag = np.linalg.norm(corrected, axis=1)
-    spread = float(np.std(mag) / max(1e-9, np.mean(mag)))
+    c1 = np.linalg.norm(corrected, axis=1)
+    spread = float(np.std(c1) / max(1e-9, np.mean(c1)))
     quality = max(0.0, min(100.0, 100.0 * (1 - spread * 4)))
-    drift = float(np.linalg.norm(P.mean(axis=0) - np.asarray(cfg["mag_offsets"]) - corrected.mean(axis=0)))
+    drift = float(np.linalg.norm(P.mean(axis=0) - np.asarray(cfg["c1_offsets"]) - corrected.mean(axis=0)))
     recal = quality < 80 or spread > 0.08
     return {"status": "degraded" if recal else "ok", "samples": int(P.shape[0]), "quality": _f(quality, 1),
-            "magnitude_spread_pct": _f(spread * 100, 2), "offset_drift_ut": _f(drift, 2), "noise_ut": _f(noise_ut, 3),
+            "magnitude_spread_pct": _f(spread * 100, 2), "offset_drift_val": _f(drift, 2), "noise_val": _f(noise_val, 3),
             "recalibration": 'Recommended: run channel 1 recalibration' if recal else "Not required"}
 
 
-# ── 4/5. FFT engine and mains harmonics ──────────────────────────────────────
-def spectrum(x, fs):
+# ── 4/5. FFT engine and linefreq harmonics ──────────────────────────────────────
+def sweep3(x, fs):
     x = np.asarray(x, dtype=float)
     x = x[np.isfinite(x)]
     n = x.size
@@ -214,7 +214,7 @@ def spectrum(x, fs):
 
 
 def _refine_peak(f, amp, i):
-    """Parabolic interpolation of a spectral peak: sub-bin frequency and amplitude."""
+    """Parabolic interpolation of a density peak: sub-bin frequency and amplitude."""
     if 0 < i < amp.size - 1 and amp[i] > 0:
         a, b, c = np.log(amp[i - 1] + 1e-30), np.log(amp[i] + 1e-30), np.log(amp[i + 1] + 1e-30)
         den = a - 2 * b + c
@@ -227,10 +227,10 @@ def _refine_peak(f, amp, i):
 
 
 def spectrogram(x, fs, segments=24, overlap=0.5, max_hz=None):
-    """Short-time FFT of one channel: how its spectrum changes across the capture.
+    """Short-time FFT of one channel: how its sweep3 changes across the capture.
 
-    ``harmonics`` gives one spectrum for the whole block, which answers "what
-    frequencies are present" but not "were they present the whole time". A mains line
+    ``harmonics`` gives one sweep3 for the whole block, which answers "what
+    frequencies are present" but not "were they present the whole time". A linefreq line
     is there from end to end; a switching supply coming on is a stripe that starts
     partway through. Only the second question separates a steady source from an
     intermittent one, and a single FFT cannot answer it.
@@ -270,30 +270,30 @@ def spectrogram(x, fs, segments=24, overlap=0.5, max_hz=None):
             "note": "dB relative to the strongest bin in this picture, not an absolute level"}
 
 
-def harmonics(x, fs, mains_hz=50.0, max_harmonics=8):
-    """Fundamental near the mains frequency, its harmonics, THD and switching peaks.
-    Honest about bandwidth: a series sampled below 2×mains cannot show the mains line."""
+def harmonics(x, fs, linefreq_hz=50.0, max_harmonics=8):
+    """Fundamental near the linefreq frequency, its harmonics, THD and switching peaks.
+    Honest about bandwidth: a series sampled below 2×linefreq cannot show the linefreq line."""
     out = {"fs": _f(fs, 2), "samples": int(np.size(x)), "nyquist_hz": _f(fs / 2 if fs else 0, 2)}
-    sp = spectrum(x, fs)
+    sp = sweep3(x, fs)
     if sp is None:
         out["error"] = "not enough samples"
         return out
     f, amp = sp
     out["resolution_hz"] = _f(f[1] - f[0], 3)
-    if fs / 2 < mains_hz * 1.05:
-        out["error"] = f"sampled at {fs:.1f} Hz: the {mains_hz:.0f} Hz mains component is above the Nyquist limit ({fs/2:.1f} Hz); use the burst capture"
+    if fs / 2 < linefreq_hz * 1.05:
+        out["error"] = f"sampled at {fs:.1f} Hz: the {linefreq_hz:.0f} Hz linefreq component is above the Nyquist limit ({fs/2:.1f} Hz); use the burst capture"
         i = int(np.argmax(amp[1:]) + 1)
         out["dominant_hz"], out["dominant_amp"] = [_f(v) for v in _refine_peak(f, amp, i)]
         return out
     noise, _ = _mad(amp)
     res = f[1] - f[0]
-    band = max(2, int(round(mains_hz * 0.06 / res)))
-    i0 = int(np.argmin(np.abs(f - mains_hz)))
+    band = max(2, int(round(linefreq_hz * 0.06 / res)))
+    i0 = int(np.argmin(np.abs(f - linefreq_hz)))
     lo, hi = max(1, i0 - band), min(amp.size - 1, i0 + band)
     ip = lo + int(np.argmax(amp[lo:hi + 1]))
     f_fund, a_fund = _refine_peak(f, amp, ip)
     # the line must stand out of its own neighbourhood (±10 Hz), not only of the global MAD:
-    # a quiet magnetometer has a tiny MAD and would otherwise call any ripple a fundamental
+    # a quiet ch1probe has a tiny MAD and would otherwise call any ripple a fundamental
     nb = max(3, int(round(10.0 / res)))
     neigh = np.concatenate([amp[max(1, ip - nb): max(1, ip - 2)], amp[ip + 3: ip + nb + 1]])
     local = float(np.median(neigh)) if neigh.size else noise
@@ -327,7 +327,7 @@ def harmonics(x, fs, mains_hz=50.0, max_harmonics=8):
             if fund_ok and abs(fi / f_fund - round(fi / f_fund)) < 0.06:
                 continue
             if fund_ok and fi < 1.5 * f_fund:
-                continue   # below the mains line is drift or motion, not switching noise
+                continue   # below the linefreq line is drift or motion, not switching noise
             peaks.append({"hz": _f(fi, 2), "amp": _f(ai, 4)})
     peaks.sort(key=lambda p: -(p["amp"] or 0))
     out["other_peaks"] = peaks[:6]
@@ -335,12 +335,12 @@ def harmonics(x, fs, mains_hz=50.0, max_harmonics=8):
     out["dominant_hz"], out["dominant_amp"] = [_f(v) for v in _refine_peak(f, amp, i)]
     out["noise_amp"] = _f(noise, 5)
     step = max(1, f.size // 512)
-    out["spectrum"] = {"hz": [_f(v, 2) for v in f[::step]], "amp": [_f(v, 5) for v in amp[::step]]}
+    out["sweep3"] = {"hz": [_f(v, 2) for v in f[::step]], "amp": [_f(v, 5) for v in amp[::step]]}
     return out
 
 
-# ── 3. RF spectrum analysis ──────────────────────────────────────────────────
-RF_BANDS = [
+# ── 3. CH3 sweep3 analysis ──────────────────────────────────────────────────
+CH3_BANDS = [
     (87.5e6, 108e6, "FM broadcast band"),
     (174e6, 230e6, "VHF band III (DAB / TV)"),
     (380e6, 400e6, "TETRA public safety band"),
@@ -359,7 +359,7 @@ RF_BANDS = [
 ]
 
 
-def rf_analysis(freqs, levels, threshold_db=10.0):
+def ch3_analysis(freqs, levels, threshold_db=10.0):
     """Peak, robust noise floor, SNR, occupied bandwidth, peaks, harmonics of the primary
     peak, occupancy and interference density from one sweep in dBm. Band wording is
     'consistent with', never an identification."""
@@ -391,7 +391,7 @@ def rf_analysis(freqs, levels, threshold_db=10.0):
     cum = np.cumsum(p[order]) / pi.sum()
     keep = order[: int(np.searchsorted(cum, 0.99)) + 1]
     obw = float(f[keep].max() - f[keep].min() + (f[1] - f[0])) if keep.size else 0.0
-    # spectral peaks: local maxima above the threshold, separated by at least 3 bins
+    # density peaks: local maxima above the threshold, separated by at least 3 bins
     peaks = []
     for i in np.flatnonzero(above):
         if 0 < i < L.size - 1 and L[i] >= L[i - 1] and L[i] >= L[i + 1]:
@@ -411,7 +411,7 @@ def rf_analysis(freqs, levels, threshold_db=10.0):
     # interference density: activity islands per 100 MHz
     islands = int(np.sum(np.diff(above.astype(int)) == 1) + (1 if above[0] else 0))
     span_mhz = max(1e-3, (f.max() - f.min()) / 1e6)
-    bands = [name for lo, hi, name in RF_BANDS if lo <= peak_f <= hi]
+    bands = [name for lo, hi, name in CH3_BANDS if lo <= peak_f <= hi]
     return {
         "points": int(f.size), "span_hz": [_f(f.min(), 0), _f(f.max(), 0)],
         "primary_peak_hz": _f(peak_f, 0), "primary_peak_dbm": _f(peak_l, 1),
@@ -421,7 +421,7 @@ def rf_analysis(freqs, levels, threshold_db=10.0):
         "peaks": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1), "snr_db": _f(q["level"] - floor, 1)} for q in peaks[:10]],
         "harmonics_of_primary": harm[:5],
         "unexpected": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1)} for q in peaks[:10]
-                       if not any(lo <= q["hz"] <= hi for lo, hi, _ in RF_BANDS)][:5],
+                       if not any(lo <= q["hz"] <= hi for lo, hi, _ in CH3_BANDS)][:5],
         "band_note": ("Signal characteristics are consistent with activity in the " + bands[0] + ".") if bands and snr >= threshold_db
                      else ("Primary peak falls outside the listed allocations; source not identified." if snr >= threshold_db else "No peak clears the activity threshold above the noise floor."),
         "activity": bool(snr >= threshold_db),
@@ -599,10 +599,10 @@ def noise_characterisation(x, fs=None):
     out = {"samples": int(x.size), "rms": _f(np.sqrt(np.mean(d ** 2)), 4), "peak": _f(np.max(np.abs(d)), 4),
            "std": _f(np.std(x), 4), "mad": _f(_mad(x)[0], 4)}
     if fs and fs > 0 and x.size >= 32:
-        sp = spectrum(x, fs)
+        sp = sweep3(x, fs)
         if sp:
             f, amp = sp
-            # single sided noise spectral density in unit/√Hz
+            # single sided noise density density in unit/√Hz
             psd = (amp ** 2) / 2 / max(1e-9, f[1] - f[0])
             out["nsd_per_sqrt_hz"] = _f(np.sqrt(np.median(psd[1:])), 5)
             out["fs"] = _f(fs, 2)
@@ -686,61 +686,61 @@ def detection_limits(noise, unit, k_lod=3.0, k_loq=10.0):
 
 
 # ── exposure reference comparison ────────────────────────────────────────────
-# ICNIRP Guidelines for Limiting Exposure to Time-Varying Electric and Magnetic
+# ICNIRP Guidelines for Limiting Exposure to Time-Varying Ch2 and Ch1
 # Fields (1 Hz - 100 kHz), Health Physics 99(6):818-836, 2010. Reference levels at
-# 50 Hz. The 1998 public magnetic value of 100 uT is carried too, because a number
+# 50 Hz. The 1998 public ch1 value of 100 uT is carried too, because a number
 # of national regulations still cite it and a reading can sit between the two.
 EXPOSURE_REFERENCES = {
-    "electric_v_m": {
+    "ch2_vu": {
         "public": 5000.0, "occupational": 10000.0,
         "source": "ICNIRP 2010 reference levels at 50 Hz",
     },
-    "magnetic_ut": {
+    "ch1_val": {
         "public": 200.0, "occupational": 1000.0, "public_1998": 100.0,
         "source": 'ICNIRP 2010 reference levels at 50 Hz (ICNIRP 1998 public level was 100 unit)',
     },
 }
 
 
-def exposure_comparison(mains_electric_v_m, mains_magnetic_ut, calibrated=False):
+def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
     """Where a measured 50 Hz level sits against the published exposure reference levels.
 
     Two things this deliberately does not do. It does not compare the *total*
-    magnetic field, because most of that is the Earth's steady ~30 uT field and the
-    reference levels are for the time-varying component - only the 50 Hz magnetic
-    component is compared. And it does not present the electric-field figure as a
+    ch1 field, because most of that is the Earth's steady ~30 uT field and the
+    reference levels are for the time-varying component - only the 50 Hz ch1
+    component is compared. And it does not present the ch2-field figure as a
     compliance statement while the probe is uncalibrated, because a percentage of a
     legal limit computed from an uncalibrated probe would be a false claim.
 
     A reference level is not a safety threshold: exceeding it triggers an assessment
     against the basic restriction, it does not by itself mean harm.
     """
-    out = {"source": EXPOSURE_REFERENCES["magnetic_ut"]["source"], "channels": [],
+    out = {"source": EXPOSURE_REFERENCES["ch1_val"]["source"], "channels": [],
            "basis": "50 Hz component only, not the total field",
            "caveat": ("Reference levels are screening values, not a safety threshold: a level "
                       "above one calls for assessment against the basic restriction, it is not "
                       "itself a finding of harm.")}
-    mag_ref = EXPOSURE_REFERENCES["magnetic_ut"]
-    if mains_magnetic_ut is not None and math.isfinite(mains_magnetic_ut):
-        pct = 100.0 * mains_magnetic_ut / mag_ref["public"]
+    c1_ref = EXPOSURE_REFERENCES["ch1_val"]
+    if linefreq_ch1_val is not None and math.isfinite(linefreq_ch1_val):
+        pct = 100.0 * linefreq_ch1_val / c1_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 1, 50 Hz component', "value": _f(mains_magnetic_ut, 4), "unit": "uT",
-            "public_limit": mag_ref["public"], "occupational_limit": mag_ref["occupational"],
+            "channel": 'Channel 1, 50 Hz component', "value": _f(linefreq_ch1_val, 4), "unit": "uT",
+            "public_limit": c1_ref["public"], "occupational_limit": c1_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
                         "above the public reference level; assess against the basic restriction"),
-            "note": (f"{_f(100.0 * mains_magnetic_ut / mag_ref['public_1998'], 4)} % of the older "
+            "note": (f"{_f(100.0 * linefreq_ch1_val / c1_ref['public_1998'], 4)} % of the older "
                      "ICNIRP 1998 public level of 100 uT"),
         })
     else:
         out["channels"].append({"channel": 'Channel 1, 50 Hz component', "quantitative": False,
                                 "reading": 'no 50 Hz channel 1 fundamental stands above the noise',
-                                "unit": "uT", "public_limit": mag_ref["public"]})
-    e_ref = EXPOSURE_REFERENCES["electric_v_m"]
-    if mains_electric_v_m is not None and math.isfinite(mains_electric_v_m) and calibrated:
-        pct = 100.0 * mains_electric_v_m / e_ref["public"]
+                                "unit": "uT", "public_limit": c1_ref["public"]})
+    e_ref = EXPOSURE_REFERENCES["ch2_vu"]
+    if linefreq_ch2_vu is not None and math.isfinite(linefreq_ch2_vu) and calibrated:
+        pct = 100.0 * linefreq_ch2_vu / e_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 2, 50 Hz component', "value": _f(mains_electric_v_m, 3), "unit": "V/m",
+            "channel": 'Channel 2, 50 Hz component', "value": _f(linefreq_ch2_vu, 3), "unit": "V/m",
             "public_limit": e_ref["public"], "occupational_limit": e_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
@@ -750,7 +750,7 @@ def exposure_comparison(mains_electric_v_m, mains_magnetic_ut, calibrated=False)
         out["channels"].append({
             "channel": 'Channel 2, 50 Hz component', "quantitative": False, "unit": "V/m",
             "public_limit": e_ref["public"],
-            "reading": ("the E-field probe carries no absolute calibration, so no percentage of a "
+            "reading": ("the Ch2 probe carries no absolute calibration, so no percentage of a "
                         "reference level is claimed. The published public level is 5 kV/m at 50 Hz; "
                         "stating where this reading sits against it needs a known-field fixture."),
         })
@@ -894,13 +894,13 @@ def validation_stats(values=None, detections=None):
 
 
 # ── 13. environmental fingerprint ────────────────────────────────────────────
-def fingerprint(mag_mags, e_values, rf_floor, rf_peak_hz, transient_rate_per_min, harmonics_summary=None):
+def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None):
     def band(x):
         x = np.asarray([v for v in x if v is not None and math.isfinite(v)], dtype=float)
         return [_f(np.percentile(x, 10), 2), _f(np.percentile(x, 90), 2)] if x.size else None
-    return {"taken_at": time.time(), "magnetic_ut": band(mag_mags), "electric": band(e_values), "rf_floor_dbm": _f(rf_floor, 1),
-            "rf_peak_hz": _f(rf_peak_hz, 0), "transient_rate_per_min": _f(transient_rate_per_min, 2),
-            "mains": harmonics_summary}
+    return {"taken_at": time.time(), "ch1_val": band(c1_mags), "ch2": band(e_values), "ch3_floor_dbm": _f(ch3_floor, 1),
+            "ch3_peak_hz": _f(ch3_peak_hz, 0), "transient_rate_per_min": _f(transient_rate_per_min, 2),
+            "linefreq": harmonics_summary}
 
 
 def compare_fingerprints(old, new):
@@ -912,9 +912,9 @@ def compare_fingerprints(old, new):
             return _f(100 * (b - a) / abs(a), 1) if a else None
         except (TypeError, ValueError):
             return None
-    return {"rf_floor_db": _f((new.get("rf_floor_dbm") or 0) - (old.get("rf_floor_dbm") or 0), 1),
-            "magnetic_pct": pct(old.get("magnetic_ut"), new.get("magnetic_ut")),
-            "electric_pct": pct(old.get("electric"), new.get("electric")),
+    return {"ch3_floor_db": _f((new.get("ch3_floor_dbm") or 0) - (old.get("ch3_floor_dbm") or 0), 1),
+            "ch1_pct": pct(old.get("ch1_val"), new.get("ch1_val")),
+            "ch2_pct": pct(old.get("ch2"), new.get("ch2")),
             "transient_rate_pct": pct(old.get("transient_rate_per_min"), new.get("transient_rate_per_min"))}
 
 
@@ -935,14 +935,14 @@ def profile_similarity(sample, references):
 
 
 # ── 5. Power Network Analysis (50 Hz systems) ────────────────────────────────
-def power_network(mains_e=None, mains_m=None, mains_c=None, mains_hz=50.0):
-    """Combine the E-field, magnetic and conducted harmonic analyses into one 50 Hz
+def power_network(linefreq_e=None, linefreq_m=None, linefreq_c=None, linefreq_hz=50.0):
+    """Combine the Ch2, ch1 and conducted harmonic analyses into one 50 Hz
     assessment with findings worded as 'consistent with'. Rules, in order:
     even-harmonic dominance → asymmetry/half-wave loads; high THD → non-linear loads
-    (switch mode supplies, inverters); a magnetic 2nd harmonic that exceeds the fundamental
+    (switch mode supplies, inverters); a ch1 2nd harmonic that exceeds the fundamental
     → consistent with a transformer core; strong non-harmonic peaks → switching noise."""
-    out = {"mains_hz": mains_hz, "channels": {}, "findings": [], "abnormal": []}
-    for name, m in (("electric", mains_e), ("magnetic", mains_m), ("conducted", mains_c)):
+    out = {"linefreq_hz": linefreq_hz, "channels": {}, "findings": [], "abnormal": []}
+    for name, m in (("ch2", linefreq_e), ("ch1", linefreq_m), ("conducted", linefreq_c)):
         if not m or m.get("error") or not m.get("fundamental_detected"):
             out["channels"][name] = {"present": False, "note": (m or {}).get("error") or "no fundamental above the noise"}
             continue
@@ -953,9 +953,9 @@ def power_network(mains_e=None, mains_m=None, mains_c=None, mains_hz=50.0):
                                  "thd_pct": m.get("thd_pct"), "even_amp": _f(even, 4), "odd_amp": _f(odd, 4),
                                  "harmonics": [h["hz"] for h in m.get("harmonics", []) if h.get("present")],
                                  "switching_peaks": [p["hz"] for p in m.get("other_peaks", [])[:4]], "fs": m.get("fs")}
-        f0 = m.get("fundamental_hz") or mains_hz
-        if abs(f0 - mains_hz) > 0.5:
-            out["abnormal"].append(f"{name}: fundamental {f0:.2f} Hz is {f0 - mains_hz:+.2f} Hz from nominal")
+        f0 = m.get("fundamental_hz") or linefreq_hz
+        if abs(f0 - linefreq_hz) > 0.5:
+            out["abnormal"].append(f"{name}: fundamental {f0:.2f} Hz is {f0 - linefreq_hz:+.2f} Hz from nominal")
         thd = m.get("thd_pct") or 0
         if thd > 8:
             out["findings"].append(f"{name}: THD {thd:.1f} % — consistent with non-linear loads such as switch mode supplies or inverters")
@@ -963,8 +963,8 @@ def power_network(mains_e=None, mains_m=None, mains_c=None, mains_hz=50.0):
                 out["abnormal"].append(f"{name}: THD {thd:.1f} % exceeds 20 %")
         if even > odd and even > 0:
             out["findings"].append(f"{name}: even harmonics dominate — consistent with asymmetric or half-wave loads")
-        if name == "magnetic" and 2 in harm and (harm[2]["amp"] or 0) > 0.5 * (m.get("fundamental_amp") or 1e9):
-            out["findings"].append('channel 1: strong 100 Hz component — consistent with transformer or magnetostrictive emissions')
+        if name == "ch1" and 2 in harm and (harm[2]["amp"] or 0) > 0.5 * (m.get("fundamental_amp") or 1e9):
+            out["findings"].append('channel 1: strong 100 Hz component — consistent with transformer or strain emissions')
         if m.get("other_peaks"):
             top = m["other_peaks"][0]
             if (top.get("amp") or 0) > 0.1 * (m.get("fundamental_amp") or 1e9):
@@ -1047,8 +1047,8 @@ def test_recommendations(trials, min_per_bin=5, bins=((0, 10), (10, 25), (25, 50
 
 
 # ── feature vector for the reference database / similarity / ML ─────────────
-FEATURE_NAMES = ["mains_fund_e", "thd_e", "h2_rel_e", "h3_rel_e", "mains_fund_m", "thd_m", "h2_rel_m",
-                 "rf_snr", "rf_occupancy", "rf_peak_ghz", "transient_rate", "e_level", "h_level", "c_level"]
+FEATURE_NAMES = ["linefreq_fund_e", "thd_e", "h2_rel_e", "h3_rel_e", "linefreq_fund_m", "thd_m", "h2_rel_m",
+                 "ch3_snr", "ch3_occupancy", "ch3_peak_ghz", "transient_rate", "e_level", "h_level", "c_level"]
 
 
 def feature_vector(packet):
@@ -1058,12 +1058,12 @@ def feature_vector(packet):
             if h.get("order") == k and h.get("present"):
                 return h.get("rel_db")
         return -60.0
-    me = packet.get("mains") or {}; mm = packet.get("mains_magnetic") or {}; rf = packet.get("rf") or {}
+    me = packet.get("linefreq") or {}; mm = packet.get("linefreq_ch1") or {}; ch3 = packet.get("ch3") or {}
     sc = packet.get("scores") or {}
     v = [me.get("fundamental_amp") if me.get("fundamental_detected") else 0.0, me.get("thd_pct") or 0.0, rel(me, 2), rel(me, 3),
          mm.get("fundamental_amp") if mm.get("fundamental_detected") else 0.0, mm.get("thd_pct") or 0.0, rel(mm, 2),
-         rf.get("snr_db"), rf.get("occupancy_pct"), (rf.get("primary_peak_hz") or 0) / 1e9,
-         (packet.get("fingerprint") or {}).get("transient_rate_per_min"), sc.get("electric"), sc.get("magnetic"), sc.get("conducted")]
+         ch3.get("snr_db"), ch3.get("occupancy_pct"), (ch3.get("primary_peak_hz") or 0) / 1e9,
+         (packet.get("fingerprint") or {}).get("transient_rate_per_min"), sc.get("ch2"), sc.get("ch1"), sc.get("conducted")]
     # None (not NaN) for JSON safety; consumers convert back with _nanvec
     return [_f(x, 4) if x is not None else None for x in v]
 

@@ -1,6 +1,6 @@
-"""RTL-SDR acquisition: continuous IQ capture, power spectrum and waterfall.
+"""RTL-SDR acquisition: continuous IQ capture, power sweep3 and waterfall.
 
-The tinySA sweeps slowly across a very wide span and reports one level per point.
+The src3 sweeps slowly across a very wide span and reports one level per point.
 The RTL-SDR does the opposite: it streams continuous complex samples over a ~2 MHz
 slice, so the fine structure inside one band, short bursts and exact carrier offsets
 are visible where a sweep only ever sees a time average.
@@ -99,7 +99,7 @@ def install(ns):
         if gain == "0.0":
             gain = "0.1"
         # The sensors are the instrument; the receiver is an accessory. rtl_sdr is niced so
-        # that a burst can never delay the magnetometer or the E-field converter reads, which
+        # that a burst can never delay the ch1probe or the Ch2 converter reads, which
         # are timing-sensitive and cannot be re-run.
         argv = ["nice", "-n", "10", "rtl_sdr", "-f", str(int(centre_hz)),
                 "-s", str(int(SDR_RATE)), "-g", gain, "-"]
@@ -158,8 +158,8 @@ def install(ns):
     window = np.hanning(SDR_NFFT).astype(np.float32)
     window_gain = float((window ** 2).sum())
 
-    def spectrum(iq):
-        """Welch-averaged power spectrum of one burst, in dBFS, centre bins removed."""
+    def sweep3(iq):
+        """Welch-averaged power sweep3 of one burst, in dBFS, centre bins removed."""
         frames = len(iq) // SDR_NFFT
         if frames < 1:
             raise IOError('burst too short for a channel 3')
@@ -188,9 +188,9 @@ def install(ns):
     IQ_GRID = 72                  # constellation density is IQ_GRID x IQ_GRID
 
     def iq_detail(iq):
-        """What a burst looks like as raw complex samples rather than as a spectrum.
+        """What a burst looks like as raw complex samples rather than as a sweep3.
 
-        A spectrum throws the phase away. These views keep it, and they are the only
+        A sweep3 throws the phase away. These views keep it, and they are the only
         place in the instrument where the receiver's actual samples are visible:
 
         * constellation - a 2-D density of I against Q over every sample in the burst.
@@ -198,7 +198,7 @@ def install(ns):
           into a ring, and a clipping front end flattens its edges into straight lines.
         * trajectory - a decimated run of consecutive samples, which is a path through
           the I/Q plane over time rather than a static cloud.
-        * envelope - |iq| against time, the amplitude the spectrum averages away.
+        * envelope - |iq| against time, the amplitude the sweep3 averages away.
         * phase slope - residual frequency offset between the tuner and the signal.
         """
         if iq.size < 64:
@@ -321,7 +321,7 @@ def install(ns):
                 step_gain = gain_db if gain_db is not None else (sdr_data["gain_db"] or 7.1)
             iq, stats = capture(centre, step_gain, samples=SDR_SAMPLES)
             manage_gain(stats)
-            freqs, levels = trim(spectrum(iq), centre)
+            freqs, levels = trim(sweep3(iq), centre)
             freqs_all.append(freqs)
             levels_all.append(levels)
             with sdr_lock:
@@ -360,7 +360,7 @@ def install(ns):
     # ── gain management ────────────────────────────────────────────────────
     # The receiver's own automatic gain chases the loudest thing in the slice and, next to
     # a broadcast transmitter, holds the ADC hard against its rails. A clipped capture is
-    # not a weak measurement, it is a wrong one: the spectrum fills with mixing products
+    # not a weak measurement, it is a wrong one: the sweep3 fills with mixing products
     # that were never on the air. So the gain is stepped here against what the samples
     # actually show, and a capture that still clips is published as untrusted rather than
     # quietly plotted.
@@ -467,7 +467,7 @@ def install(ns):
                                         (sdr_data["gain_db"] or 7.1))
                     ok, why = trust(stats)
                     manage_gain(stats)
-                    freqs, levels = trim(spectrum(iq), centre)
+                    freqs, levels = trim(sweep3(iq), centre)
                     peaks, floor = find_peaks(freqs, levels)
                     # The I/Q views cost a 2-D histogram and a phase unwrap over the whole
                     # burst. That is real interpreter time, so it is only spent when someone
@@ -505,7 +505,7 @@ def install(ns):
                         # how busy the instrument is and whether anyone is watching, so an
                         # assumed spacing would mislabel the axis
                         sdr_data["waterfall_times"].append(time.time())
-                    # Measured on the instrument: a burst every 2.5 s pulled the E-field and
+                    # Measured on the instrument: a burst every 2.5 s pulled the Ch2 and
                     # current block rate from 1.48 to 1.17 per second, because converting and
                     # transforming the samples holds the interpreter while the sensor threads
                     # wait. Half the samples, twice the gap, and the sensors keep their rate.

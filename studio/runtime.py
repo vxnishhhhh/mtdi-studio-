@@ -58,11 +58,11 @@ class Runtime:
         self.engine = AnalysisEngine(self.state_dir / 'calibration.json')
         self.d4 = D4Service(ns, self.engine)
         self.camera = CameraService(state_dir=self.state_dir)
-        self.audition = FieldAudition(channel_state=lambda: self.engine.channels['electric']['state'],
-                                      mag_state=lambda: self.engine.channels['magnetic']['state'])
-        ns['_v238_audio_feed'] = self.audition.sources['efield'].feed
-        ns['_v238_mag_feed'] = self.audition.sources['mag'].feed_value
-        ns['_v238_audio_active'] = lambda: self.audition.sources['efield'].state['enabled']
+        self.audition = FieldAudition(channel_state=lambda: self.engine.channels['ch2']['state'],
+                                      c1_state=lambda: self.engine.channels['ch1']['state'])
+        ns['_v238_audio_feed'] = self.audition.sources['ch2f'].feed
+        ns['_v238_c1_feed'] = self.audition.sources['c1'].feed_value
+        ns['_v238_audio_active'] = lambda: self.audition.sources['ch2f'].state['enabled']
         self.telemetry = TelemetryService(ns['APP_VERSION'], camera=self.camera,
                                           calibration_provider=lambda: {key: self.engine.calibrations.get(key) for key in self.engine.channels})
         try:
@@ -421,7 +421,7 @@ def batch_archive(ns):
             pass
         else:
             original_write(con, kind, payload)
-        if kind in ('mag', 'efield', 'rf', 'current'):
+        if kind in ('c1', 'ch2f', 'ch3', 'current'):
             con.execute('INSERT INTO raw_samples(session_id,captured_at,channel,payload_json) VALUES(?,?,?,?)',
                         (store.session_id, payload.get('t', payload.get('completed_at', time.time())), kind,
                          json.dumps(payload, separators=(',', ':'), allow_nan=False)))
@@ -493,9 +493,9 @@ def batch_archive(ns):
 def memoize_figures(ns):
     for name in ('make_line_chart', 'fig_axis', 'fig_pie', 'fig_gauge', 'fig_bar', 'fig_2d_scatter',
                  'fig_2d_delta', 'fig_3d_surface', 'fig_3d_terrain', 'fig_3d_error_plane',
-                 'fig_3d_dipole_field', 'fig_ef_gauge', 'fig_ef_bullet', 'fig_ef_basebar',
-                 'fig_ef_b_correlation', 'fig_ef_induction_proxy', 'fig_em_overlay',
-                 'fig_em_normalized_overlay', 'fig_spectrum', 'fig_waterfall', 'fig_rf_trend', 'fig_rf_bands'):
+                 'fig_3d_dipolch2f', 'fig_c2_gauge', 'fig_c2_bullet', 'fig_c2_basebar',
+                 'fig_c2_b_correlation', 'fig_c2_induction_proxy', 'fig_p1_overlay',
+                 'fig_p1_normalized_overlay', 'fig_sweep3', 'fig_waterfall', 'fig_ch3_trend', 'fig_ch3_bands'):
         original = ns.get(name)
         if original is None:
             continue
@@ -527,7 +527,7 @@ def install_reports(ns, runtime):
         # silently reverts to the module default and the ?rows= control does nothing.
         blocks = original() if row_cap is None else original(row_cap=row_cap)
         snapshot = runtime.engine.snapshot()
-        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('MAGNETOMETER'))
+        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('CH1PROBE'))
         last = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('WIRELESS SURVEY'))
         measured = [('h', 'MEASUREMENT DEFINITIONS'),
                     ('dim', 'Live values are deviations from Baseline Lock. Raw records below are diagnostic observations.'),
@@ -546,7 +546,7 @@ def install_reports(ns, runtime):
                 ('kv', 'Last observation', str(channel['last_rx'] or 'Never')),
             ])
         fusion = snapshot['fusion']
-        measured.extend([('h', 'Sixth Sense'), ('kv', 'Condition', fusion['condition']),
+        measured.extend([('h', 'Page 3'), ('kv', 'Condition', fusion['condition']),
                          ('kv', 'Evidence quality', f"{fusion['confidence']:.0f}%"),
                          ('line', fusion['interpretation'])])
         measured.extend(('line', str(evidence)) for evidence in fusion['evidence'])
@@ -564,10 +564,10 @@ def install_reports(ns, runtime):
         blocks[host_start:host_end] = host_rows
         for i, block in enumerate(blocks):
             if block[0] == 'kv' and block[1] == 'Instrument':
-                blocks[i] = ('kv', 'Instrument', 'QMC5883P + ADS1115 + tinySA Ultra; host identified in live telemetry')
+                blocks[i] = ('kv', 'Instrument', 'SRC1 + SRC2 + src3 Ultra; host identified in live telemetry')
             elif block[0] == 'h' and block[1] == 'HOST TELEMETRY   (host computer)':
                 blocks[i] = ('h', 'ACTUAL HOST TELEMETRY')
-            elif block[0] == 'h' and block[1] in ('MAGNETIC SIGNAL ARCHIVE', 'RF PEAK ARCHIVE'):
+            elif block[0] == 'h' and block[1] in ('CH1 SIGNAL ARCHIVE', 'CH3 PEAK ARCHIVE'):
                 blocks[i] = ('h', block[1] + '   RAW DIAGNOSTICS')
         blocks = [(b[0], clean_text(b[1]), *b[2:]) if b[0] in ('band', 'h', 'sub', 'dim') and isinstance(b[1], str) else b for b in blocks]
         return blocks
@@ -711,7 +711,7 @@ def install(ns):
         return None
 
     static_gzip_cache = {}
-    mediapipe_dir = Path(__file__).resolve().parent / 'assets' / 'mediapipe'
+    mediapipe_dir = Path(__file__).resolve().parent.parent / 'public' / 'assets' / 'mediapipe'
 
     def precompress_mediapipe():
         import gzip as _gzip
@@ -823,7 +823,7 @@ def install(ns):
 
     @server.post('/api/d4/config')
     def d4_config_post():
-        """Accepts a full or partial iv_config.json (as exported by MATLAB) and stores it."""
+        """Accepts a full or partial i3_config.json (as exported by MATLAB) and stores it."""
         body = request.get_json(silent=True) or {}
         patch = body.get('config', body)
         try:
@@ -833,22 +833,22 @@ def install(ns):
         cfg, err = runtime.d4.config, runtime.d4.config_error
         if err:
             return {'error': err, 'config': cfg}, 400
-        runtime.note('d4', f'iv_config.json updated ({", ".join(sorted(k for k in patch if k in cfg))})')
+        runtime.note('d4', f'i3_config.json updated ({", ".join(sorted(k for k in patch if k in cfg))})')
         return {'ok': True, 'path': path, 'config': cfg}
 
     @server.post('/api/d4/calibrate')
     def d4_calibrate():
-        """Ellipsoid fit over the raw magnetometer ring (rotate the instrument first).
-        With apply=true the offsets and soft iron matrix go into iv_config.json."""
+        """Ellipsoid fit over the raw ch1probe ring (rotate the instrument first).
+        With apply=true the offsets and soft iron matrix go into i3_config.json."""
         body = request.get_json(silent=True) or {}
         seconds = max(10, min(600, int(body.get('seconds', 120))))
-        result, patch = runtime.d4.calibrate_magnetometer(seconds)
+        result, patch = runtime.d4.calibrate_ch1probe(seconds)
         if result is None:
             return {'error': patch}, 422
         applied = None
         if body.get('apply'):
             applied = runtime.d4.update_config(patch)
-            runtime.note('d4', f"channel 1 calibration applied: offsets {result['offsets_ut']} unit, quality {result['quality']} %")
+            runtime.note('d4', f"channel 1 calibration applied: offsets {result['offsets_val']} unit, quality {result['quality']} %")
         out = dict(result); out.pop('raw', None); out.pop('corrected', None)
         return {'calibration': out, 'export': patch, 'applied_to': applied,
                 'plots': {'raw': result['raw'], 'corrected': result['corrected']},
@@ -858,8 +858,8 @@ def install(ns):
     def d4_burst():
         body = request.get_json(silent=True) or {}
         n = max(860, min(8600, int(body.get('samples', 3440))))
-        runtime.d4.request_burst(n, body.get('channel', 'efield') if body.get('channel') in ('efield', 'current') else 'efield')
-        return {'ok': True, 'samples': n, 'note': 'the next E-field block is read contiguously at 860 SPS; the mains analysis refreshes within a few seconds'}
+        runtime.d4.request_burst(n, body.get('channel', 'ch2f') if body.get('channel') in ('ch2f', 'current') else 'ch2f')
+        return {'ok': True, 'samples': n, 'note': 'the next Ch2 block is read contiguously at 860 SPS; the linefreq analysis refreshes within a few seconds'}
 
     @server.post('/api/d4/fingerprint')
     def d4_fingerprint():
@@ -888,12 +888,12 @@ def install(ns):
 
     @server.post('/api/d4/filters')
     def d4_filters():
-        """Design a Butterworth/notch and compare filters on the live magnetic magnitude ring
+        """Design a Butterworth/notch and compare filters on the live ch1 magnitude ring
         (or a supplied series)."""
         body = request.get_json(silent=True) or {}
         x = body.get('x'); fs = body.get('fs')
         if not x:
-            rows = runtime.d4._ring('magnetic', 60)
+            rows = runtime.d4._ring('ch1', 60)
             if len(rows) < 32:
                 return {'error': 'need 32 channel 1 samples'}, 422
             import numpy as np
@@ -923,9 +923,9 @@ def install(ns):
             return {'present': False, 'note': 'CH 4 module not installed'}
         try:
             # Deliberately does NOT count as interest. Waking the receiver for every
-            # dataset pull was measured to cost the sensors: the E-field block rate fell
+            # dataset pull was measured to cost the sensors: the Ch2 block rate fell
             # from 1.49 to 0.98 per second and the longest contiguous block - which the
-            # mains harmonic analysis needs 256 samples of - fragmented to 100. A dataset
+            # linefreq harmonic analysis needs 256 samples of - fragmented to 100. A dataset
             # is not worth degrading the measurement it describes, so the export reports
             # how old the receiver's last frame is and lets the reader judge.
             # Pass ?sdr=live to ask for a fresh burst instead.
@@ -970,19 +970,19 @@ def install(ns):
     def d4_export():
         """Pi → MATLAB dataset: the raw rings and recent channel histories as JSON."""
         seconds = max(5, min(600, int(request.args.get('seconds', 120))))
-        rings = {k: runtime.d4._ring(k, seconds) for k in ('magnetic_raw', 'magnetic', 'efield')}
+        rings = {k: runtime.d4._ring(k, seconds) for k in ('ch1_raw', 'ch1', 'ch2f')}
         hist = runtime.d4._histories()
-        sp = runtime.d4._spectrum() or {}
+        sp = runtime.d4._sweep3() or {}
         payload = {'exported_at': time.time(), 'seconds': seconds, 'simulated': bool(runtime.ns['RUNTIME'].get('demo')),
-                   'magnetic_raw': [[round(v, 4) for v in r] for r in rings['magnetic_raw']],
-                   'magnetic': [[round(v, 4) for v in r] for r in rings['magnetic']],
-                   'efield_codes': [[round(r[0], 5), round(r[1], 2)] for r in rings['efield']],
+                   'ch1_raw': [[round(v, 4) for v in r] for r in rings['ch1_raw']],
+                   'ch1': [[round(v, 4) for v in r] for r in rings['ch1']],
+                   'ch2f_codes': [[round(r[0], 5), round(r[1], 2)] for r in rings['ch2f']],
                    'channel_history': {k: [[round(t, 3), v, n] for t, v, n in rows] for k, rows in hist.items()},
-                   'spectrum': {'freqs': sp.get('freqs', []), 'levels': sp.get('levels', []), 'trusted': sp.get('trusted')},
+                   'sweep3': {'freqs': sp.get('freqs', []), 'levels': sp.get('levels', []), 'trusted': sp.get('trusted')},
                    'sdr': _sdr_export(),
                    'config': runtime.d4.config}
         return Response(json.dumps(payload, allow_nan=False), mimetype='application/json',
-                        headers={'Content-Disposition': 'attachment; filename="iv_dataset.json"'})
+                        headers={'Content-Disposition': 'attachment; filename="i3_dataset.json"'})
 
     @server.route('/api/d4/reference', methods=['GET', 'POST', 'DELETE'])
     def d4_reference():
@@ -1030,7 +1030,7 @@ def install(ns):
             out['error'] = d4mod.sensor_error([v for v, _ in refs], [r for _, r in refs])
             m = out.get('measurements') or {}
             if m:
-                out['uncertainty'] = d4mod.uncertainty(m['mean'], 0.0, m['std'], (runtime.d4.snapshot().get('noise_magnetic') or {}).get('rms') or 0.0,
+                out['uncertainty'] = d4mod.uncertainty(m['mean'], 0.0, m['std'], (runtime.d4.snapshot().get('noise_ch1') or {}).get('rms') or 0.0,
                                                        abs(out['error']['bias'] or 0.0))
         by_source = {}
         for t in trials:
@@ -1053,7 +1053,7 @@ def install(ns):
     def d4_repeatability():
         """GET the state of the current or last run; POST to start one.
 
-        Body: {"channel": "magnetic"|"electric", "runs": 3-30, "window_s": 1-10}.
+        Body: {"channel": "ch1"|"ch2", "runs": 3-30, "window_s": 1-10}.
         The run takes runs x window_s of wall-clock time because each reading is a
         fresh window of live data, so this returns immediately and the caller polls.
         """
@@ -1061,7 +1061,7 @@ def install(ns):
             return {'repeat_run': getattr(runtime.d4, 'repeat_run', None)}
         body = request.get_json(silent=True) or {}
         try:
-            started = runtime.d4.start_repeatability(body.get('channel', 'magnetic'),
+            started = runtime.d4.start_repeatability(body.get('channel', 'ch1'),
                                                      body.get('runs', 10),
                                                      body.get('window_s', 3))
         except (TypeError, ValueError) as exc:
@@ -1083,8 +1083,8 @@ def install(ns):
         seconds = max(5, min(600, int(request.args.get('seconds', 120))))
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
-            for name, header in (('magnetic_raw', ['t', 'x_ut', 'y_ut', 'z_ut']), ('magnetic', ['t', 'x_ut', 'y_ut', 'z_ut']),
-                                 ('efield', ['t', 'code']), ('current', ['t', 'code'])):
+            for name, header in (('ch1_raw', ['t', 'x_val', 'y_val', 'z_val']), ('ch1', ['t', 'x_val', 'y_val', 'z_val']),
+                                 ('ch2f', ['t', 'code']), ('current', ['t', 'code'])):
                 sio = io.StringIO(); w = csv.writer(sio); w.writerow(header)
                 for row in runtime.d4._ring(name, seconds):
                     w.writerow([round(v, 6) for v in row])
@@ -1095,15 +1095,15 @@ def install(ns):
                 for t, v, n in rows:
                     w.writerow([ch, round(t, 3), v, n])
             z.writestr('channel_history.csv', sio.getvalue())
-            sp = runtime.d4._spectrum() or {}
+            sp = runtime.d4._sweep3() or {}
             sio = io.StringIO(); w = csv.writer(sio); w.writerow(['freq_hz', 'level_dbm'])
             for f, l in zip(sp.get('freqs', []), sp.get('levels', [])):
                 w.writerow([f, l])
-            z.writestr('spectrum.csv', sio.getvalue())
-            z.writestr('iv_config.json', json.dumps(runtime.d4.config, indent=2))
+            z.writestr('sweep3.csv', sio.getvalue())
+            z.writestr('i3_config.json', json.dumps(runtime.d4.config, indent=2))
             z.writestr('validation_trials.json', json.dumps(runtime.d4.trials, indent=1))
         buf.seek(0)
-        return Response(buf.read(), mimetype='application/zip', headers={'Content-Disposition': 'attachment; filename="iv_dataset.zip"'})
+        return Response(buf.read(), mimetype='application/zip', headers={'Content-Disposition': 'attachment; filename="i3_dataset.zip"'})
 
     @server.get('/api/d4/stream')
     def d4_stream():
@@ -1129,7 +1129,7 @@ def install(ns):
         except Exception as exc:
             LOG.exception('D4 report failed')
             return {'error': f'report failed: {exc}'}, 500
-        return Response(pdf, mimetype='application/pdf', headers={'Content-Disposition': 'attachment; filename="IV_D4_Validation_Report.pdf"'})
+        return Response(pdf, mimetype='application/pdf', headers={'Content-Disposition': 'attachment; filename="I3_D4_Validation_Report.pdf"'})
 
     @server.get('/api/instrument')
     def instrument():
@@ -1431,7 +1431,7 @@ def install(ns):
         """Downsampled archive history for the last N minutes (default 10, max 24 h).
 
         Longer than the ~30 s engine histories: read from the SQLite archive, bucketed into
-        `points` slots with mean/min/max per bucket, plus RF sweep summaries and events.
+        `points` slots with mean/min/max per bucket, plus CH3 sweep summaries and events.
         """
         try:
             minutes = float(request.args.get('minutes', 10))
@@ -1523,7 +1523,7 @@ def install(ns):
 
     def local_pdf():
         # ?rows=N raises or lowers the per-table cap for one download. The ceiling is
-        # not politeness: the archive on this host holds 12.6 million magnetometer rows,
+        # not politeness: the archive on this host holds 12.6 million ch1probe rows,
         # and an unbounded report would take the service down rather than return a
         # file. A caller who genuinely wants everything should take the JSON export
         # or the archive database.

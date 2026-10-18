@@ -1,11 +1,11 @@
 /* Lunar Gravity: a moon with a particle ring and an asteroid belt, ported from the
    React Three Fiber component to plain three.js so it runs inside the Dash page.
    The canvas registers the same hand-control contract as the Earth and the
-   constellation (canvas.__ivLegacyHandControls = {physics, rotate, zoom}), so a pinch
+   constellation (canvas.__i3LegacyHandControls = {physics, rotate, zoom}), so a pinch
    takes hold of it, the shared GesturePhysics momentum spins it, a peace sign rotates
    it directly and two hands zoom it. Clicking (or the first hold) releases the ring. */
 (function(){
-  if(window.__ivLunarMount)return;
+  if(window.__i3LunarMount)return;
   var RADIUS=2.0,COUNT=40000,ASTEROIDS=75;
 
   function buildRing(){
@@ -47,11 +47,11 @@
     return data;
   }
 
-  window.__ivLunarMount=function(host){
+  window.__i3LunarMount=function(host){
     if(!window.THREE||host.dataset.lunarInit==='1')return;
     host.dataset.lunarInit='1';
     var THREE=window.THREE;
-    var canvas=document.createElement('canvas');canvas.className='iv-lunar-canvas';canvas.setAttribute('aria-label','Lunar gravity: pinch to hold, click to release the ring');host.appendChild(canvas);
+    var canvas=document.createElement('canvas');canvas.className='i3-lunar-canvas';canvas.setAttribute('aria-label','Lunar gravity: pinch to hold, click to release the ring');host.appendChild(canvas);
     var renderer;
     try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,powerPreference:'high-performance'});}
     catch(e){host.textContent='WebGL is not available in this browser.';return;}
@@ -144,13 +144,13 @@
     canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',function(){drag=null;});
 
     /* hand control: the shared contract every 3D object on the site speaks */
-    canvas.__ivLegacyHandControls={
+    canvas.__i3LegacyHandControls={
       physics:function(delta){group.rotation.x+=delta[0];group.rotation.y+=delta[1];group.rotation.z+=delta[2];},
       rotate:function(screenDx){group.rotation.y+=screenDx*3.8;},
       zoom:function(handScale){var d=camDist/Math.max(.65,Math.min(1.4,handScale));camera.position.copy(camDir).multiplyScalar(d);camera.lookAt(0,0,0);}
     };
     var held=false;
-    new MutationObserver(function(){var now=canvas.classList.contains('iv-rotating');if(now&&!held)release();held=now;}).observe(canvas,{attributes:true,attributeFilter:['class']});
+    new MutationObserver(function(){var now=canvas.classList.contains('i3-rotating');if(now&&!held)release();held=now;}).observe(canvas,{attributes:true,attributeFilter:['class']});
 
     function size(){var r=host.getBoundingClientRect(),w=Math.max(1,Math.round(r.width)),h=Math.max(1,Math.round(r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
     addEventListener('resize',size,{passive:true});size();

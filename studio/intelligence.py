@@ -1,4 +1,4 @@
-"""NVTRA assistant: AI providers, key management, chat sessions, EMI analysis prompts."""
+"""NVTRA assistant: AI providers, key management, chat sessions, SG analysis prompts."""
 import base64
 import os
 import threading
@@ -569,18 +569,18 @@ def _merge_manual_api_keys():
 
 
 # ── NVTRA agent: spoken or typed commands become interface actions ──────────────
-AGENT_PAGES = {"home": "/", "page 1": "/em", "page one": "/em", "page 2": "/spectrum", "page two": "/spectrum",
-               "mtdi": "/mtdi", "page 3": "/sixth-sense", "page three": "/sixth-sense", "settings": "/settings"}
+AGENT_PAGES = {"home": "/", "page 1": "/page-1", "page one": "/page-1", "page 2": "/page-2", "page two": "/page-2",
+               "mtdi": "/mtdi", "page 3": "/page-3", "page three": "/page-3", "settings": "/settings"}
 AGENT_ACTIONS_DOC = (
     "Return ONLY a JSON object: {\"say\": string, \"actions\": [ {\"type\": string, \"target\": string} ] }.\n"
     "Allowed action types and targets:\n"
-    "navigate: one of / (Home), /em (Page 1), /spectrum (Page 2), /mtdi (MTDI), /sixth-sense (Page 3), /settings (Settings)\n"
-    "tab: mag | elec | both (Page 1)  or rf | wifi | bt (Page 2)\n"
+    "navigate: one of / (Home), /page-1 (Page 1), /page-2 (Page 2), /mtdi (MTDI), /page-3 (Page 3), /settings (Settings)\n"
+    "tab: c1 | c2x | both (Page 1)  or ch3 | wifi | bt (Page 2)\n"
     "mode: online | offline\n"
     "camera: on | off\n"
     "finger_mouse: on | off\n"
     "scroll: up | down | top | bottom\n"
-    "relock: magnetic | electric | rf | current | all  (relearn the baseline of channel 1, 2, 3, 4 or all)\n"
+    "relock: ch1 | ch2 | ch3 | current | all  (relearn the baseline of channel 1, 2, 3, 4 or all)\n"
     "Keep \"say\" short for simple requests (one or two spoken sentences) but answer complex or multi-part questions fully, up to about five sentences, so nothing is left out. Speak naturally and warmly like a calm human colleague talking out loud: contractions are fine, no lists, no headings, no brackets, no symbols, no code, and only state numbers that appear in the live context. "
     "Example: for 'five plus five' answer {\"say\": \"That's ten.\", \"actions\": []}. "
     "If the request is a question, answer it in \"say\" and use an empty actions list. General knowledge, maths, science and world questions are welcome: answer them directly and confidently from your own knowledge. Never invent actions outside this list. Never write the word 'say' or any JSON inside the spoken text."
@@ -720,12 +720,12 @@ def _credential_for(provider):
     return ""
 
 
-def _multipart(fields, file_field, filename, mimetype, data):
+def _multipart(fields, filch2f, filename, mimetype, data):
     boundary = "----studio" + hashlib.md5(os.urandom(8)).hexdigest()
     body = b""
     for k, v in fields.items():
         body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
-    body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{file_field}\"; filename=\"{filename}\"\r\n"
+    body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{filch2f}\"; filename=\"{filename}\"\r\n"
              f"Content-Type: {mimetype}\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
     return body, f"multipart/form-data; boundary={boundary}"
 
@@ -903,7 +903,7 @@ def transcribe_audio(data, mimetype="audio/wav"):
 # that order. Order is taken from where each word appears in the sentence, not from
 # the order of this table, so "wave, then backflip" does the opposite.
 #
-# Split into strong and weak deliberately. This is an electromagnetic instrument:
+# Split into strong and weak deliberately. This is an composite instrument:
 # "wave", "point", "spin" and "peak" are ordinary vocabulary here, and a question
 # like "what does a radio wave look like" must not make the character wave. Weak
 # words only count when a strong move word is also present, or when the sentence is
@@ -967,8 +967,8 @@ def _agent_fallback(text):
         if name in t and any(v in t for v in ("open", "go to", "show", "take me", "navigate", "switch to")):
             actions.append({"type": "navigate", "target": path})
             break
-    if "electric" in t and "field" in t and "/em" in [a["target"] for a in actions]:
-        actions.append({"type": "tab", "target": "elec"})
+    if "ch2" in t and "field" in t and "/page-1" in [a["target"] for a in actions]:
+        actions.append({"type": "tab", "target": "c2x"})
     if "wifi" in t or "wi fi" in t:
         actions.append({"type": "tab", "target": "wifi"})
     if "bluetooth" in t:
@@ -1116,7 +1116,7 @@ def _agent_clock_text():
 
 
 def _nvtra_signal_notes():
-    """EMI screen findings, baseline/probe events and the recent trend, for the NVTRA prompt.
+    """SG screen findings, baseline/probe events and the recent trend, for the NVTRA prompt.
 
     Everything here is derived from measured data already held by the instrument; failures
     (module not loaded yet, no archive) just omit the line rather than inventing one."""
@@ -1124,12 +1124,12 @@ def _nvtra_signal_notes():
     lines = []
     try:
         charts = importlib.import_module("studio.charts")
-        with spectrum_lock:
-            findings = charts.emi_findings(spectrum_data)[:4]
+        with sweep3_lock:
+            findings = charts.sg_findings(sweep3_data)[:4]
         if findings:
             items = "; ".join(f"{f['title']} ({f['severity']}: {f['detail']})" for f in findings)
             lines.append("interference screen (heuristic, sources are only 'possible'): " + items[:600])
-        elif spectrum_data.get("last_rx") is not None and not spectrum_data.get("error"):
+        elif sweep3_data.get("last_rx") is not None and not sweep3_data.get("error"):
             lines.append('interference screen: no harmonic, comb, broadband or intermittent pattern in the current sweep.')
     except Exception:
         pass
@@ -1162,28 +1162,28 @@ def _nvtra_context():
     """A compact, factual snapshot of the live instrument, injected into every prompt.
     The assistant must answer from THIS — it is not allowed to invent sensor numbers."""
     lines = []
-    with mag_lock:
-        if magnetic_data["error"]:
-            lines.append(f"Channel 1: OFFLINE ({magnetic_data['error'][:60]})")
+    with c1_lock:
+        if ch1_data["error"]:
+            lines.append(f"Channel 1: OFFLINE ({ch1_data['error'][:60]})")
         else:
-            m = magnetic_data
-            raw_mag = m.get("raw_magnitude")
-            if raw_mag is not None:
+            m = ch1_data
+            raw_c1 = m.get("raw_magnitude")
+            if raw_c1 is not None:
                 # hardware path: 'magnitude' is the deviation from the quiet baseline, the raw
                 # field magnitude is separate. Both are stated so the model never calls a
                 # 0.02 uT deviation "the total field".
-                lines.append(f"Magnetometer: change from the quiet baseline {m['magnitude']:+.3f} uT "
+                lines.append(f"Ch1probe: change from the quiet baseline {m['magnitude']:+.3f} uT "
                              f"(component changes X {m['x']:+.3f}, Y {m['y']:+.3f}, Z {m['z']:+.3f}); "
-                             f"session change range {m['min_mag']:.3f}-{m['max_mag']:.3f} uT. "
-                             f"Raw field magnitude {raw_mag:.2f} uT with factory scaling (absolute accuracy unknown; "
+                             f"session change range {m['min_c1']:.3f}-{m['max_c1']:.3f} uT. "
+                             f"Raw field magnitude {raw_c1:.2f} uT with factory scaling (absolute accuracy unknown; "
                              f"Earth's field is normally 25-65 uT, so quote the raw value only as 'sensor reading').")
             else:
-                lines.append(f"Magnetometer: {m['magnitude']:.2f} uT total "
+                lines.append(f"Ch1probe: {m['magnitude']:.2f} uT total "
                              f"(X {m['x']:.2f}, Y {m['y']:.2f}, Z {m['z']:.2f}); "
-                             f"session min {m['min_mag']:.2f}, max {m['max_mag']:.2f} uT. "
+                             f"session min {m['min_c1']:.2f}, max {m['max_c1']:.2f} uT. "
                              f"Earth's field is normally 25-65 uT.")
-    with efield_lock:
-        e = efield_data
+    with ch2f_lock:
+        e = ch2f_data
         if e["error"]:
             lines.append(f"Channel 2: OFFLINE ({e['error'][:60]})")
         elif not e["calibrated"]:
@@ -1191,27 +1191,27 @@ def _nvtra_context():
         elif not e.get("probe_calibrated", True):
             # no V/m scaling: the honest numbers are the raw RMS and the change from baseline
             dev = e["rms_mv"] - e["baseline_mv"]
-            lines.append(f"E-field probe: {e['rms_mv']:.2f} mV RMS raw, {dev:+.2f} mV RMS relative to the quiet baseline "
+            lines.append(f"Ch2 probe: {e['rms_mv']:.2f} mV RMS raw, {dev:+.2f} mV RMS relative to the quiet baseline "
                          f"({'above' if dev > 0 else 'at or below'} baseline), relative activity {e['rel_index']:.0f}%. "
                          f"The probe has no V/m calibration, so there is no absolute field value; say so if asked for V/m.")
         else:
-            lines.append(f"E-field probe: {e['field_v_m']:.3f} V/m "
-                         f"({e['field_v_m']:.3f} N/C), level {e['level']}, "
+            lines.append(f"Ch2 probe: {e['field_vu']:.3f} V/m "
+                         f"({e['field_vu']:.3f} N/C), level {e['level']}, "
                          f"relative activity {e['rel_index']:.0f}%.")
-    with spectrum_lock:
-        s = spectrum_data
+    with sweep3_lock:
+        s = sweep3_data
         if s["error"] or s["last_rx"] is None:
             lines.append(f"Channel 3 analyser (Source 3): OFFLINE ({(s['error'] or 'no sweep yet')[:50]})")
         else:
             peak_txt = ", ".join(f"{_freq_label(p['freq'])} at {p['level']:.0f} unit ({p['band']})"
                                  for p in s["peaks"][:4]) or "none above the floor"
-            lines.append(f"Spectrum (tinySA, {_span_label(s['span_start'], s['span_stop'])}): "
+            lines.append(f"Sweep3 (src3, {_span_label(s['span_start'], s['span_stop'])}): "
                          f"noise floor {s['floor']:.0f} dBm; strongest peak "
                          f"{_freq_label(s['peak_freq'])} at {s['peak_level']:.0f} dBm. "
                          f"Tracked peaks: {peak_txt}.")
             if not s["level_sane"]:
                 lines.append(
-                    "NOTE: spectrum levels are untrusted; verify parser, units and analyser state."
+                    "NOTE: sweep3 levels are untrusted; verify parser, units and analyser state."
                 )
     with wifi_lock:
         if not wifi_data["error"] and wifi_data["last_rx"]:
@@ -1225,9 +1225,9 @@ def _nvtra_context():
         lines.append(
             f"MTDI active sensor health: {mtdi_data['active_health']:.0f}%; "
             f"system completeness: {mtdi_data['completeness']:.0f}% "
-            f"(magnetometer {mtdi_data['mag_health']:.0f}%, "
-            f"E-field {mtdi_data['efield_health']:.0f}%, "
-            f"spectrum {mtdi_data['rf_health']:.0f}%)."
+            f"(ch1probe {mtdi_data['c1_health']:.0f}%, "
+            f"Ch2 {mtdi_data['ch2f_health']:.0f}%, "
+            f"sweep3 {mtdi_data['ch3_health']:.0f}%)."
         )
     return "\n".join(lines)
 
@@ -1624,7 +1624,7 @@ def _nvtra_error_text(err):
     return f"Couldn't reach the AI provider: {err}"
 
 
-EMI_REQUIRED_HEADINGS = (
+SG_REQUIRED_HEADINGS = (
     "CLASSIFICATION", "DIAGNOSTIC GUESS", "EVIDENCE", "CONFIDENCE",
     "LIMITATIONS", "NEXT SAFE CHECK",
 )
@@ -1632,8 +1632,8 @@ EMI_REQUIRED_HEADINGS = (
 # Basic supervised learning set for NVTRA Intelligence. These are labelled,
 # operator-supplied observations measured at 1 cm; they do not alter calibration.
 NVTRA_ML_REFERENCES = (
-    {"label": "REFERENCE 1", "electric_v_m": 50.0, "magnetic_ut": 2000.0},
-    {"label": "REFERENCE 2", "electric_v_m": 40.0, "magnetic_ut": 702.0},
+    {"label": "REFERENCE 1", "ch2_vu": 50.0, "ch1_val": 2000.0},
+    {"label": "REFERENCE 2", "ch2_vu": 40.0, "ch1_val": 702.0},
 )
 NVTRA_PUBLIC_ML_SOURCES = (
     {"label": "SOURCE A", "scope": "Text", "doi": "Text",
@@ -1647,19 +1647,19 @@ NVTRA_PUBLIC_ML_SOURCES = (
 )
 
 
-def _nvtra_basic_ml(electric_v_m, magnetic_ut):
+def _nvtra_basic_ml(ch2_vu, ch1_val):
     """Nearest-reference classifier with rejection for an unfamiliar field pair."""
-    electric_v_m = max(0.0, float(electric_v_m))
-    magnetic_ut = max(0.0, float(magnetic_ut))
+    ch2_vu = max(0.0, float(ch2_vu))
+    ch1_val = max(0.0, float(ch1_val))
     ranked = []
     for row in NVTRA_ML_REFERENCES:
-        # Relative feature scales keep V/m and µT comparable without pretending
+        # Relative feature scales keep V/m and unit comparable without pretending
         # two training examples constitute a statistically trained model.
-        e_scale = max(10.0, row["electric_v_m"] * 0.50)
-        b_scale = max(100.0, row["magnetic_ut"] * 0.35)
+        e_scale = max(10.0, row["ch2_vu"] * 0.50)
+        b_scale = max(100.0, row["ch1_val"] * 0.35)
         distance = math.hypot(
-            (electric_v_m - row["electric_v_m"]) / e_scale,
-            (magnetic_ut - row["magnetic_ut"]) / b_scale,
+            (ch2_vu - row["ch2_vu"]) / e_scale,
+            (ch1_val - row["ch1_val"]) / b_scale,
         )
         ranked.append((distance, row))
     ranked.sort(key=lambda item: item[0])
@@ -1676,14 +1676,14 @@ def _nvtra_basic_ml(electric_v_m, magnetic_ut):
     return {
         "label": best["label"], "confidence": confidence,
         "reason": (
-            f"Nearest labelled example: {best['electric_v_m']:.0f} V/m and "
-            f"{best['magnetic_ut']:.0f} µT at 1 cm."
+            f"Nearest labelled example: {best['ch2_vu']:.0f} V/m and "
+            f"{best['ch1_val']:.0f} unit at 1 cm."
         ),
         "distance": best_distance,
     }
 
 
-EMI_ANALYST_SYSTEM = (
+SG_ANALYST_SYSTEM = (
     "You are the analysis engine inside MTDI Studio. Analyse only the supplied "
     "numeric channel window and trust metadata. Do not identify a specific source unless "
     "the evidence supports it. Treat any uncalibrated channel as a limitation. "
@@ -1695,13 +1695,13 @@ EMI_ANALYST_SYSTEM = (
 )
 
 
-def _emi_missing_headings(answer):
+def _sg_missing_headings(answer):
     """Return required sections absent as standalone headings in an LLM answer."""
     lines = {
         re.sub(r"[^A-Z ]", "", line.upper()).strip()
         for line in str(answer or "").splitlines()
     }
-    return [heading for heading in EMI_REQUIRED_HEADINGS if heading not in lines]
+    return [heading for heading in SG_REQUIRED_HEADINGS if heading not in lines]
 
 
 def _series_features(values):
@@ -1719,67 +1719,67 @@ def _series_features(values):
     }
 
 
-def _emi_live_snapshot():
+def _sg_live_snapshot():
     """Capture one internally consistent, real sensor window for selected-LLM analysis."""
     now = time.time()
-    with mag_lock:
-        mag = dict(magnetic_data)
-        mag_values = list(magnetic_data["history"])[-120:]
-        xyz_values = list(magnetic_data["xyz_history"])[-120:]
-    with efield_lock:
-        ef = dict(efield_data)
-        ef_values = list(efield_data["history"])[-120:]
-        ef_relative = list(efield_data["rel_history"])[-120:]
-    with spectrum_lock:
-        rf = dict(spectrum_data)
-        rf_frequencies = list(spectrum_data["freqs"])
-        rf_levels = list(spectrum_data["levels"])
-        rf_peaks = [dict(item) for item in spectrum_data["peaks"][:10]]
+    with c1_lock:
+        c1 = dict(ch1_data)
+        c1_values = list(ch1_data["history"])[-120:]
+        xyz_values = list(ch1_data["xyz_history"])[-120:]
+    with ch2f_lock:
+        ef = dict(ch2f_data)
+        c2_values = list(ch2f_data["history"])[-120:]
+        c2_relative = list(ch2f_data["rel_history"])[-120:]
+    with sweep3_lock:
+        ch3 = dict(sweep3_data)
+        ch3_frequencies = list(sweep3_data["freqs"])
+        ch3_levels = list(sweep3_data["levels"])
+        ch3_peaks = [dict(item) for item in sweep3_data["peaks"][:10]]
     freshness = {
-        "magnetometer_age_s": round(now - mag["last_rx"], 2) if mag["last_rx"] else None,
-        "efield_age_s": round(now - ef["last_rx"], 2) if ef["last_rx"] else None,
-        "spectrum_age_s": round(now - rf["last_rx"], 2) if rf["last_rx"] else None,
+        "ch1probe_age_s": round(now - c1["last_rx"], 2) if c1["last_rx"] else None,
+        "ch2f_age_s": round(now - ef["last_rx"], 2) if ef["last_rx"] else None,
+        "sweep3_age_s": round(now - ch3["last_rx"], 2) if ch3["last_rx"] else None,
     }
     online_count = sum((
-        mag["error"] is None and mag["last_rx"] is not None,
+        c1["error"] is None and c1["last_rx"] is not None,
         ef["error"] is None and ef["last_rx"] is not None,
-        rf["error"] is None and rf["last_rx"] is not None,
+        ch3["error"] is None and ch3["last_rx"] is not None,
     ))
     if online_count == 0:
         return None, 'No live source stream is available for interference analysis.'
     xyz = [[round(float(v), 5) for v in row[:3]] for row in xyz_values]
-    rf_pairs = [
+    ch3_pairs = [
         [round(float(freq), 3), round(float(level), 3)]
-        for freq, level in zip(rf_frequencies, rf_levels)
+        for freq, level in zip(ch3_frequencies, ch3_levels)
     ]
     payload = {
         "captured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
         "freshness": freshness,
         "trust": {
-            "magnetometer_error": mag["error"], "magnetometer_calibrated": mag["calibrated"],
-            "magnetometer_chip_warning": mag["chip_warning"],
-            "efield_error": ef["error"], "efield_calibrated": ef["calibrated"],
-            "efield_clipped": ef["clipped"], "efield_warning": ef["warning"],
-            "efield_probe_scale_v_per_m_per_volt": ef["probe_scale_v_per_m_per_volt"],
-            "efield_probe_scale_source": ef["probe_scale_source"],
-            "spectrum_error": rf["error"], "spectrum_trusted": rf["trusted"],
-            "spectrum_level_sane": rf["level_sane"], "spectrum_warnings": rf["warnings"],
+            "ch1probe_error": c1["error"], "ch1probe_calibrated": c1["calibrated"],
+            "ch1probe_chip_warning": c1["chip_warning"],
+            "ch2f_error": ef["error"], "ch2f_calibrated": ef["calibrated"],
+            "ch2f_clipped": ef["clipped"], "ch2f_warning": ef["warning"],
+            "ch2f_probe_scale_scale_per_volt": ef["probe_scale_scale_per_volt"],
+            "ch2f_probe_scale_source": ef["probe_scale_source"],
+            "sweep3_error": ch3["error"], "sweep3_trusted": ch3["trusted"],
+            "sweep3_level_sane": ch3["level_sane"], "sweep3_warnings": ch3["warnings"],
         },
         "features": {
-            "magnetic_magnitude_ut": _series_features(mag_values),
-            "electric_field_v_m": _series_features(ef_values),
-            "electric_relative_percent": _series_features(ef_relative),
-            "rf_level_dbm": _series_features(rf_levels),
-            "rf_noise_floor_dbm": round(float(rf["floor"]), 3),
+            "ch1_magnitude_val": _series_features(c1_values),
+            "ch2_field_vu": _series_features(c2_values),
+            "ch2_relative_percent": _series_features(c2_relative),
+            "ch3_level_dbm": _series_features(ch3_levels),
+            "ch3_noise_floor_dbm": round(float(ch3["floor"]), 3),
         },
         "arrays": {
-            "magnetic_magnitude_ut": [round(float(v), 5) for v in mag_values],
-            "magnetic_xyz_ut": xyz,
-            "electric_field_v_m": [round(float(v), 6) for v in ef_values],
-            "electric_relative_percent": [round(float(v), 4) for v in ef_relative],
-            "rf_frequency_hz_and_level_dbm": rf_pairs,
+            "ch1_magnitude_val": [round(float(v), 5) for v in c1_values],
+            "ch1_xyz_val": xyz,
+            "ch2_field_vu": [round(float(v), 6) for v in c2_values],
+            "ch2_relative_percent": [round(float(v), 4) for v in c2_relative],
+            "ch3_frequency_hz_and_level_dbm": ch3_pairs,
         },
-        "tracked_rf_peaks": rf_peaks,
+        "tracked_ch3_peaks": ch3_peaks,
     }
     return payload, None
 
@@ -1794,24 +1794,24 @@ def nvtra_online():
     return bool(local_ai_status()["available"])
 
 
-def _mag_health():
-    """Link/data health for the magnetometer.
+def _c1_health():
+    """Link/data health for the ch1probe.
 
     Calibration state is deliberately NOT a health penalty: running without a
     hard/soft-iron profile is the normal default and only means the vector is
     uncorrected.  Only a real fault (chip-ID mismatch) degrades health.
     """
-    with mag_lock:
-        err = magnetic_data["error"]; last = magnetic_data["last_rx"]
-        chip_warning = magnetic_data["chip_warning"]
-        calibrated = magnetic_data["calibrated"]
-        mag = magnetic_data["magnitude"]; hist = list(magnetic_data["history"])[-10:]
+    with c1_lock:
+        err = ch1_data["error"]; last = ch1_data["last_rx"]
+        chip_warning = ch1_data["chip_warning"]
+        calibrated = ch1_data["calibrated"]
+        c1 = ch1_data["magnitude"]; hist = list(ch1_data["history"])[-10:]
     if err: return 0.0, f"offline: {err[:48]}"
     if last is None: return 0.0, "no data yet"
     age = time.time() - last
     if age > 5: return 0.0, f"stale ({age:.0f}s)"
     if chip_warning: return 40.0, chip_warning
-    if mag > 180: return 20.0, "near saturation"
+    if c1 > 180: return 20.0, "near saturation"
     suffix = "" if calibrated else " · uncorrected (no calibration profile)"
     if len(hist) >= 5:
         mean = sum(hist)/len(hist)
@@ -1823,13 +1823,13 @@ def _mag_health():
     return 70.0, "warming up" + suffix
 
 
-def _efield_health():
-    with efield_lock:
-        err = efield_data["error"]
-        last = efield_data["last_rx"]
-        clipped = efield_data["clipped"]
-        calibrated = efield_data["calibrated"]
-        warning = efield_data["warning"]
+def _ch2f_health():
+    with ch2f_lock:
+        err = ch2f_data["error"]
+        last = ch2f_data["last_rx"]
+        clipped = ch2f_data["clipped"]
+        calibrated = ch2f_data["calibrated"]
+        warning = ch2f_data["warning"]
     if err:
         return 0.0, f"offline: {err[:48]}"
     if last is None:
@@ -1846,13 +1846,13 @@ def _efield_health():
     return 100.0, "fresh, in range, baseline ready"
 
 
-def _rf_health():
+def _ch3_health():
     """Transport/data health, not scientific accuracy."""
-    with spectrum_lock:
-        err = spectrum_data["error"]; last = spectrum_data["last_rx"]
-        got = len(spectrum_data["levels"]); want = spectrum_data["points"]
-        trusted = spectrum_data["trusted"]; floor = spectrum_data["floor"]
-        sweep_s = spectrum_data["sweep_s"]; present = spectrum_data["present"]
+    with sweep3_lock:
+        err = sweep3_data["error"]; last = sweep3_data["last_rx"]
+        got = len(sweep3_data["levels"]); want = sweep3_data["points"]
+        trusted = sweep3_data["trusted"]; floor = sweep3_data["floor"]
+        sweep_s = sweep3_data["sweep_s"]; present = sweep3_data["present"]
     if err:  return 0.0, f"offline: {err[:48]}", present
     if last is None: return 0.0, "no sweep yet", present
     age = time.time() - last
@@ -1865,9 +1865,9 @@ def _rf_health():
 def mtdi_loop():
     while not STOP_EVENT.is_set():
         try:
-            mc, mn = _mag_health()
-            ec, en = _efield_health()
-            rc, rn, _rf_present = _rf_health()
+            mc, mn = _c1_health()
+            ec, en = _ch2f_health()
+            rc, rn, _ch3_present = _ch3_health()
             with wifi_lock:
                 wifi_ready = wifi_data["last_rx"] is not None and wifi_data["error"] is None
             with bt_lock:
@@ -1881,20 +1881,20 @@ def mtdi_loop():
             ]
             completeness = 100.0 * sum(modules) / len(modules)
             active_values = []
-            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_MAGNETOMETER"):
+            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_CH1PROBE"):
                 active_values.append(mc)
-            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_EFIELD"):
+            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_CH2F"):
                 active_values.append(ec)
-            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_TINYSA"):
+            if RUNTIME["demo"] or _env_enabled("STUDIO_ENABLE_SRC3"):
                 active_values.append(rc)
             active_health = round(
                 sum(active_values) / len(active_values), 1
             ) if active_values else 0.0
             with mtdi_lock:
                 mtdi_data.update({
-                    "mag_health":mc, "mag_note":mn,
-                    "efield_health":ec, "efield_note":en,
-                    "rf_health":rc, "rf_note":rn,
+                    "c1_health":mc, "c1_note":mn,
+                    "ch2f_health":ec, "ch2f_note":en,
+                    "ch3_health":rc, "ch3_note":rn,
                     "active_health":active_health,
                     "completeness":round(completeness, 1),
                 })

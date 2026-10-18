@@ -1,4 +1,4 @@
-"""Page builders: Home, EM Field, Spectrum, MTDI and Settings."""
+"""Page builders: Home, EM Field, Sweep3, MTDI and Settings."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser', 'webapp', 'reports', 'charts')
 
@@ -41,28 +41,28 @@ def discipline_block():
 #  HOME
 # ════════════════════════════════════════════════════════
 def home_page():
-    with mag_lock:
-        cur_mag = magnetic_data["magnitude"]
-        mag_err = magnetic_data["error"]
-        mag_have = magnetic_data["last_rx"] is not None
-    with spectrum_lock:
-        rf_err = spectrum_data["error"]; rf_pf = spectrum_data["peak_freq"]
-        rf_pl = spectrum_data["peak_level"]; rf_have = spectrum_data["last_rx"] is not None
+    with c1_lock:
+        cur_c1 = ch1_data["magnitude"]
+        c1_err = ch1_data["error"]
+        c1_have = ch1_data["last_rx"] is not None
+    with sweep3_lock:
+        ch3_err = sweep3_data["error"]; ch3_pf = sweep3_data["peak_freq"]
+        ch3_pl = sweep3_data["peak_level"]; ch3_have = sweep3_data["last_rx"] is not None
     with mtdi_lock:
         overall = mtdi_data["active_health"]
-    if rf_have and not rf_err:
-        rf_val = f"{rf_pl:+.0f} unit"; rf_lbl = f"PEAK @ {_freq_label(rf_pf)}"
-    elif rf_err:
-        rf_val = "OFFLINE"; rf_lbl = "CHANNEL 3"
+    if ch3_have and not ch3_err:
+        ch3_val = f"{ch3_pl:+.0f} unit"; ch3_lbl = f"PEAK @ {_freq_label(ch3_pf)}"
+    elif ch3_err:
+        ch3_val = "OFFLINE"; ch3_lbl = "CHANNEL 3"
     else:
-        rf_val = "SWEEPING"; rf_lbl = "CHANNEL 3"
+        ch3_val = "SWEEPING"; ch3_lbl = "CHANNEL 3"
     # Fixed route identities: status and readings change, module colour never does.
     mods = [
-        ("em","01","Page 1",'Paragraph. Enter your text here.',
-         f"{cur_mag:.2f} unit" if mag_have and not mag_err else "OFFLINE",
-         "MAGNITUDE" if mag_have else "NO DATA", "#67cbd5", "103,203,213"),
-        ("spectrum","02","Page 2",'Paragraph. Enter your text here.',
-         rf_val, rf_lbl, "#718ee8", "113,142,232"),
+        ("page-1","01","Page 1",'Paragraph. Enter your text here.',
+         f"{cur_c1:.2f} unit" if c1_have and not c1_err else "OFFLINE",
+         "MAGNITUDE" if c1_have else "NO DATA", "#67cbd5", "103,203,213"),
+        ("page-2","02","Page 2",'Paragraph. Enter your text here.',
+         ch3_val, ch3_lbl, "#718ee8", "113,142,232"),
         ("mtdi","03","MTDI",'Paragraph. Enter your text here.',
          f"{overall:.0f}%",'TEXT', "#72b99c", "114,185,156"),
         ("settings","04","Settings",'Paragraph. Enter your text here.',
@@ -72,7 +72,7 @@ def home_page():
     for index, (mid, numerology, title, desc, val, vl, vc, vrgb) in enumerate(mods):
         orbit_cards.append(dcc.Link(html.Div([
             html.Div([html.Span(numerology, className="mtdi-card-index"),
-                      html.Span({"em": "PAGE 1", "spectrum": "PAGE 2"}.get(mid, mid.upper()), className="mtdi-card-role")], className="mtdi-card-top"),
+                      html.Span({"page-1": "PAGE 1", "page-2": "PAGE 2"}.get(mid, mid.upper()), className="mtdi-card-role")], className="mtdi-card-top"),
             html.Div(title, className="mtdi-card-title"),
             html.Div(desc, className="mtdi-card-short"),
             html.Div([html.Span(val), html.Small(vl)], className="home-module-live"),
@@ -112,9 +112,9 @@ def home_page():
         ], className="hero-spec"),
     ], className="hero-wrap")
 
-    scrub_hero = html.Div(className="iv-scrub-hero", **{"data-iv-scrub": "field",
-                                                        "data-iv-title": 'Title',
-                                                        "data-iv-tagline": 'Paragraph. Enter your text here.'})
+    scrub_hero = html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "field",
+                                                        "data-i3-title": 'Title',
+                                                        "data-i3-tagline": 'Paragraph. Enter your text here.'})
     return html.Div([scrub_hero, hero, html.Div([
         html.Div([
             html.Div('TITLE', className="instrument-modules-title"),
@@ -137,54 +137,54 @@ def sensor_showcase_section():
     is a placeholder number."""
     def side(key, label, title, description, features):
         return html.Div([
-            html.Div(label, className="iv-sc-kicker"),
-            html.H3(title, className="iv-sc-title"),
-            html.P(description, className="iv-sc-desc"),
+            html.Div(label, className="i3-sc-kicker"),
+            html.H3(title, className="i3-sc-title"),
+            html.P(description, className="i3-sc-desc"),
             html.Div([
                 *[html.Div([
-                    html.Div([html.Span(f_label, className="iv-sc-flabel"), html.Span("—", className="iv-sc-fvalue", **{"data-iv-sc-value": f_key})], className="iv-sc-frow"),
-                    html.Div(html.I(**{"data-iv-sc-bar": f_key}), className="iv-sc-bar"),
-                ], className="iv-sc-feature") for f_key, f_label in features],
-                html.A([html.Span('TEXT'), html.Span("→")], href="/em", className="iv-sc-open"),
-            ], className="iv-sc-panel"),
-            html.Div([html.Span("●", className="iv-sc-dot"), html.Span("Waiting", **{"data-iv-sc-state": key})], className="iv-sc-status"),
-        ], className="iv-sc-details", **{"data-iv-sc-side": key})
+                    html.Div([html.Span(f_label, className="i3-sc-flabel"), html.Span("—", className="i3-sc-fvalue", **{"data-i3-sc-value": f_key})], className="i3-sc-frow"),
+                    html.Div(html.I(**{"data-i3-sc-bar": f_key}), className="i3-sc-bar"),
+                ], className="i3-sc-feature") for f_key, f_label in features],
+                html.A([html.Span('TEXT'), html.Span("→")], href="/page-1", className="i3-sc-open"),
+            ], className="i3-sc-panel"),
+            html.Div([html.Span("●", className="i3-sc-dot"), html.Span("Waiting", **{"data-i3-sc-state": key})], className="i3-sc-status"),
+        ], className="i3-sc-details", **{"data-i3-sc-side": key})
     return html.Div([
         html.Div('TITLE', className="instrument-modules-title", style={"marginTop": "72px"}),
-        html.Div('Subtext', className="iv-sc-sub"),
+        html.Div('Subtext', className="i3-sc-sub"),
         html.Div([
             html.Div([
-                html.Div([html.Div('LABEL', className="iv-sc-board-label"),
-                          html.Canvas(className="iv-sc-boards", **{"data-iv-boards": "magnetic",
+                html.Div([html.Div('LABEL', className="i3-sc-board-label"),
+                          html.Canvas(className="i3-sc-boards", **{"data-i3-boards": "ch1",
                                       "aria-label": 'Text'})],
-                         className="iv-sc-board-slot"),
-                html.Div([html.Div('LABEL', className="iv-sc-board-label"),
-                          html.Canvas(className="iv-sc-boards", **{"data-iv-boards": "electric",
+                         className="i3-sc-board-slot"),
+                html.Div([html.Div('LABEL', className="i3-sc-board-label"),
+                          html.Canvas(className="i3-sc-boards", **{"data-i3-boards": "ch2",
                                       "aria-label": 'Text'})],
-                         className="iv-sc-board-slot"),
-            ], className="iv-sc-visual iv-sc-visual-split"),
+                         className="i3-sc-board-slot"),
+            ], className="i3-sc-visual i3-sc-visual-split"),
             html.Div([
-                side("magnetic", 'LABEL', 'Title',
+                side("ch1", 'LABEL', 'Title',
                      'Paragraph. Enter your text here.',
                      [("sample_rate", 'Text'), ("snr", 'Text'), ("confidence", 'Text')]),
-                side("electric", 'LABEL', 'Title',
+                side("ch2", 'LABEL', 'Title',
                      'Paragraph. Enter your text here.',
                      [("sample_rate", 'Text'), ("snr", 'Text'), ("confidence", 'Text')]),
-            ], className="iv-sc-detail-wrap"),
-        ], className="iv-sc-stage", **{"data-iv-showcase": "magnetic"}),
+            ], className="i3-sc-detail-wrap"),
+        ], className="i3-sc-stage", **{"data-i3-showcase": "ch1"}),
         html.Div([
-            html.Button('Button', type="button", className="iv-sc-btn on", **{"data-iv-sc": "magnetic"}),
-            html.Button('Button', type="button", className="iv-sc-btn", **{"data-iv-sc": "electric"}),
-        ], className="iv-sc-switch"),
-    ], className="iv-showcase")
+            html.Button('Button', type="button", className="i3-sc-btn on", **{"data-i3-sc": "ch1"}),
+            html.Button('Button', type="button", className="i3-sc-btn", **{"data-i3-sc": "ch2"}),
+        ], className="i3-sc-switch"),
+    ], className="i3-showcase")
 
 
 # ════════════════════════════════════════════════════════
-#  EM FIELD  (magnetic / electric / combined)
+#  EM FIELD  (ch1 / ch2 / combined)
 # ════════════════════════════════════════════════════════
-def magnetic_body():
-    with mag_lock:
-        m = dict(magnetic_data); hist = list(magnetic_data["history"]); xyz = list(magnetic_data["xyz_history"])
+def ch1_body():
+    with c1_lock:
+        m = dict(ch1_data); hist = list(ch1_data["history"]); xyz = list(ch1_data["xyz_history"])
     have = m["last_rx"] is not None
     shown = lambda value: f"{value:.2f}" if have else "—"
     return [
@@ -192,7 +192,7 @@ def magnetic_body():
             _mcard("mv-x", "X", shown(m["x"])),
             _mcard("mv-y", "Y", shown(m["y"])),
             _mcard("mv-z", "Z", shown(m["z"])),
-            _mcard("mv-mag", 'Label', shown(m["magnitude"]), CYAN),
+            _mcard("mv-c1", 'Label', shown(m["magnitude"]), CYAN),
             _mcard("mv-baseline", 'Label',
                    shown(m["baseline_magnitude"]) if m["baseline_calibrated"] else "—"),
             _mcard("mv-delta", 'Label',
@@ -200,34 +200,34 @@ def magnetic_body():
             _mcard("mv-sig", 'Label', "—"),
         ], className="metric-row"),
         html.Div([
-            html.Button(['BUTTON'], id="mag-recal-btn",
+            html.Button(['BUTTON'], id="c1-recal-btn",
                         className="open-btn", n_clicks=0,
                         style={"width":"auto","marginTop":"0","whiteSpace":"nowrap"}),
             html.Span('Paragraph. Enter your text here.',
-                      id="mag-recal-status",
+                      id="c1-recal-status",
                       style={"fontFamily":FONT,"fontSize":"11px","color":SUBTEXT,"lineHeight":"1.5"}),
-            dcc.Store(id="mag-recal-request"),
+            dcc.Store(id="c1-recal-request"),
         ], style={"display":"flex","alignItems":"center","gap":"16px",
                   "marginBottom":"16px","flexWrap":"wrap"}),
-        html.Div([html.Span(className="online-dot off", id="mag-dot"),
-                  html.Span('Subtext', id="mag-status", className="online-text c-sub")],
+        html.Div([html.Span(className="online-dot off", id="c1-dot"),
+                  html.Span('Subtext', id="c1-status", className="online-text c-sub")],
                  className="online-bar"),
-        _emi_listen_card("mag"),
-        _chart_board("mag", 'Label'),
+        _sg_listen_card("c1"),
+        _chart_board("c1", 'Label'),
         html.Div('LABEL', className="section-label"),
         html.Div([
             html.Div([
-                html.Div('LABEL', className="rf-ctl-label"),
+                html.Div('LABEL', className="ch3-ctl-label"),
                 html.Div('Subtext',
                          className="validation-subcopy"),
             ]),
-            _zoom_range("mag-zoom"),
-        ], className="rf-ctl-bar", style={"marginBottom":"16px"}),
+            _zoom_range("c1-zoom"),
+        ], className="ch3-ctl-bar", style={"marginBottom":"16px"}),
         html.Div([
             _chart("g-line", 'Title',
                    make_line_chart(hist, color=CYAN, fill_color="rgba(0,229,255,0.07)",
                                    height=250, ylabel="unit", smart_scale=True, zoom=1,
-                                   revision="mag-line")),
+                                   revision="c1-line")),
         ], className="chart-grid chart-grid-primary"),
         html.Div([
             _chart("g-axis", 'Title', fig_axis(xyz)),
@@ -257,8 +257,8 @@ def magnetic_body():
         html.Div([
             _chart("g3d-plane", 'Title',
                    fig_3d_error_plane(xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("g3d-dipole", 'Title',
-                   fig_3d_dipole_field(xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("g3d-twopole", 'Title',
+                   fig_3d_dipolch2f(xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div(id="mag3d-error"),
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
@@ -275,21 +275,21 @@ def magnetic_body():
             ], className="arch-stats"),
         ], className="arch-shell"),
         html.Div([html.Div('LABEL', className="summary-tag"),
-                  html.Div([_hi("Magnitude"), html.Span("  "), html.Span("—", id="sum-mag"), html.Br(), html.Br(),
+                  html.Div([_hi("Magnitude"), html.Span("  "), html.Span("—", id="sum-c1"), html.Br(), html.Br(),
                             _hi("Axes"), html.Span("  "), html.Span("—", id="sum-axes")], className="summary-text")],
                  className="summary-panel"),
-        html.Div(id="mag-error"),
+        html.Div(id="c1-error"),
         # Staggered so this host never rebuilds every figure in the same tick.
-        dcc.Interval(id="mag-num-int", interval=2500, n_intervals=0),
-        dcc.Interval(id="mag-chart-int", interval=3000, n_intervals=0),
-        dcc.Interval(id="mag-3d-int", interval=3400, n_intervals=0),
-        dcc.Interval(id="mag-dir-int", interval=2600, n_intervals=0),
-        dcc.Interval(id="mag-arch-int", interval=4000, n_intervals=0),
+        dcc.Interval(id="c1-num-int", interval=2500, n_intervals=0),
+        dcc.Interval(id="c1-chart-int", interval=3000, n_intervals=0),
+        dcc.Interval(id="c1-3d-int", interval=3400, n_intervals=0),
+        dcc.Interval(id="c1-dir-int", interval=2600, n_intervals=0),
+        dcc.Interval(id="c1-arch-int", interval=4000, n_intervals=0),
     ]
 
 
-def magnetic_view():
-    return html.Div(magnetic_body() + [d4_magnetic_blocks()])
+def ch1_view():
+    return html.Div(ch1_body() + [d4_ch1_blocks()])
 
 
 def _zoom_range(slider_id):
@@ -297,62 +297,62 @@ def _zoom_range(slider_id):
     callbacks keep their Input; a plain range control, the same one as the audio gain, is the
     visible face and the page script mirrors its value into the Dash slider."""
     return html.Div([
-        html.Div(dcc.Slider(id=slider_id, min=-1, max=3, step=0.25, value=0, updatemode="mouseup"), className="iv-zoom-dash"),
-        html.Div(className="iv-zoom-face", **{"data-iv-zoom-face": slider_id}),
-        html.Div([html.Span(t) for t in ("0.5×", "1×", "2×", "4×", "8×")], className="iv-zoom-ticks"),
-    ], className="iv-zoom-wrap")
+        html.Div(dcc.Slider(id=slider_id, min=-1, max=3, step=0.25, value=0, updatemode="mouseup"), className="i3-zoom-dash"),
+        html.Div(className="i3-zoom-face", **{"data-i3-zoom-face": slider_id}),
+        html.Div([html.Span(t) for t in ("0.5×", "1×", "2×", "4×", "8×")], className="i3-zoom-ticks"),
+    ], className="i3-zoom-wrap")
 
 
 def _zoom_bar(slider_id, title, copy):
     return html.Div([
-        html.Div([html.Div(title, className="rf-ctl-label"), html.Div(copy, className="validation-subcopy")]),
+        html.Div([html.Div(title, className="ch3-ctl-label"), html.Div(copy, className="validation-subcopy")]),
         _zoom_range(slider_id),
-    ], className="rf-ctl-bar", style={"marginBottom": "16px"})
+    ], className="ch3-ctl-bar", style={"marginBottom": "16px"})
 
 
 _LISTEN_COPY = {
-    "electric": ('TEXT',
+    "ch2": ('TEXT',
                  'Paragraph. Enter your text here.'),
-    "mag": ('TEXT',
+    "c1": ('TEXT',
             'Paragraph. Enter your text here.'),
-    "em": ('TEXT',
+    "p1": ('TEXT',
            'Paragraph. Enter your text here.'),
 }
 
 
-def _emi_listen_card(kind):
-    """Listen card for one tab: electric on the Electric tab, magnetic on the Magnetic tab and
-    the mix on the Electromagnetic tab. Reuses the Field Audition sources so one stream serves
+def _sg_listen_card(kind):
+    """Listen card for one tab: ch2 on the Ch2 tab, ch1 on the Ch1 tab and
+    the mix on the Composite tab. Reuses the Field Audition sources so one stream serves
     every page; the EM block is driven client side (both sources at once)."""
     from .ui import _audio_block
     title, copy = _LISTEN_COPY[kind]
-    if kind == "electric":
-        blocks = [_audio_block(html, dcc, "efield", 'Title', [])]
-    elif kind == "mag":
-        blocks = [_audio_block(html, dcc, "mag", 'Title', [])]
+    if kind == "ch2":
+        blocks = [_audio_block(html, dcc, "ch2f", 'Title', [])]
+    elif kind == "c1":
+        blocks = [_audio_block(html, dcc, "c1", 'Title', [])]
     else:
         blocks = [html.Div([
-            html.Div([html.Button('Button', type="button", className="iv-btn iv-primary", **{"data-iv-action": "audition", "data-iv-source": "em", "data-iv-op": "start"}),
-                      html.Button('Button', type="button", className="iv-btn", **{"data-iv-action": "audition", "data-iv-source": "em", "data-iv-op": "stop"}),
-                      html.Button("Mute", type="button", className="iv-btn", **{"data-iv-action": "audition", "data-iv-source": "em", "data-iv-op": "mute", "aria-pressed": "false"})], className="iv-form iv-em-mix"),
-            html.Div("", className="iv-inline-result", **{"data-iv-result": "true"}),
-        ], className="iv-audio"),
-            _audio_block(html, dcc, "efield", 'Title', []),
-            _audio_block(html, dcc, "mag", 'Title', [])]
+            html.Div([html.Button('Button', type="button", className="i3-btn i3-primary", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "start"}),
+                      html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "stop"}),
+                      html.Button("Mute", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "mute", "aria-pressed": "false"})], className="i3-form i3-p1-mix"),
+            html.Div("", className="i3-inline-result", **{"data-i3-result": "true"}),
+        ], className="i3-audio"),
+            _audio_block(html, dcc, "ch2f", 'Title', []),
+            _audio_block(html, dcc, "c1", 'Title', [])]
     return html.Div([
-        html.Div([html.Div(title, className="rf-ctl-label"), html.Div(copy, className="validation-subcopy")]),
-        html.Div(blocks, className="iv-emi-listen" + (" iv-emi-two" if len(blocks) > 1 else "")),
-    ], className="rf-ctl-bar iv-emi-card", style={"marginBottom": "16px"})
+        html.Div([html.Div(title, className="ch3-ctl-label"), html.Div(copy, className="validation-subcopy")]),
+        html.Div(blocks, className="i3-sg-listen" + (" i3-sg-two" if len(blocks) > 1 else "")),
+    ], className="ch3-ctl-bar i3-sg-card", style={"marginBottom": "16px"})
 
 
-def _efield_wiring_text():
+def _ch2f_wiring_text():
     """Describe the probe input in prose. Read from acquisition rather than
     written out here: this paragraph claimed a differential pair with a 1.634 V
     reference on A1 long after the probe was rewired single-ended, which is the
     kind of stale sentence a judge would catch and an operator would trust."""
     try:
-        from .acquisition import EFIELD_MUX, EFIELD_MUX_NAME
-        return EFIELD_MUX_NAME.get(EFIELD_MUX, "input %d" % EFIELD_MUX)
+        from .acquisition import CH2F_MUX, CH2F_MUX_NAME
+        return CH2F_MUX_NAME.get(CH2F_MUX, "input %d" % CH2F_MUX)
     except Exception:
         return "its configured input"
 
@@ -360,13 +360,13 @@ def _efield_wiring_text():
 def _chart_board(which, label):
     """A single 3D board beside the channel that uses it.
 
-    boards.js self-scans for canvas[data-iv-boards] and mounts whichever board
+    boards.js self-scans for canvas[data-i3-boards] and mounts whichever board
     the attribute names, so this needs no callback and no Python-side 3D."""
     return html.Div([
         html.Div(label, className="chart-hd"),
-        html.Div(html.Canvas(**{"data-iv-boards": which,
+        html.Div(html.Canvas(**{"data-i3-boards": which,
                                 "aria-label": label + ". Drag to rotate, scroll to zoom."}),
-                 className="iv-tab-board"),
+                 className="i3-tab-board"),
     ], className="chart-card")
 
 
@@ -392,18 +392,18 @@ def _e3_shown(value, unit=""):
     return "—" if value is None else ("%.3f%s" % (value, unit))
 
 
-def electric_triaxial_blocks():
-    """The triaxial E-field section.
+def ch2_triaxial_blocks():
+    """The triaxial Ch2 section.
 
-    Deliberately built on the same chart functions as the magnetometer --
+    Deliberately built on the same chart functions as the ch1probe --
     fig_axis, fig_2d_scatter, fig_3d_surface and the rest all take an x/y/z
-    history in one shared shape, so publishing the E-field vector in that shape
+    history in one shared shape, so publishing the Ch2 vector in that shape
     means every one of them works here unchanged. Twelve duplicated plotting
     functions would have been the alternative, and they would have drifted."""
-    with efield_lock:
-        e = dict(efield_data)
-        xyz = list(efield_data.get("exyz_history") or [])
-        emag = list(efield_data.get("emag_history") or [])
+    with ch2f_lock:
+        e = dict(ch2f_data)
+        xyz = list(ch2f_data.get("exyz_history") or [])
+        sgm = list(ch2f_data.get("sgm_history") or [])
     live = e.get("axes_live", 0)
     status = e.get("axis_status") or {}
     tri = bool(e.get("triaxial"))
@@ -442,7 +442,7 @@ def electric_triaxial_blocks():
                                        if v != "ok")))
         coverage_colour = AMBER
 
-    uncal = all(abs(float(os.environ.get("STUDIO_EFIELD_SCALE_" + a, "1.0")) - 1.0) < 1e-9
+    uncal = all(abs(float(os.environ.get("STUDIO_CH2F_SCALE_" + a, "1.0")) - 1.0) < 1e-9
                 for a in ("X", "Y", "Z"))
 
     return [
@@ -460,15 +460,15 @@ def electric_triaxial_blocks():
             _mcard("e3-x", "X (" + axis_unit + ")", _e3_shown(e.get("ex_mv"))),
             _mcard("e3-y", "Y (" + axis_unit + ")", _e3_shown(e.get("ey_mv"))),
             _mcard("e3-z", "Z (" + axis_unit + ")", _e3_shown(e.get("ez_mv"))),
-            _mcard("e3-mag", 'LABEL' + axis_unit + ")", _e3_shown(e.get("e_magnitude_mv")), CYAN),
+            _mcard("e3-c1", 'LABEL' + axis_unit + ")", _e3_shown(e.get("e_magnitude_mv")), CYAN),
             _mcard("e3-live", 'LABEL', "%d / 3" % live,
                    GREEN if live == 3 else AMBER if live else RED),
         ], className="metric-row", style={"marginBottom": "14px", "display": "none" if provisional else "flex"}),
         html.Div([
-            _mcard("e3-x-vm", "X (unit = N/C)" if provisional else "X (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_v_m"))),
-            _mcard("e3-y-vm", "Y (unit = N/C)" if provisional else "Y (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_v_m"))),
-            _mcard("e3-z-vm", "Z (unit = N/C)" if provisional else "Z (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_v_m"))),
-            _mcard("e3-mag-vm", 'Label', ("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_v_m")), CYAN),
+            _mcard("e3-x-vm", "X (unit = N/C)" if provisional else "X (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))),
+            _mcard("e3-y-vm", "Y (unit = N/C)" if provisional else "Y (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))),
+            _mcard("e3-z-vm", "Z (unit = N/C)" if provisional else "Z (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))),
+            _mcard("e3-c1-vm", 'Label', ("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu")), CYAN),
         ], className="metric-row", style={"marginBottom":"14px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"6px"}) if provisional else None,
@@ -476,11 +476,11 @@ def electric_triaxial_blocks():
             _mcard("e3-static-x", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("x"))),
             _mcard("e3-static-y", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("y"))),
             _mcard("e3-static-z", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("z"))),
-            _mcard("e3-static-mag", 'LABEL', _e3_shown(e.get("static_activity_counts")), CYAN),
+            _mcard("e3-static-c1", 'LABEL', _e3_shown(e.get("static_activity_counts")), CYAN),
         ], className="metric-row", style={"marginBottom":"14px"}),
         html.Div([
             _chart("e3-line", 'Title' + axis_unit + ")",
-                   make_line_chart(emag, color=AMBER, fill_color="rgba(255,171,64,0.08)",
+                   make_line_chart(sgm, color=AMBER, fill_color="rgba(255,171,64,0.08)",
                                    height=250, ylabel=axis_unit)),
             _chart("e3-axis", 'Title' + axis_unit + ")", fig_axis(xyz, unit=axis_unit)),
             _chart("e3-scatter", 'Title',
@@ -492,7 +492,7 @@ def electric_triaxial_blocks():
             _chart("e3-pie", 'Title',
                    fig_pie(e.get("ex_mv"), e.get("ey_mv"), e.get("ez_mv"))),
             _chart("e3-bar", 'Title',
-                   fig_bar(*_e3_stats(emag), unit=axis_unit,
+                   fig_bar(*_e3_stats(sgm), unit=axis_unit,
                            quantity='channel 2 activity magnitude' if provisional else 'channel 2 magnitude')),
         ], className="chart-grid"),
         html.Div('LABEL', className="section-label",
@@ -500,7 +500,7 @@ def electric_triaxial_blocks():
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop": "-4px"}),
         html.Div(_chart("e3-archive", 'Title' + axis_unit + ")",
-                        fig_archive(series=emag, unit=axis_unit), h=220),
+                        fig_archive(series=sgm, unit=axis_unit), h=220),
                  style={"marginTop": "14px"}),
         html.Div('LABEL', className="section-label",
                  style={"marginTop": "30px"}),
@@ -513,8 +513,8 @@ def electric_triaxial_blocks():
         html.Div([
             _chart("e3-plane", 'Title',
                    fig_3d_error_plane(xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("e3-dipole", 'Title',
-                   fig_3d_dipole_field(xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("e3-twopole", 'Title',
+                   fig_3d_dipolch2f(xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop": "14px"}),
         html.Div([
             html.Div('LABEL', className="summary-tag"),
@@ -530,58 +530,58 @@ def electric_triaxial_blocks():
     ]
 
 
-def electric_body():
-    with efield_lock:
-        e = dict(efield_data); hist = list(efield_data["history"]); rel_hist = list(efield_data["rel_history"])
-    with mag_lock:
-        mag_hist = list(magnetic_data["history"])
-        mag_xyz = list(magnetic_data["xyz_history"])
+def ch2_body():
+    with ch2f_lock:
+        e = dict(ch2f_data); hist = list(ch2f_data["history"]); rel_hist = list(ch2f_data["rel_history"])
+    with c1_lock:
+        c1_hist = list(ch1_data["history"])
+        c1_xyz = list(ch1_data["xyz_history"])
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     return [
         html.Div([
-            _mcard("ev-level", "X (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_v_m"))) if have and e.get("ex_v_m") is not None else "—"),
-            _mcard("ev-index", "Y (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_v_m"))) if have and e.get("ey_v_m") is not None else "—", CYAN),
-            _mcard("ev-rms", "Z (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_v_m"))) if have and e.get("ez_v_m") is not None else "—"),
-            _mcard("ev-gain", 'Label', (("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_v_m"))) if have and e.get("e_magnitude_v_m") is not None else "—"),
-            _mcard("ev-base-top", 'Label' if provisional else 'Label', f"{e['baseline_v_m']:.3f}" if provisional and have else "—"),
-            _mcard("ev-delta-top", 'Label' if provisional else 'Label', f"{abs(e.get('e_magnitude_v_m') or 0):.3f}" if provisional and have else "—"),
+            _mcard("ev-level", "X (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))) if have and e.get("ex_vu") is not None else "—"),
+            _mcard("ev-index", "Y (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))) if have and e.get("ey_vu") is not None else "—", CYAN),
+            _mcard("ev-rms", "Z (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))) if have and e.get("ez_vu") is not None else "—"),
+            _mcard("ev-gain", 'Label', (("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu"))) if have and e.get("e_magnitude_vu") is not None else "—"),
+            _mcard("ev-base-top", 'Label' if provisional else 'Label', f"{e['baseline_vu']:.3f}" if provisional and have else "—"),
+            _mcard("ev-delta-top", 'Label' if provisional else 'Label', f"{abs(e.get('e_magnitude_vu') or 0):.3f}" if provisional and have else "—"),
         ], className="metric-row", style={"marginBottom":"14px"}),
-        _emi_listen_card("electric"),
+        _sg_listen_card("ch2"),
         # ── Environmental Intelligence: re-learn the baseline on command ──
         html.Div([
-            html.Button(['BUTTON'], id="ef-recal-btn", className="open-btn",
+            html.Button(['BUTTON'], id="c2-recal-btn", className="open-btn",
                         n_clicks=0, style={"width":"auto","marginTop":"0","whiteSpace":"nowrap"}),
             html.Span('Paragraph. Enter your text here.',
-                      id="ef-recal-status", style={"fontFamily":FONT,"fontSize":"11px","color":SUBTEXT,"lineHeight":"1.5"}),
+                      id="c2-recal-status", style={"fontFamily":FONT,"fontSize":"11px","color":SUBTEXT,"lineHeight":"1.5"}),
         ], style={"display":"flex","alignItems":"center","gap":"16px","marginBottom":"16px","flexWrap":"wrap"}),
-        html.Div(id="ef-warn"),   # clipping / overload banner
-        html.Div([html.Span(className="online-dot off", id="ef-dot"),
-                  html.Span('Subtext', id="ef-status", className="online-text c-sub")],
+        html.Div(id="c2-warn"),   # clipping / overload banner
+        html.Div([html.Span(className="online-dot off", id="c2-dot"),
+                  html.Span('Subtext', id="c2-status", className="online-text c-sub")],
                  className="online-bar"),
-        _zoom_bar("ef-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
-        _chart_board("efield", 'Label'),
+        _zoom_bar("c2-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
+        _chart_board("ch2f", 'Label'),
         html.Div('LABEL', className="section-label"),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("ef-line", 'Title',
+            _chart("c2-line", 'Title',
                    make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250, ylabel="unit  (= N/C)")),
-            _chart("ef-index-line", 'Title',
+            _chart("c2-index-line", 'Title',
                    make_line_chart(rel_hist, color=CYAN, fill_color="rgba(0,229,255,0.07)", height=250, ylabel="%")),
-            _chart("ef-gauge", 'Title', fig_ef_gauge(e["rel_index"] if have else None)),
-            _chart("ef-basebar", 'Title', fig_ef_basebar(e["baseline_v_m"], e["field_v_m"], e["peak_v_m"]) if have else fig_ef_basebar(None, None, None)),
+            _chart("c2-gauge", 'Title', fig_c2_gauge(e["rel_index"] if have else None)),
+            _chart("c2-basebar", 'Title', fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"]) if have else fig_c2_basebar(None, None, None)),
         ], className="chart-grid"),
-        html.Div([_chart("ef-bullet", 'Title', fig_ef_bullet(e["rel_index"] if have else None, e["level"]), h=140)],
+        html.Div([_chart("c2-bullet", 'Title', fig_c2_bullet(e["rel_index"] if have else None, e["level"]), h=140)],
                  style={"marginTop":"14px"}),
         html.Div('LABEL', className="section-label", style={"marginTop":"26px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("ef-b-correlation", 'Title',
-                   fig_ef_b_correlation(mag_hist, rel_hist), h=280),
-            _chart("ef-induction-proxy", 'Title',
-                   fig_ef_induction_proxy(mag_hist, rel_hist), h=280),
+            _chart("c2-b-correlation", 'Title',
+                   fig_c2_b_correlation(c1_hist, rel_hist), h=280),
+            _chart("c2-induction-proxy", 'Title',
+                   fig_c2_induction_proxy(c1_hist, rel_hist), h=280),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div('LABEL', className="section-label", style={"marginTop":"26px", "display":"none" if provisional else "block"}),
         html.Div([
@@ -589,13 +589,13 @@ def electric_body():
             html.Div([html.Div("—", id="ev-peak", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div("—", id="ev-util", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div("—", id="ev-minmax", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div(f"{EF_V_PER_M_PER_VOLT:,.3f}", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{C2_SCALE_PER_VOLT:,.3f}", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
         ], className="arch-stats", style={"display":"none" if provisional else "grid"}),
         html.Div([html.Div('LABEL', className="summary-tag"),
                   html.Div([_hi("State"), html.Span("  "), html.Span("—", id="ev-statustext")], className="summary-text")],
                  className="summary-panel", style={"display":"none" if provisional else "block"}),
         html.Div([html.Div('LABEL', className="summary-tag"),
-                  html.Div(['Text ', _hi(_efield_wiring_text()),
+                  html.Div(['Text ', _hi(_ch2f_wiring_text()),
                             'Paragraph. Enter your text here. ',
                             'Text ', _hi("AC RMS"),
                             ' Text ',
@@ -606,32 +606,32 @@ def electric_body():
                             'Text ', _hi("reference-scaled estimate"),
                             'Paragraph. Enter your text here.'], className="summary-text")],
                  className="summary-panel"),
-        html.Div(id="ef-error"),
-    ] + electric_triaxial_blocks() + ([
+        html.Div(id="c2-error"),
+    ] + ch2_triaxial_blocks() + ([
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div([html.Div(f"{e.get('baseline_v_m', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{e.get('baseline_vu', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div(f"{e.get('sample_rate', 0):.1f}" if have else "—", id="ev-bottom-rate", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div(f"{e['min_code']} / {e['max_code']}" if have else "—", id="ev-bottom-minmax", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div('TEXT', className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
         ], className="arch-stats"),
     ] if provisional else []) + [
-        # Offset from the magnetic intervals so combined view spreads the load.
-        dcc.Interval(id="ef-num-int", interval=2500, n_intervals=0),
-        dcc.Interval(id="ef-chart-int", interval=3000, n_intervals=0),
+        # Offset from the ch1 intervals so combined view spreads the load.
+        dcc.Interval(id="c2-num-int", interval=2500, n_intervals=0),
+        dcc.Interval(id="c2-chart-int", interval=3000, n_intervals=0),
     ]
 
 
-def electric_view():
-    with efield_lock:
-        provisional = efield_data.get("data_source") == "ARDUINO_UNO_USB"
+def ch2_view():
+    with ch2f_lock:
+        provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
     if provisional:
-        return html.Div(electric_body() + [html.Div([
+        return html.Div(ch2_body() + [html.Div([
             html.Div('LABEL', className="section-label"),
             html.Div('Subtext',
                      className="validation-subcopy"),
         ], className="summary-panel", style={"marginTop":"24px"})])
-    return html.Div(electric_body() + [d4_electric_blocks()])
+    return html.Div(ch2_body() + [d4_ch2_blocks()])
 
 
 def combined_view():
@@ -640,7 +640,7 @@ def combined_view():
     return base
 
 
-def _em_composite_xyz(magnetic_xyz, electric_xyz, limit=200):
+def _p1_composite_xyz(ch1_xyz, ch2_xyz, limit=200):
     """Equal-weight, dimensionless E+B geometry for visualization only.
 
     unit and ADC counts cannot be added.  Each recent vector series is therefore
@@ -648,91 +648,91 @@ def _em_composite_xyz(magnetic_xyz, electric_xyz, limit=200):
     components are averaged.  The result shows coincident movement and shape;
     it is not a new physical field unit or a calibrated EM vector.
     """
-    count = min(len(magnetic_xyz), len(electric_xyz), limit)
+    count = min(len(ch1_xyz), len(ch2_xyz), limit)
     if count < 2:
         return []
-    mag = list(magnetic_xyz)[-count:]
-    elec = list(electric_xyz)[-count:]
-    mag_scale = max((math.sqrt(sum(float(v) ** 2 for v in row[:3])) for row in mag), default=1.0) or 1.0
-    elec_scale = max((math.sqrt(sum(float(v) ** 2 for v in row[:3])) for row in elec), default=1.0) or 1.0
-    return [tuple((float(m[i]) / mag_scale + float(e[i]) / elec_scale) * 0.5 for i in range(3))
-            for m, e in zip(mag, elec)]
+    c1 = list(ch1_xyz)[-count:]
+    c2x = list(ch2_xyz)[-count:]
+    c1_scale = max((math.sqrt(sum(float(v) ** 2 for v in row[:3])) for row in c1), default=1.0) or 1.0
+    c2x_scale = max((math.sqrt(sum(float(v) ** 2 for v in row[:3])) for row in c2x), default=1.0) or 1.0
+    return [tuple((float(m[i]) / c1_scale + float(e[i]) / c2x_scale) * 0.5 for i in range(3))
+            for m, e in zip(c1, c2x)]
 
 
 def _combined_view_base():
-    with mag_lock:
-        mag_hist = list(magnetic_data["history"])
-        mag_xyz = list(magnetic_data["xyz_history"])
-    with efield_lock:
-        ef_hist = list(efield_data["history"])
-        ef_rel = list(efield_data["rel_history"])
-        exyz = list(efield_data.get("exyz_history") or [])
-        provisional = efield_data.get("data_source") == "ARDUINO_UNO_USB"
-    em_xyz = _em_composite_xyz(mag_xyz, exyz)
-    em_mag = [math.sqrt(x*x + y*y + z*z) for x, y, z in em_xyz]
+    with c1_lock:
+        c1_hist = list(ch1_data["history"])
+        c1_xyz = list(ch1_data["xyz_history"])
+    with ch2f_lock:
+        c2_hist = list(ch2f_data["history"])
+        c2_rel = list(ch2f_data["rel_history"])
+        exyz = list(ch2f_data.get("exyz_history") or [])
+        provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
+    p1_xyz = _p1_composite_xyz(c1_xyz, exyz)
+    p1_c1 = [math.sqrt(x*x + y*y + z*z) for x, y, z in p1_xyz]
     return html.Div([
         html.Div('LABEL', className="section-label"),
         html.Div(
             'Subtext',
             className="validation-subcopy",
         ),
-        _emi_listen_card("em"),
-        _zoom_bar("em-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
+        _sg_listen_card("p1"),
+        _zoom_bar("p1-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
         html.Div([
-            _chart("em-overlay", 'Title',
-                   fig_em_overlay(mag_hist, ef_hist), h=320),
+            _chart("p1-overlay", 'Title',
+                   fig_p1_overlay(c1_hist, c2_hist), h=320),
         ], className="chart-grid chart-grid-primary", style={"marginTop":"14px"}),
         html.Div([
-            _chart("em-normalized-overlay", 'Title',
-                   fig_em_normalized_overlay(mag_hist, ef_rel), h=300),
-            _chart("em-coupling", 'Title',
-                   fig_ef_induction_proxy(mag_hist, ef_rel), h=300),
+            _chart("p1-normalized-overlay", 'Title',
+                   fig_p1_normalized_overlay(c1_hist, c2_rel), h=300),
+            _chart("p1-coupling", 'Title',
+                   fig_c2_induction_proxy(c1_hist, c2_rel), h=300),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("em3-line", 'Title', make_line_chart(em_mag, color=CYAN, height=250, ylabel="normalized")),
-            _chart("em3-axis", 'Title', fig_axis(em_xyz, unit="normalized")),
-            _chart("em3-scatter", 'Title', fig_2d_scatter(em_xyz, unit="normalized"), h=280),
-            _chart("em3-delta", 'Title', fig_2d_delta(em_xyz, unit="normalized"), h=280),
-            _chart("em3-gauge", 'Title', fig_gauge(em_mag[-1] if em_mag else None, unit="normalized")),
-            _chart("em3-pie", 'Title', fig_pie(*(em_xyz[-1] if em_xyz else (None,None,None)))),
-            _chart("em3-bar", 'Title', fig_bar(*_e3_stats(em_mag), unit="normalized", quantity="E+B composite magnitude")),
+            _chart("em3-line", 'Title', make_line_chart(p1_c1, color=CYAN, height=250, ylabel="normalized")),
+            _chart("em3-axis", 'Title', fig_axis(p1_xyz, unit="normalized")),
+            _chart("em3-scatter", 'Title', fig_2d_scatter(p1_xyz, unit="normalized"), h=280),
+            _chart("em3-delta", 'Title', fig_2d_delta(p1_xyz, unit="normalized"), h=280),
+            _chart("em3-gauge", 'Title', fig_gauge(p1_c1[-1] if p1_c1 else None, unit="normalized")),
+            _chart("em3-pie", 'Title', fig_pie(*(p1_xyz[-1] if p1_xyz else (None,None,None)))),
+            _chart("em3-bar", 'Title', fig_bar(*_e3_stats(p1_c1), unit="normalized", quantity="E+B composite magnitude")),
         ], className="chart-grid"),
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            _chart("em3-vector-overlay", 'Title', fig_em_vector_overlay_3d(mag_xyz, exyz), cfg=CFG_3D, h=470),
-            _chart("em3-cross-proxy", 'Title', fig_em_cross_proxy_3d(mag_xyz, exyz), cfg=CFG_3D, h=470),
-            _chart("em3-surface", 'Title', fig_3d_surface(em_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
-            _chart("em3-terrain", 'Title', fig_3d_terrain(em_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
-            _chart("em3-plane", 'Title', fig_3d_error_plane(em_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em3-dipole", 'Title', fig_3d_dipole_field(em_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("em3-vector-overlay", 'Title', fig_p1_vector_overlay_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
+            _chart("em3-cross-proxy", 'Title', fig_p1_cross_proxy_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
+            _chart("em3-surface", 'Title', fig_3d_surface(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
+            _chart("em3-terrain", 'Title', fig_3d_terrain(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
+            _chart("em3-plane", 'Title', fig_3d_error_plane(p1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("em3-twopole", 'Title', fig_3d_dipolch2f(p1_xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"10px"}),
         html.Div([
-            _chart("em-correlation", 'Title',
-                   fig_ef_b_correlation(mag_hist, ef_rel), h=300),
+            _chart("p1-correlation", 'Title',
+                   fig_c2_b_correlation(c1_hist, c2_rel), h=300),
         ], className="chart-grid chart-grid-primary", style={"marginTop":"14px"}),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div(['Subtext ', _hi("how they move together"),
                   'Subtext'],
                  className="validation-subcopy", style={"marginTop":"-4px"}),
-        _graph_block("em-traj3d", fig_em_trajectory_3d(mag_hist, ef_rel), 440, CFG_3D),
+        _graph_block("p1-traj3d", fig_p1_trajectory_3d(c1_hist, c2_rel), 440, CFG_3D),
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div('Subtext '
                  + ('Subtext'
                     if provisional else 'Subtext'),
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("em-b-plane", 'Title', fig_3d_error_plane(mag_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em-e-plane", 'Title', fig_3d_error_plane(exyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em-b-dipole", 'Title', fig_3d_dipole_field(mag_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em-e-dipole", 'Title', fig_3d_dipole_field(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-b-plane", 'Title', fig_3d_error_plane(c1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-plane", 'Title', fig_3d_error_plane(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-b-twopole", 'Title', fig_3d_dipolch2f(c1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-twopole", 'Title', fig_3d_dipolch2f(exyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
-        dcc.Interval(id="em-overlay-int", interval=3600, n_intervals=0),
+        dcc.Interval(id="p1-overlay-int", interval=3600, n_intervals=0),
         html.Div([
             html.Div('LABEL', className="summary-tag"),
             html.Div(
@@ -743,10 +743,10 @@ def _combined_view_base():
     ])
 
 
-def em_page():
-    airlock = html.Div(className="iv-scrub-hero", **{"data-iv-scrub": "em-vector",
-                                                    "data-iv-title": 'Title',
-                                                    "data-iv-tagline": 'Paragraph. Enter your text here.'})
+def p1_page():
+    airlock = html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "p1-vector",
+                                                    "data-i3-title": 'Title',
+                                                    "data-i3-tagline": 'Paragraph. Enter your text here.'})
     return html.Div([
         airlock,
         dcc.Link(html.Button("BACK", className="back-btn"), href="/", style={"textDecoration":"none"}),
@@ -754,19 +754,19 @@ def em_page():
             'Subtext'),
         html.Hr(className="divider"),
         html.Div([
-            html.Button("CHANNEL 1", id="em-tab-mag", className="tab-btn active", n_clicks=0),
-            html.Button("CHANNEL 2", id="em-tab-elec", className="tab-btn", n_clicks=0),
-            html.Button('BUTTON', id="em-tab-both", className="tab-btn", n_clicks=0),
-        ], className="tab-bar em-mode-tabs"),
-        html.Div(id="em-subcontent", children=magnetic_view()),
+            html.Button("CHANNEL 1", id="p1-tab-c1", className="tab-btn active", n_clicks=0),
+            html.Button("CHANNEL 2", id="p1-tab-c2x", className="tab-btn", n_clicks=0),
+            html.Button('BUTTON', id="p1-tab-both", className="tab-btn", n_clicks=0),
+        ], className="tab-bar p1-mode-tabs"),
+        html.Div(id="p1-subcontent", children=ch1_view()),
     ], style=PAD)
 
 
 # ════════════════════════════════════════════════════════
-#  SPECTRUM  (tinySA Ultra — live)
+#  SWEEP3  (src3 Ultra — live)
 # ════════════════════════════════════════════════════════
-def _rf_dev_strip():
-    with spectrum_lock: s = dict(spectrum_data)
+def _ch3_dev_strip():
+    with sweep3_lock: s = dict(sweep3_data)
     cells = [
         ("DEVICE",       s["device"]),
         ("INFO",         s["device_info"]),
@@ -777,22 +777,22 @@ def _rf_dev_strip():
         ("TRUST", "TRUSTED" if s["trusted"] else "UNTRUSTED / NO SWEEP"),
         ("SWEEPS",       str(s["sweeps"])),
     ]
-    return [html.Div([html.Div(k, className="rf-dev-key"), html.Div(v, className="rf-dev-val")],
-                     className="rf-dev-cell") for k, v in cells]
+    return [html.Div([html.Div(k, className="ch3-dev-key"), html.Div(v, className="ch3-dev-val")],
+                     className="ch3-dev-cell") for k, v in cells]
 
 
-def rf_sweep_body():
-    with spectrum_lock:
-        s = dict(spectrum_data)
+def ch3_sweep_body():
+    with sweep3_lock:
+        s = dict(sweep3_data)
         wf_rows, wf_times = _waterfall_rows(
-            list(spectrum_data["waterfall"]),
-            list(spectrum_data["waterfall_times"]),
-            list(spectrum_data["freqs"]),
+            list(sweep3_data["waterfall"]),
+            list(sweep3_data["waterfall_times"]),
+            list(sweep3_data["freqs"]),
         )
     return [
-        html.Div([html.Button('BUTTON', id="rf-sweep-now", className="rf-btn rf-on", n_clicks=0),
-                  html.Span("", id="rf-sweep-top-note", className="validation-subcopy")],
-                 className="spectrum-sweep-action"),
+        html.Div([html.Button('BUTTON', id="ch3-sweep-now", className="ch3-btn ch3-on", n_clicks=0),
+                  html.Span("", id="ch3-sweep-top-note", className="validation-subcopy")],
+                 className="sweep3-sweep-action"),
         # ── orientation panel: this instrument is unreadable without it ──
         html.Div([html.Div('LABEL', className="summary-tag"),
                   html.Div(['Paragraph. Enter your text here. ',
@@ -802,9 +802,9 @@ def rf_sweep_body():
                             'Text ',
                             _hi("continuous range"), ' Text ',
                             _hi("as many samples across it as you ask for"),
-                            f". At full span with {TSA_DEFAULT_PTS} points, each bin is very wide. "
+                            f". At full span with {S3_DEFAULT_PTS} points, each bin is very wide. "
                             "This is a coarse wideband survey: narrow or short-duration signals may be "
-                            "missed. Narrowing the span improves bin width, but a spectrum peak still "
+                            "missed. Narrowing the span improves bin width, but a sweep3 peak still "
                             "does not identify a protocol, device or transmitter."],
                            className="summary-text")],
                  className="summary-panel", style={"marginTop":"0"}),
@@ -814,69 +814,69 @@ def rf_sweep_body():
         _dbm_scale(),
 
         html.Div("DEVICE", className="section-label", style={"marginTop":"26px"}),
-        html.Div(_rf_dev_strip(), id="rf-dev-strip", className="rf-dev-strip"),
+        html.Div(_ch3_dev_strip(), id="ch3-dev-strip", className="ch3-dev-strip"),
 
         html.Div([
-            _mcard("rf-peak-f",  'LABEL', "—", AMBER),
-            _mcard("rf-peak-l",  'LABEL',     "—", CYAN),
-            _mcard("rf-floor",   'Label',    "—"),
-            _mcard("rf-span",    'LABEL',           _span_label(s["span_start"], s["span_stop"])),
-            _mcard("rf-res",     'LABEL',     "—"),
-            _mcard("rf-sweep",   'LABEL',     "—"),
+            _mcard("ch3-peak-f",  'LABEL', "—", AMBER),
+            _mcard("ch3-peak-l",  'LABEL',     "—", CYAN),
+            _mcard("ch3-floor",   'Label',    "—"),
+            _mcard("ch3-span",    'LABEL',           _span_label(s["span_start"], s["span_stop"])),
+            _mcard("ch3-res",     'LABEL',     "—"),
+            _mcard("ch3-sweep",   'LABEL',     "—"),
         ], className="metric-row", style={"marginBottom":"18px"}),
 
         # ── controls ──
         html.Div([
-            html.Div([html.Div('Label', className="rf-ctl-label"),
-                      html.Div([html.Button(lbl, id=f"rf-preset-{key}", className="rf-btn", n_clicks=0)
-                                for key, lbl, _a, _b in TSA_PRESETS], className="rf-ctl-row")],
-                     className="rf-ctl-group"),
-            html.Div([html.Div('Label', className="rf-ctl-label"),
-                      html.Div([html.Button("101", id="rf-pts-101", className="rf-btn", n_clicks=0),
-                                html.Button("251", id="rf-pts-251", className="rf-btn rf-on", n_clicks=0),
-                                html.Button("290", id="rf-pts-290", className="rf-btn", n_clicks=0)],
-                               className="rf-ctl-row")], className="rf-ctl-group"),
-            html.Div([html.Div('Label', className="rf-ctl-label"),
-                      html.Div([html.Button('BUTTON', id="rf-ax-lin", className="rf-btn rf-on", n_clicks=0),
-                                html.Button("LOG", id="rf-ax-log", className="rf-btn", n_clicks=0)],
-                               className="rf-ctl-row")], className="rf-ctl-group"),
-            html.Div([html.Div('Label', className="rf-ctl-label"),
-                      html.Div([html.Button("ON", id="rf-band-on", className="rf-btn rf-on", n_clicks=0),
-                                html.Button("OFF", id="rf-band-off", className="rf-btn", n_clicks=0)],
-                               className="rf-ctl-row")], className="rf-ctl-group"),
-            html.Div([html.Div('Label', className="rf-ctl-label"),
+            html.Div([html.Div('Label', className="ch3-ctl-label"),
+                      html.Div([html.Button(lbl, id=f"ch3-preset-{key}", className="ch3-btn", n_clicks=0)
+                                for key, lbl, _a, _b in S3_PRESETS], className="ch3-ctl-row")],
+                     className="ch3-ctl-group"),
+            html.Div([html.Div('Label', className="ch3-ctl-label"),
+                      html.Div([html.Button("101", id="ch3-pts-101", className="ch3-btn", n_clicks=0),
+                                html.Button("251", id="ch3-pts-251", className="ch3-btn ch3-on", n_clicks=0),
+                                html.Button("290", id="ch3-pts-290", className="ch3-btn", n_clicks=0)],
+                               className="ch3-ctl-row")], className="ch3-ctl-group"),
+            html.Div([html.Div('Label', className="ch3-ctl-label"),
+                      html.Div([html.Button('BUTTON', id="ch3-ax-lin", className="ch3-btn ch3-on", n_clicks=0),
+                                html.Button("LOG", id="ch3-ax-log", className="ch3-btn", n_clicks=0)],
+                               className="ch3-ctl-row")], className="ch3-ctl-group"),
+            html.Div([html.Div('Label', className="ch3-ctl-label"),
+                      html.Div([html.Button("ON", id="ch3-band-on", className="ch3-btn ch3-on", n_clicks=0),
+                                html.Button("OFF", id="ch3-band-off", className="ch3-btn", n_clicks=0)],
+                               className="ch3-ctl-row")], className="ch3-ctl-group"),
+            html.Div([html.Div('Label', className="ch3-ctl-label"),
                       html.Div([
-                          html.Button('BUTTON', id="rf-hold-reset", className="rf-btn", n_clicks=0),
-                          html.Button('BUTTON', id="rf-pause", className="rf-btn", n_clicks=0),
-                      ], className="rf-ctl-row")], className="rf-ctl-group"),
-        ], className="rf-ctl-bar"),
+                          html.Button('BUTTON', id="ch3-hold-reset", className="ch3-btn", n_clicks=0),
+                          html.Button('BUTTON', id="ch3-pause", className="ch3-btn", n_clicks=0),
+                      ], className="ch3-ctl-row")], className="ch3-ctl-group"),
+        ], className="ch3-ctl-bar"),
         html.Div([
-            html.Div('Label', className="rf-ctl-label"),
+            html.Div('Label', className="ch3-ctl-label"),
             html.Div([
-                dcc.Input(id="rf-custom-start", type="number", min=0, max=6000,
+                dcc.Input(id="ch3-custom-start", type="number", min=0, max=6000,
                           value=88, debounce=True, placeholder='Enter your text here'),
-                dcc.Input(id="rf-custom-stop", type="number", min=0, max=6000,
+                dcc.Input(id="ch3-custom-stop", type="number", min=0, max=6000,
                           value=108, debounce=True, placeholder='Enter your text here'),
-                html.Button('BUTTON', id="rf-custom-apply",
-                            className="rf-btn", n_clicks=0),
-                html.Span("", id="rf-custom-status", className="validation-subcopy"),
-            ], className="rf-ctl-row"),
-        ], className="rf-ctl-bar", style={"marginTop":"10px"}),
-        dcc.Store(id="rf-bands-mode", data=True),
-        dcc.Store(id="rf-axis-mode", data="lin"),
-        dcc.Store(id="rf-points-mode", data=TSA_DEFAULT_PTS),
-        dcc.Store(id="rf-preset-mode", data="full"),
+                html.Button('BUTTON', id="ch3-custom-apply",
+                            className="ch3-btn", n_clicks=0),
+                html.Span("", id="ch3-custom-status", className="validation-subcopy"),
+            ], className="ch3-ctl-row"),
+        ], className="ch3-ctl-bar", style={"marginTop":"10px"}),
+        dcc.Store(id="ch3-bands-mode", data=True),
+        dcc.Store(id="ch3-axis-mode", data="lin"),
+        dcc.Store(id="ch3-points-mode", data=S3_DEFAULT_PTS),
+        dcc.Store(id="ch3-preset-mode", data="full"),
 
-        html.Div(id="rf-warn"),
-        html.Div([html.Span(className="online-dot off", id="rf-dot"),
-                  html.Span('Subtext', id="rf-status", className="online-text c-sub")],
+        html.Div(id="ch3-warn"),
+        html.Div([html.Span(className="online-dot off", id="ch3-dot"),
+                  html.Span('Subtext', id="ch3-status", className="online-text c-sub")],
                  className="online-bar"),
 
         html.Div('LABEL', className="section-label"),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
-        _graph_block("rf-sweep-graph",
-                     fig_spectrum(s["freqs"], s["levels"], s["maxhold"],
+        _graph_block("ch3-sweep-graph",
+                     fig_sweep3(s["freqs"], s["levels"], s["maxhold"],
                                   s["peaks"], s["floor"], False, 380, True), 380),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
@@ -884,31 +884,31 @@ def rf_sweep_body():
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
             html.Div([html.Div("#"), html.Div('TEXT'), html.Div('TEXT'),
-                      html.Div('TEXT'), html.Div('TEXT')], className="rf-peak-head"),
-            html.Div(_peak_rows(s["peaks"], s["floor"]), id="rf-peak-body"),
-        ], className="rf-peak-table"),
+                      html.Div('TEXT'), html.Div('TEXT')], className="ch3-peak-head"),
+            html.Div(_peak_rows(s["peaks"], s["floor"]), id="ch3-peak-body"),
+        ], className="ch3-peak-table"),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
-        html.Div(emi_rows(s), id="rf-emi-body", className="rf-emi-list"),
+        html.Div(sg_rows(s), id="ch3-sg-body", className="ch3-sg-list"),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div(f"The last {TSA_WATERFALL_ROWS} sweeps stacked over time — a signal that comes and goes shows as a broken vertical stripe.",
+        html.Div(f"The last {S3_WATERFALL_ROWS} sweeps stacked over time — a signal that comes and goes shows as a broken vertical stripe.",
                  className="validation-subcopy", style={"marginTop":"-4px"}),
-        _graph_block("rf-waterfall-graph",
+        _graph_block("ch3-waterfall-graph",
                      fig_waterfall(wf_rows, s["freqs"], wf_times, 320), 320),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div('Subtext',
                  className="validation-subcopy", style={"marginTop":"-4px"}),
-        _graph_block("rf-terrain-graph",
-                     fig_rf_terrain(wf_rows, s["freqs"], wf_times, 460), 460, CFG_3D),
+        _graph_block("ch3-terrain-graph",
+                     fig_ch3_terrain(wf_rows, s["freqs"], wf_times, 460), 460, CFG_3D),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            _chart("rf-bands-graph", 'Title', fig_rf_bands(s["peaks"])),
-            _chart("rf-trend-graph", 'Title', fig_rf_trend(s["peak_history"])),
+            _chart("ch3-bands-graph", 'Title', fig_ch3_bands(s["peaks"])),
+            _chart("ch3-trend-graph", 'Title', fig_ch3_trend(s["peak_history"])),
         ], className="chart-grid"),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
@@ -916,17 +916,17 @@ def rf_sweep_body():
             html.Div('Subtext',
                      className="validation-subcopy"),
             html.Div([
-                html.Div([html.Div("0", id="rf-arch-count", className="arch-stat-val"),
+                html.Div([html.Div("0", id="ch3-arch-count", className="arch-stat-val"),
                           html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="rf-arch-min", className="arch-stat-val"),
+                html.Div([html.Div("—", id="ch3-arch-min", className="arch-stat-val"),
                           html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="rf-arch-avg", className="arch-stat-val"),
+                html.Div([html.Div("—", id="ch3-arch-avg", className="arch-stat-val"),
                           html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="rf-arch-max", className="arch-stat-val"),
+                html.Div([html.Div("—", id="ch3-arch-max", className="arch-stat-val"),
                           html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="rf-arch-str", className="arch-stat-val"),
+                html.Div([html.Div("—", id="ch3-arch-str", className="arch-stat-val"),
                           html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            ], id="rf-arch-stats", className="arch-stats"),
+            ], id="ch3-arch-stats", className="arch-stats"),
         ], className="arch-shell"),
 
         html.Div([html.Div('LABEL', className="summary-tag"),
@@ -941,36 +941,36 @@ def rf_sweep_body():
                   html.Div(['Paragraph. Enter your text here. ',
                             _hi('-40 to -70 unit'), ". If the whole sweep reads near ", _hi('+20 unit'),
                             'Text ', _hi("untrusted"), ". The software does not infer a physical cause; "
-                            "the parser, units, analyser state and RF setup require verification. MTDI lowers spectrum health and the device strip shows the queried level-offset state. ",
+                            "the parser, units, analyser state and CH3 setup require verification. MTDI lowers sweep3 health and the device strip shows the queried level-offset state. ",
                             'Paragraph. Enter your text here.'],
                            className="summary-text")],
                  className="summary-panel"),
-        html.Div(id="rf-error"),
+        html.Div(id="ch3-error"),
 
         # Staggered: the sweep itself takes seconds, so polling faster only wastes CPU.
-        dcc.Interval(id="rf-num-int",   interval=1000, n_intervals=0),
-        dcc.Interval(id="rf-chart-int", interval=2500, n_intervals=0),
-        dcc.Interval(id="rf-wf-int",    interval=4300, n_intervals=0),
+        dcc.Interval(id="ch3-num-int",   interval=1000, n_intervals=0),
+        dcc.Interval(id="ch3-chart-int", interval=2500, n_intervals=0),
+        dcc.Interval(id="ch3-wf-int",    interval=4300, n_intervals=0),
     ]
 
 
-def rf_sweep_view():
-    return html.Div(rf_sweep_body() + [d4_spectrum_blocks()])
+def ch3_sweep_view():
+    return html.Div(ch3_sweep_body() + [d4_sweep3_blocks()])
 
 
 def sdr_view():
     """RTL-SDR panel: live slice, waterfall, carriers and an on-demand stitched sweep.
 
-    Deliberately separate from the tinySA view. The tinySA answers "what is present
+    Deliberately separate from the src3 view. The src3 answers "what is present
     across a very wide span"; the dongle answers "what exactly is happening inside
     two megahertz, right now". Levels here are dBFS and are never presented as unit.
     """
     snap = sdr_snapshot(include_trace=False)
     presets = snap.get("presets") or []
     return html.Div([
-        html.Div([html.Button('BUTTON', id="sdr-sweep-now", className="rf-btn rf-on", n_clicks=0),
+        html.Div([html.Button('BUTTON', id="sdr-sweep-now", className="ch3-btn ch3-on", n_clicks=0),
                   html.Span("", id="sdr-sweep-top-note", className="validation-subcopy")],
-                 className="spectrum-sweep-action"),
+                 className="sweep3-sweep-action"),
         html.Div([html.Div('LABEL', className="summary-tag"),
                   html.Div(['Text ',
                             _hi("raw complex samples"), ' Paragraph. Enter your text here. ',
@@ -995,14 +995,14 @@ def sdr_view():
         html.Div([
             dcc.Input(id="sdr-centre-in", type="number", debounce=True, placeholder='Enter your text here',
                       min=24, max=1700, step=0.001, style={"width":"150px"}),
-            html.Button('BUTTON', id="sdr-tune", className="rf-btn", n_clicks=0),
+            html.Button('BUTTON', id="sdr-tune", className="ch3-btn", n_clicks=0),
             html.Span('SUBTEXT', className="validation-subcopy", style={"margin":"0 4px 0 12px"}),
             dcc.Dropdown(id="sdr-gain", options=[{"label":"auto","value":"auto"}],
                          value="auto", clearable=False,
                          style={"width":"130px","display":"inline-block","verticalAlign":"middle"}),
-        ], className="rf-ctl-row", style={"marginTop":"8px"}),
-        html.Div([html.Button(name, id={"type":"sdr-preset","band":name}, className="rf-btn", n_clicks=0)
-                  for name, _a, _b in SDR_PRESETS], className="rf-ctl-row", style={"marginTop":"8px"}),
+        ], className="ch3-ctl-row", style={"marginTop":"8px"}),
+        html.Div([html.Button(name, id={"type":"sdr-preset","band":name}, className="ch3-btn", n_clicks=0)
+                  for name, _a, _b in SDR_PRESETS], className="ch3-ctl-row", style={"marginTop":"8px"}),
 
         _chart("sdr-live", 'Title', go.Figure(), h=300),
         _chart("sdr-fall", 'TITLE', go.Figure(), h=300),
@@ -1026,11 +1026,11 @@ def sdr_view():
                       min=24, max=1700, step=0.1, style={"width":"130px"}),
             dcc.Input(id="sdr-sweep-b", type="number", placeholder='Enter your text here', value=108,
                       min=24, max=1700, step=0.1, style={"width":"130px"}),
-            html.Button('BUTTON', id="sdr-sweep-go", className="rf-btn", n_clicks=0),
-            html.Button('BUTTON', id="sdr-sweep-stop", className="rf-btn", n_clicks=0),
+            html.Button('BUTTON', id="sdr-sweep-go", className="ch3-btn", n_clicks=0),
+            html.Button('BUTTON', id="sdr-sweep-stop", className="ch3-btn", n_clicks=0),
             html.Span("", id="sdr-sweep-note", className="validation-subcopy",
                       style={"marginLeft":"10px"}),
-        ], className="rf-ctl-row", style={"marginTop":"8px"}),
+        ], className="ch3-ctl-row", style={"marginTop":"8px"}),
         _chart("sdr-sweep", 'Title', go.Figure(), h=320),
 
         html.Div('LABEL', className="section-label"),
@@ -1051,15 +1051,15 @@ def wifi_view():
     with wifi_lock: w = dict(wifi_data)
     with lan_lock:  l = dict(lan_data)
     return html.Div([
-        html.Div([html.Button('BUTTON', id="wf-sweep-now", className="rf-btn rf-on", n_clicks=0),
+        html.Div([html.Button('BUTTON', id="wf-sweep-now", className="ch3-btn ch3-on", n_clicks=0),
                   html.Span("", id="wf-sweep-note", className="validation-subcopy")],
-                 className="spectrum-sweep-action"),
+                 className="sweep3-sweep-action"),
         html.Div([html.Div('LABEL', className="summary-tag"),
                   html.Div(['Paragraph. Enter your text here. ',
                             _hi(w["scan_mode"]), ". NetworkManager returns access-point records; "
                             "when active discovery is enabled the OS scan is requested but the "
                             "driver's active/passive behaviour is not claimed. No AP IP addresses "
-                            "are inferred and no TinySA peak is assigned to an SSID."],
+                            "are inferred and no Src3 peak is assigned to an SSID."],
                            className="summary-text")],
                  className="summary-panel", style={"marginTop":"0"}),
 
@@ -1121,15 +1121,15 @@ def wifi_view():
 def bluetooth_view():
     with bt_lock: b = dict(bt_data)
     return html.Div([
-        html.Div([html.Button('BUTTON', id="bt-sweep-now", className="rf-btn rf-on", n_clicks=0),
+        html.Div([html.Button('BUTTON', id="bt-sweep-now", className="ch3-btn ch3-on", n_clicks=0),
                   html.Span("", id="bt-sweep-note", className="validation-subcopy")],
-                 className="spectrum-sweep-action"),
+                 className="sweep3-sweep-action"),
         html.Div([html.Div('LABEL', className="summary-tag"),
                   html.Div(['Paragraph. Enter your text here. ',
                             _hi(b["scan_mode"]), ". Discovery does not pair or connect, but it is an "
                             "active OS radio operation unless explicitly reported otherwise. Names, "
                             "vendors and rotating addresses are best-effort and do not establish exact "
-                            "identity or distance. No TinySA peak is assigned to a device."],
+                            "identity or distance. No Src3 peak is assigned to a device."],
                            className="summary-text")],
                  className="summary-panel", style={"marginTop":"0"}),
 
@@ -1173,7 +1173,7 @@ def bluetooth_view():
     ])
 
 
-def spectrum_page():
+def sweep3_page():
     from .ui import parallax_header
     return html.Div([
         html.Div(parallax_header(html, 'Title'), className="parallax__pin"),
@@ -1188,8 +1188,8 @@ def spectrum_page():
                 html.Button('BUTTON',      id="sp-tab-wifi", className="tab-btn", n_clicks=0),
                 html.Button('BUTTON', id="sp-tab-bt",   className="tab-btn", n_clicks=0),
             ], className="tab-bar"),
-            html.Div(id="sp-subcontent", children=rf_sweep_view()),
-        ], className="iv-page-body", style={**PAD, "margin": "-60vh auto 0"}),
+            html.Div(id="sp-subcontent", children=ch3_sweep_view()),
+        ], className="i3-page-body", style={**PAD, "margin": "-60vh auto 0"}),
     ], className="mtdi-page-shell")
 
 
@@ -1238,9 +1238,9 @@ D4_BLOCK_META = {
     "consensus": ('TEXT', 'Paragraph. Enter your text here.'),
     "confidence": ('TEXT', 'Paragraph. Enter your text here.'),
     "power": ('Text', 'Paragraph. Enter your text here.'),
-    "power_magnetic": ('Text', 'Paragraph. Enter your text here.'),
+    "power_ch1": ('Text', 'Paragraph. Enter your text here.'),
     "power_network": ('TEXT', 'Paragraph. Enter your text here.'),
-    "rf": ('TEXT', 'Paragraph. Enter your text here.'),
+    "ch3": ('TEXT', 'Paragraph. Enter your text here.'),
     "calibration": ('TEXT', 'Paragraph. Enter your text here.'),
     "calhealth": ('TEXT', 'Paragraph. Enter your text here.'),
     "transients": ('TEXT', 'Paragraph. Enter your text here.'),
@@ -1271,7 +1271,7 @@ def d4_block(kind, where, graph=None):
 
 
 def d4_button(action, where, label, title=None):
-    return html.Button(label, id={"type": "d4btn", "action": action, "where": where}, className="rf-btn", n_clicks=0, title=title)
+    return html.Button(label, id={"type": "d4btn", "action": action, "where": where}, className="ch3-btn", n_clicks=0, title=title)
 
 
 def d4_input(field, where, placeholder, width="150px", value=None):
@@ -1287,7 +1287,7 @@ def d4_status(where, card="config"):
 def d4_controls(where, *items):
     first = getattr(items[0], "id", None) or {}
     card = first.get("action") or first.get("field") or "config"
-    return html.Div(list(items) + [d4_status(where, card)], className="rf-ctl-row", style={"marginTop": "8px"})
+    return html.Div(list(items) + [d4_status(where, card)], className="ch3-ctl-row", style={"marginTop": "8px"})
 
 
 def d4_calibration_card(where):
@@ -1350,15 +1350,15 @@ def d4_repeatability_card(where):
         html.Div(D4_BLOCK_META["repeat"][1], className="validation-subcopy"),
         html.Div([
             dcc.Dropdown(id={"type": "d4in", "field": "repeat_channel", "where": where},
-                         options=[{"label": 'Label', "value": "magnetic"},
-                                  {"label": 'Label', "value": "electric"}],
-                         value="magnetic", clearable=False, style={"width": "220px"}),
+                         options=[{"label": 'Label', "value": "ch1"},
+                                  {"label": 'Label', "value": "ch2"}],
+                         value="ch1", clearable=False, style={"width": "220px"}),
             d4_input("repeat_runs", where, 'Enter your text here', "120px"),
             d4_input("repeat_window", where, 'Enter your text here', "160px"),
             d4_button("repeat_start", where, 'LABEL',
                       'Title'),
             d4_status(where, "repeat_channel"),
-        ], className="rf-ctl-row"),
+        ], className="ch3-ctl-row"),
         html.Div('Text', id={"type": "d4", "block": "repeat", "where": where}, className="d4-block"),
         dcc.Graph(id={"type": "d4g", "block": "repeat", "where": where},
                   config={"displayModeBar": False}, style={"height": "300px"}),
@@ -1376,15 +1376,15 @@ def d4_validation_card(where):
             dcc.Dropdown(id={"type": "d4in", "field": "trial_actual", "where": where}, options=[{"label": 'Label', "value": "1"}, {"label": 'Label', "value": "0"}], value="1", clearable=False, style={"width": "170px"}),
             d4_button("trial_add", where, 'LABEL'), d4_button("trial_clear", where, 'LABEL', 'Title'),
             d4_status(where, "trial_add"),
-        ], className="rf-ctl-row"),
+        ], className="ch3-ctl-row"),
         html.Div('Text', id={"type": "d4", "block": "validation", "where": where}, className="d4-block"),
         dcc.Graph(id={"type": "d4g", "block": "validation", "where": where}, config={"displayModeBar": False}, style={"height": "220px"}),
         html.Div([
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/report.pdf", target="_blank"),
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/export?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/report.pdf", target="_blank"),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
             d4_status(where, "links"),
-        ], className="rf-ctl-row", style={"marginTop": "8px"}),
+        ], className="ch3-ctl-row", style={"marginTop": "8px"}),
     ], className="chart-card d4-card")
 
 
@@ -1394,19 +1394,19 @@ def d4_config_card(where):
         html.Div(D4_BLOCK_META["config"][1], className="validation-subcopy"),
         html.Div('Text', id={"type": "d4", "block": "config", "where": where}, className="d4-block"),
         html.Div([
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/export?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="rf-btn"), href="/api/d4/stream", target="_blank"),
-            dcc.Upload(html.Button('Button', className="rf-btn"), id={"type": "d4up", "where": where}, accept=".json", multiple=False),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
+            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/stream", target="_blank"),
+            dcc.Upload(html.Button('Button', className="ch3-btn"), id={"type": "d4up", "where": where}, accept=".json", multiple=False),
             d4_status(where),
-        ], className="rf-ctl-row", style={"marginTop": "8px"}),
+        ], className="ch3-ctl-row", style={"marginTop": "8px"}),
         html.Div([
             html.Div('Subtext', className="validation-subcopy"),
             d4_input("d3_detection", where, 'Enter your text here', "150px"), d4_input("d3_fp", where, 'Enter your text here', "150px"),
             d4_input("d3_cal", where, 'Enter your text here', "160px"), d4_input("d3_mtdi", where, 'Enter your text here', "150px"),
             d4_input("d3_time", where, 'Enter your text here', "140px"), d4_button("d3_save", where, 'LABEL'),
             d4_status(where, "d3_save"),
-        ], className="rf-ctl-row", style={"marginTop": "8px"}),
+        ], className="ch3-ctl-row", style={"marginTop": "8px"}),
     ], className="chart-card d4-card")
 
 
@@ -1414,9 +1414,9 @@ def d4_engine_section():
     """The D4 analysis engine: the score, its parts and the stores.
 
     Not an MTDI pillar. MTDI asks whether the instrument can be trusted; D4 asks what
-    the field is actually doing. It sits on the Sixth Sense page, with the rest of the
+    the field is actually doing. It sits on the Page 3 page, with the rest of the
     interpretation work. The individual analyses live on the pages they belong to
-    (EM Field tabs, Spectrum, Environmental Intelligence, Validation Chamber).
+    (EM Field tabs, Sweep3, Environmental Intelligence, Validation Chamber).
     """
     w = "core"
     return html.Div([
@@ -1435,17 +1435,17 @@ def d4_engine_section():
     ], className="d4-section")
 
 
-def d4_magnetic_blocks():
-    w = "mag"
+def d4_ch1_blocks():
+    w = "c1"
     return html.Div([
         html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_calibration_card(w)], className="d4-grid one"),
-        html.Div([d4_block("power_magnetic", w, graph="200px"), d4_block("calhealth", w)], className="d4-grid two"),
+        html.Div([d4_block("power_ch1", w, graph="200px"), d4_block("calhealth", w)], className="d4-grid two"),
         html.Div([d4_block("transients", w), d4_block("noise", w)], className="d4-grid two"),
     ], className="d4-section")
 
 
-def d4_electric_blocks():
+def d4_ch2_blocks():
     w = "ef"
     return html.Div([
         html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
@@ -1455,7 +1455,7 @@ def d4_electric_blocks():
 
 
 def d4_combined_blocks():
-    w = "em"
+    w = "p1"
     return html.Div([
         html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_block("exposure", w)], className="d4-grid one"),
@@ -1464,11 +1464,11 @@ def d4_combined_blocks():
     ], className="d4-section")
 
 
-def d4_spectrum_blocks():
-    w = "rf"
+def d4_sweep3_blocks():
+    w = "ch3"
     return html.Div([
         html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
-        html.Div([d4_block("rf", w), d4_block("trend", w)], className="d4-grid two"),
+        html.Div([d4_block("ch3", w), d4_block("trend", w)], className="d4-grid two"),
     ], className="d4-section")
 
 
@@ -1691,7 +1691,7 @@ def nvtra_machine_learning_panel():
         html.Div([
             html.B(row["label"]),
             html.Span(
-                f"{row['electric_v_m']:.0f} unit · {row['magnetic_ut']:.0f} unit · 1 cm"
+                f"{row['ch2_vu']:.0f} unit · {row['ch1_val']:.0f} unit · 1 cm"
             ),
         ], className="nvtra-ml-sample")
         for row in NVTRA_ML_REFERENCES
@@ -1740,7 +1740,7 @@ def _nvtra_engine_badge_text():
 def _nvtra_logo_src():
     """A logo.png dropped into assets/nvtra wins over the bundled SVG."""
     from pathlib import Path as _P
-    base = _P(__file__).resolve().parent / "assets" / "nvtra"
+    base = _P(__file__).resolve().parent.parent / "public" / "assets" / "nvtra"
     for name in ("logo.png", "logo.webp", "logo.svg"):
         if (base / name).exists():
             return "/assets/nvtra/" + name
@@ -1849,7 +1849,7 @@ def nvtra_identity_section():
     ], className="nvtra-intel-card")
 
 
-def emi_analysis_panel():
+def sg_analysis_panel():
     key, provider = _active_ai_credential()
     model = _active_ai_model()
     online = bool(key and provider)
@@ -1863,33 +1863,33 @@ def emi_analysis_panel():
                     className="mtdi-section-copy",
                 ),
             ]),
-            html.Div(engine, id="emi-engine", className="nvtra-badge nvtra-live" if online else "nvtra-badge"),
-        ], className="emi-analysis-head"),
-        html.Div(id="emi-live-state", className="emi-live-state"),
+            html.Div(engine, id="sg-engine", className="nvtra-badge nvtra-live" if online else "nvtra-badge"),
+        ], className="sg-analysis-head"),
+        html.Div(id="sg-live-state", className="sg-live-state"),
         html.Div([
-            html.Button('BUTTON', id="emi-analyse-btn", n_clicks=0,
-                        disabled=not online, className="open-btn emi-action"),
-            html.Button('BUTTON', id="emi-auto-btn", n_clicks=0,
-                        disabled=not online, className="back-btn emi-action"),
+            html.Button('BUTTON', id="sg-analyse-btn", n_clicks=0,
+                        disabled=not online, className="open-btn sg-action"),
+            html.Button('BUTTON', id="sg-auto-btn", n_clicks=0,
+                        disabled=not online, className="back-btn sg-action"),
             html.Span('Subtext' if not online else
                       'Subtext',
-                      id="emi-status", className="validation-subcopy"),
-        ], className="emi-controls"),
-        dcc.Store(id="emi-auto-state", data=False, storage_type="memory"),
-        dcc.Interval(id="emi-auto-interval", interval=45000, n_intervals=0, disabled=True),
+                      id="sg-status", className="validation-subcopy"),
+        ], className="sg-controls"),
+        dcc.Store(id="sg-auto-state", data=False, storage_type="memory"),
+        dcc.Interval(id="sg-auto-interval", interval=45000, n_intervals=0, disabled=True),
         dcc.Loading(
-            html.Div('Text', id="emi-result",
-                     className="emi-result", **{"aria-live":"polite"}),
+            html.Div('Text', id="sg-result",
+                     className="sg-result", **{"aria-live":"polite"}),
             type="circle", color=CYAN,
         ),
-    ], className="emi-analysis-panel")
+    ], className="sg-analysis-panel")
 
 
 def nvtra_field_section():
     return html.Div([
         _section_head('LABEL', "NVTRA", 'Paragraph. Enter your text here.', 'LABEL', YELLOW),
         nvtra_identity_section(),
-        emi_analysis_panel(),
+        sg_analysis_panel(),
         html.Div([
             html.Div('LABEL', className="section-label"),
             html.Div('Paragraph. Enter your text here.', className="mtdi-section-copy", style={"marginBottom":"18px"}),
@@ -1952,7 +1952,7 @@ def aether_terminal_section():
                              **{"aria-label": 'Text'}),
                 html.Span(className="aether-term-caret", **{"aria-hidden": "true"}),
             ], className="aether-term-line"),
-        ], id="aether-terminal", className="aether-terminal", **{"data-iv-aether-terminal": "1"}),
+        ], id="aether-terminal", className="aether-terminal", **{"data-i3-aether-terminal": "1"}),
         html.Div([
             html.Span('Text', className="aether-term-foot-item"),
             html.Span('TEXT', className="aether-term-foot-item"),
@@ -1979,19 +1979,19 @@ def environmental_intelligence_section():
 
 def _environmental_intelligence_base():
     """Live environmental references for both field sensors."""
-    with mag_lock:
-        mag_base = (f"{magnetic_data['baseline_magnitude']:.2f} unit"
-                    if magnetic_data["baseline_calibrated"] else "LEARNING")
-        mag_delta = (f"{magnetic_data['baseline_delta']:.2f} unit"
-                     if magnetic_data["baseline_calibrated"] else "—")
-    with efield_lock:
-        provisional = efield_data.get("data_source") == "ARDUINO_UNO_USB"
-        ef_base = ("—" if provisional else f"{efield_data['baseline_v_m']:.3f} unit"
-                   if efield_data["calibrated"] else "LEARNING")
-        ef_live = (f"{efield_data['rms_counts']:.2f} ADC counts RMS"
-                   if provisional and efield_data.get("rms_counts") is not None else
-                   f"{efield_data['field_v_m']:.3f} unit"
-                   if efield_data["last_rx"] is not None and efield_data["field_v_m"] is not None else "—")
+    with c1_lock:
+        c1_base = (f"{ch1_data['baseline_magnitude']:.2f} unit"
+                    if ch1_data["baseline_calibrated"] else "LEARNING")
+        c1_delta = (f"{ch1_data['baseline_delta']:.2f} unit"
+                     if ch1_data["baseline_calibrated"] else "—")
+    with ch2f_lock:
+        provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
+        c2_base = ("—" if provisional else f"{ch2f_data['baseline_vu']:.3f} unit"
+                   if ch2f_data["calibrated"] else "LEARNING")
+        c2_live = (f"{ch2f_data['rms_counts']:.2f} ADC counts RMS"
+                   if provisional and ch2f_data.get("rms_counts") is not None else
+                   f"{ch2f_data['field_vu']:.3f} unit"
+                   if ch2f_data["last_rx"] is not None and ch2f_data["field_vu"] is not None else "—")
     return html.Div([
         _section_head(
             'LABEL', "Environmental Intelligence",
@@ -2000,16 +2000,16 @@ def _environmental_intelligence_base():
         ),
         html.Div([
             html.Div([html.Div('LABEL', className="sys-name"),
-                      html.Div(mag_base, id="ei-mag-baseline", className="sys-value c-cyan"),
+                      html.Div(c1_base, id="ei-c1-baseline", className="sys-value c-cyan"),
                       html.Div('Subtext', className="sys-sub")], className="sys-card"),
             html.Div([html.Div('LABEL', className="sys-name"),
-                      html.Div(mag_delta, id="ei-mag-delta", className="sys-value c-amber"),
+                      html.Div(c1_delta, id="ei-c1-delta", className="sys-value c-amber"),
                       html.Div('Subtext', className="sys-sub")], className="sys-card"),
             html.Div([html.Div('LABEL', className="sys-name"),
-                      html.Div(ef_base, id="ei-ef-baseline", className="sys-value c-cyan"),
+                      html.Div(c2_base, id="ei-c2-baseline", className="sys-value c-cyan"),
                       html.Div('Subtext', className="sys-sub")], className="sys-card"),
             html.Div([html.Div('LABEL', className="sys-name"),
-                      html.Div(ef_live, id="ei-ef-live", className="sys-value c-amber"),
+                      html.Div(c2_live, id="ei-c2-live", className="sys-value c-amber"),
                       html.Div('Subtext', className="sys-sub")], className="sys-card"),
         ], className="sys-grid"),
         html.Div(id="ei-baseline-status", className="online-bar", style={"marginTop":"18px"}),
@@ -2053,7 +2053,7 @@ def _count_word(n):
 
 # The D4 analysis engine is deliberately NOT in this list. It is a signal-processing
 # engine, not one of MTDI's diagnostic pillars - MTDI asks whether the instrument can
-# be trusted, while D4 asks what the field is doing. It lives on the Sixth Sense page
+# be trusted, while D4 asks what the field is doing. It lives on the Page 3 page
 # with the other interpretation work.
 MTDI_ORBIT_PILLARS = [
     ("validation", "00", "Validation Chamber", "Evidence",
@@ -2142,9 +2142,9 @@ def mtdi_page():
         ], id="mtdi-orbit-stage-v2", className="mtdi-orbit-scene"),
     ], id="mtdi-pillar-grid", className="mtdi-landing")
     return html.Div([
-        html.Div(className="iv-scrub-hero", **{"data-iv-scrub": "mtdi-flow",
-                 "data-iv-title": 'TITLE',
-                 "data-iv-tagline": 'Paragraph. Enter your text here.'}),
+        html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "mtdi-flow",
+                 "data-i3-title": 'TITLE',
+                 "data-i3-tagline": 'Paragraph. Enter your text here.'}),
         dcc.Link(html.Button("BACK", className="back-btn"), href="/",
                  className="mtdi-module-back", style={"textDecoration":"none"}),
         landing,
@@ -2181,7 +2181,7 @@ def settings_page():
 def _settings_page_base():
     return html.Div([
         dcc.Link(html.Button("BACK", className="back-btn"), href="/", style={"textDecoration":"none"}),
-        html.Div(html.Div(className="iv-lunar-stage", **{"data-iv-lunar": "true"}), className="iv-lunar-open"),
+        html.Div(html.Div(className="i3-lunar-stage", **{"data-i3-lunar": "true"}), className="i3-lunar-open"),
         _ph("SETTINGS", "Settings", 'Subtext'),
         html.Hr(className="divider"),
         html.Div([
@@ -2198,7 +2198,7 @@ def _settings_page_base():
                          className="set-seg"),
             ], className="set-row"),
             html.Div([
-                html.Div([html.B('Text'), html.Span('Paragraph. Enter your text here.', **{"data-iv-replay-note": "true"})], className="set-lab"),
+                html.Div([html.B('Text'), html.Span('Paragraph. Enter your text here.', **{"data-i3-replay-note": "true"})], className="set-lab"),
                 html.Span('SUBTEXT', className="set-note"),
             ], className="set-row"),
         ], className="set-card"),
@@ -2243,22 +2243,22 @@ def _settings_page_base():
                  className="page-subtitle", style={"marginBottom":"16px","maxWidth":"760px"}),
         html.Div([
             html.Div([
-                html.Button('BUTTON', type="button", className="key-btn key-btn-add", title='Title', **{"data-iv-action": "hand_tracking"}),
-                html.Button("3D HAND CONTROL: ON", type="button", className="key-btn key-btn-add", **{"data-iv-action": "hand3d", "aria-pressed": "true"}),
-                html.Div("Pinch on the Earth or the constellation to hold, spin and zoom it with your hands.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-iv-hand3d-note": "true"}),
+                html.Button('BUTTON', type="button", className="key-btn key-btn-add", title='Title', **{"data-i3-action": "hand_tracking"}),
+                html.Button("3D HAND CONTROL: ON", type="button", className="key-btn key-btn-add", **{"data-i3-action": "hand3d", "aria-pressed": "true"}),
+                html.Div("Pinch on the Earth or the constellation to hold, spin and zoom it with your hands.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-i3-hand3d-note": "true"}),
             ], className="key-add-row"),
             html.Div([
-                html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-iv-action": "hand_calibrate"}),
-                html.Button('BUTTON', type="button", className="key-btn", **{"data-iv-action": "hand_debug", "aria-pressed": "false"}),
-                html.Button('BUTTON', type="button", className="key-btn", **{"data-iv-action": "hand_profile_reset"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-iv-action": "left_handed", "aria-pressed": "false"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-iv-action": "cursor_mode"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-iv-action": "buddy_toggle", "aria-pressed": "true"}),
-                html.Div("Using default thresholds. Calibrate once with the camera on for reliable pinch, thumbs and pause.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-iv-hand-profile-note": "true"}),
+                html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "hand_calibrate"}),
+                html.Button('BUTTON', type="button", className="key-btn", **{"data-i3-action": "hand_debug", "aria-pressed": "false"}),
+                html.Button('BUTTON', type="button", className="key-btn", **{"data-i3-action": "hand_profile_reset"}),
+                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "left_handed", "aria-pressed": "false"}),
+                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "cursor_mode"}),
+                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "buddy_toggle", "aria-pressed": "true"}),
+                html.Div("Using default thresholds. Calibrate once with the camera on for reliable pinch, thumbs and pause.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-i3-hand-profile-note": "true"}),
             ], className="key-add-row", style={"marginTop":"10px"}),
             html.Div([
                 html.Div('TEXT', className="key-status", style={"letterSpacing":".18em","fontSize":"10px","marginBottom":"6px"}),
-                html.Div("No saved calibrations yet.", className="iv-hand-profiles", **{"data-iv-hand-profiles": "true"}),
+                html.Div("No saved calibrations yet.", className="i3-hand-profiles", **{"data-i3-hand-profiles": "true"}),
             ], style={"marginTop":"12px"}),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
 
@@ -2269,19 +2269,19 @@ def _settings_page_base():
             html.Form([
                 html.Div([
                     dcc.Input(name="key", type="password", value="", autoComplete="off",
-                              placeholder='Enter your text here', className="iv-voice-key-input"),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-iv-action": "elevenlabs_key"}),
+                              placeholder='Enter your text here', className="i3-voice-key-input"),
+                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_key"}),
                 ], className="key-add-row"),
-                html.Div(_voice_key_status(), className="key-status", **{"data-iv-result": "true"}),
-            ], className="iv-form", **{"data-iv-form": "voice"}),
+                html.Div(_voice_key_status(), className="key-status", **{"data-i3-result": "true"}),
+            ], className="i3-form", **{"data-i3-form": "voice"}),
             html.Form([
                 html.Div([
-                    html.Select([html.Option('Text', value="")], name="voice", className="iv-voice-select", **{"data-iv-voices": "true"}),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-iv-action": "elevenlabs_voice"}),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-test", **{"data-iv-action": "voice_preview"}),
+                    html.Select([html.Option('Text', value="")], name="voice", className="i3-voice-select", **{"data-i3-voices": "true"}),
+                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_voice"}),
+                    html.Button('BUTTON', type="button", className="key-btn key-btn-test", **{"data-i3-action": "voice_preview"}),
                 ], className="key-add-row", style={"marginTop": "14px"}),
-                html.Div('Paragraph. Enter your text here.', className="key-status", **{"data-iv-result": "true"}),
-            ], className="iv-form", **{"data-iv-form": "voice-pick"}),
+                html.Div('Paragraph. Enter your text here.', className="key-status", **{"data-i3-result": "true"}),
+            ], className="i3-form", **{"data-i3-form": "voice-pick"}),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
 
         html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),

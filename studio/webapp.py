@@ -49,17 +49,17 @@ def _vendor_js(name):
                     headers={"Cache-Control": "public, max-age=604800"})
 
 
-@server.get("/_iv/three.js")
+@server.get("/_i3/three.js")
 def _three_js():
     return _vendor_js("three.min.js")
 
 
-@server.get("/_iv/boards.js")
+@server.get("/_i3/boards.js")
 def _boards_js():
     return _vendor_js("boards.js")
 
 
-@server.get("/_iv/spline-runtime.js")
+@server.get("/_i3/spline-runtime.js")
 def _spline_runtime():
     """Same-origin cached Spline canvas runtime for reliable module loading."""
     global _spline_runtime_bundle
@@ -71,7 +71,7 @@ def _spline_runtime():
                         raw = response.read()
                     # The runtime pulls its modelling wasm (process.js + process.wasm) from unpkg,
                     # which the CSP blocks; point it at the same-origin copies served below.
-                    raw = raw.replace(b'"https://unpkg.com/@splinetool/modelling-wasm@1.10.94/build"', b'"/_iv"')
+                    raw = raw.replace(b'"https://unpkg.com/@splinetool/modelling-wasm@1.10.94/build"', b'"/_i3"')
                     _spline_runtime_bundle = raw
                 except Exception as exc:
                     LOG.warning("Spline canvas runtime unavailable: %s", exc)
@@ -95,7 +95,7 @@ def _spline_runtime():
 
 
 # Every helper the Spline runtime may fetch at load time (modelling/boolean/navmesh wasm, the
-# UI wasm and the Draco decoders). Served same-origin under /_iv/<file> so the CSP stays closed;
+# UI wasm and the Draco decoders). Served same-origin under /_i3/<file> so the CSP stays closed;
 # each is fetched once from its CDN and kept in memory.
 _SPLINE_HELPERS = {
     "process.js": "https://unpkg.com/@splinetool/modelling-wasm@1.10.94/build/process.js",
@@ -112,7 +112,24 @@ _SPLINE_HELPERS = {
 _spline_helper_files = {}
 
 
-@server.get("/_iv/<name>")
+_gzip_cache = {}
+
+
+def _maybe_gzip(key, payload, mimetype, headers):
+    """Serve cached bytes gzipped when the browser accepts it. A serverless function
+    response is capped at 4.5 MB, and the Spline runtime, wasm helpers and scene all
+    shrink well below that once compressed."""
+    headers = dict(headers)
+    if "gzip" in request.headers.get("Accept-Encoding", "").lower():
+        packed = _gzip_cache.get(key)
+        if packed is None:
+            packed = _gzip_cache[key] = gzip.compress(payload, compresslevel=6)
+        headers.update({"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+        return Response(packed, mimetype=mimetype, headers=headers)
+    return Response(payload, mimetype=mimetype, headers=headers)
+
+
+@server.get("/_i3/<name>")
 def _spline_helper(name):
     source = _SPLINE_HELPERS.get(name)
     if not source:
@@ -127,15 +144,15 @@ def _spline_helper(name):
                     LOG.warning("Spline helper %s unavailable: %s", name, exc)
                     return Response("", status=503, headers={"Cache-Control": "no-store"})
     mimetype = "application/wasm" if name.endswith(".wasm") else "text/javascript"
-    return Response(_spline_helper_files[name], mimetype=mimetype,
-                    headers={"Cache-Control": "public, max-age=604800"})
+    return _maybe_gzip("helper:" + name, _spline_helper_files[name], mimetype,
+                       {"Cache-Control": "public, max-age=604800"})
 
 
-@server.get("/_iv/nvtra-loader.js")
+@server.get("/_i3/nvtra-loader.js")
 def _nvtra_loader_module():
     """External module bootstrap avoids browsers blocking an inline module."""
     return Response(
-        'import { Application } from "/_iv/spline-runtime.js";\n'
+        'import { Application } from "/_i3/spline-runtime.js";\n'
         'window.__NvtraSplineApplication = Application;\n'
         'window.dispatchEvent(new Event("nvtra-spline-runtime-ready"));\n',
         mimetype="text/javascript",
@@ -143,7 +160,7 @@ def _nvtra_loader_module():
     )
 
 
-@server.get("/_iv/nvtra-robot.splinecode")
+@server.get("/_i3/nvtra-robot.splinecode")
 def _spline_robot_asset():
     """Same-origin cached NVTRA robot scene, avoiding client-side CDN failures."""
     global _spline_robot_scene
@@ -160,13 +177,11 @@ def _spline_robot_asset():
                         mimetype="application/json", status=503,
                         headers={"Cache-Control":"no-store"},
                     )
-    return Response(
-        _spline_robot_scene, mimetype="application/json",
-        headers={"Cache-Control":"public, max-age=86400"},
-    )
+    return _maybe_gzip("robot-scene", _spline_robot_scene, "application/json",
+                       {"Cache-Control": "public, max-age=86400"})
 
 
-@server.get("/_iv/natural-earth-land.json")
+@server.get("/_i3/natural-earth-land.json")
 def _natural_earth_land():
     """Serve the embedded globe geometry with stable same-origin caching."""
     payload = gzip.decompress(base64.b64decode(_NATURAL_EARTH_LAND_GZIP_B64))
@@ -205,7 +220,7 @@ def _system_api():
                              if ready else None,
         "source": current.get("telemetry_source") if ready else "starting",
         "host_model": current.get("host_model") if ready else None,
-        "raspberry_pi": bool(current.get("raspberry_pi")) if ready else False,
+        "single_board": bool(current.get("single_board")) if ready else False,
         "error": current.get("telemetry_error"),
         "cpu": {
             "usage_percent": current.get("cpu_usage") if ready else None,
@@ -468,7 +483,9 @@ def _security_headers(resp):
 
 app = dash.Dash(
     __name__, server=server,
-    assets_folder=str(Path(__file__).resolve().parent / "assets"),
+    # public/assets is served by Vercel's CDN directly (no 4.5 MB function response limit)
+    # and by Dash itself when running locally.
+    assets_folder=str(Path(__file__).resolve().parent.parent / "public" / "assets"),
     # Dash tests this regex against the file NAME only. Three.js, the lunar module and the
     # MediaPipe hand bundles are loaded on demand by the page, never at boot.
     assets_ignore=r"(three\.min\.js|lunar\.js|robot-hand\.js|hands.*\.js)",
@@ -489,8 +506,8 @@ app.index_string = f"""<!DOCTYPE html>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#07090f">
     <link rel="manifest" href="/manifest.webmanifest">
-    <script type="module" src="/_iv/nvtra-loader.js?v={APP_VERSION}"></script>
-    <script defer src="/_iv/boards.js?v={APP_VERSION}"></script>
+    <script type="module" src="/_i3/nvtra-loader.js?v={APP_VERSION}"></script>
+    <script defer src="/_i3/boards.js?v={APP_VERSION}"></script>
     <script>
       /* Phones receive the complete 1180 px desktop composition and nothing else.
          There is no portrait layout: the instrument is a landscape view, fixed.
@@ -530,14 +547,14 @@ app.index_string = f"""<!DOCTYPE html>
              stylesheet. Neither is a fallback for the other -- they are different
              products, and the choice belongs to whoever is holding the phone. */
           var wantMobile=false;
-          try{{wantMobile=localStorage.getItem('iv-phone-layout')==='mobile';}}catch(err){{}}
+          try{{wantMobile=localStorage.getItem('i3-phone-layout')==='mobile';}}catch(err){{}}
           root.classList.toggle('phone-desktop',phone&&!wantMobile);
-          root.classList.toggle('iv-mobile-layout',phone&&wantMobile);
+          root.classList.toggle('i3-mobile-layout',phone&&wantMobile);
           if(!phone||wantMobile){{
             root.classList.remove('force-landscape');
-            root.style.removeProperty('--iv-stage-w');
-            root.style.removeProperty('--iv-stage-h');
-            root.style.removeProperty('--iv-stage-tf');
+            root.style.removeProperty('--i3-stage-w');
+            root.style.removeProperty('--i3-stage-h');
+            root.style.removeProperty('--i3-stage-tf');
             meta.content='width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover';
           }} else {{
             /* One scale for both cases: the long edge always carries the 1180 px
@@ -554,18 +571,18 @@ app.index_string = f"""<!DOCTYPE html>
                  rotated stage needs one extra factor of long/short on top to land on
                  the long edge instead. */
               var extra=e.lng/e.shrt;
-              root.style.setProperty('--iv-stage-w',STAGE+'px');
-              root.style.setProperty('--iv-stage-h',(STAGE*e.shrt/e.lng)+'px');
-              root.style.setProperty('--iv-stage-tf',
+              root.style.setProperty('--i3-stage-w',STAGE+'px');
+              root.style.setProperty('--i3-stage-h',(STAGE*e.shrt/e.lng)+'px');
+              root.style.setProperty('--i3-stage-tf',
                 'translateX('+STAGE+'px) rotate(90deg) scale('+extra.toFixed(5)+')');
               root.classList.add('force-landscape');
               meta.content='width='+STAGE+',initial-scale='+(e.shrt/STAGE).toFixed(4)+
                 ',maximum-scale='+(e.shrt/STAGE).toFixed(4)+',user-scalable=no,viewport-fit=cover';
             }} else {{
               root.classList.remove('force-landscape');
-              root.style.removeProperty('--iv-stage-w');
-              root.style.removeProperty('--iv-stage-h');
-              root.style.removeProperty('--iv-stage-tf');
+              root.style.removeProperty('--i3-stage-w');
+              root.style.removeProperty('--i3-stage-h');
+              root.style.removeProperty('--i3-stage-tf');
               meta.content='width='+STAGE+',initial-scale='+scale.toFixed(4)+
                 ',minimum-scale=0.25,maximum-scale=3,viewport-fit=cover';
             }}
@@ -591,7 +608,7 @@ app.index_string = f"""<!DOCTYPE html>
         requestLandscapeLock();
         /* Exposed so the Settings toggle can re-apply the layout choice without a
            reload. It is idempotent and cheap, so calling it from anywhere is safe. */
-        try{{window.__ivSyncPhoneMode=syncPhoneMode;}}catch(err){{}}
+        try{{window.__i3SyncPhoneMode=syncPhoneMode;}}catch(err){{}}
         syncPhoneMode();
         addEventListener('orientationchange',function(){{
           setTimeout(syncPhoneMode,150);
@@ -602,8 +619,8 @@ app.index_string = f"""<!DOCTYPE html>
     </script>
     <script>
       (function(){{try{{
-        localStorage.removeItem('iv-theme');
-        if(localStorage.getItem('iv-anim')==='off')document.documentElement.classList.add('no-anim');
+        localStorage.removeItem('i3-theme');
+        if(localStorage.getItem('i3-anim')==='off')document.documentElement.classList.add('no-anim');
       }}catch(e){{}}}})();
     </script>
     <script>
@@ -647,7 +664,7 @@ app.layout = html.Div([
     html.Div([html.Span(id="typewriter-text"), html.Span("▋", id="typewriter-cursor")], id="typewriter-bar"),
     html.Div(id="nvtra-alert-stack"),
     html.Div(id="nvtra-alert-trigger", style={"display":"none"}),
-    dcc.Store(id="nvtra-prev-state", storage_type="memory", data={"mag":0}),
+    dcc.Store(id="nvtra-prev-state", storage_type="memory", data={"c1":0}),
     dcc.Interval(id="nvtra-interval", interval=1500, n_intervals=0),
     dcc.Location(id="url", refresh=False),
     # write-only sinks for the pattern-matching key actions (their real effect is on
@@ -673,9 +690,9 @@ app.layout = html.Div([
         html.Div([html.Div(id="nav-glass", className="nav-glass", children=[
             dcc.Link(html.Button([html.Span(className="nav-dot"),"Home"],     className="nav-glass-btn", id="nav-home"),     href="/",         style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 1"], className="nav-glass-btn", id="nav-em"),       href="/em",       style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 1"], className="nav-glass-btn", id="nav-em"),       href="/page-1",       style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 2"], className="nav-glass-btn", id="nav-spectrum"), href="/spectrum", style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 2"], className="nav-glass-btn", id="nav-sweep3"), href="/page-2", style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
             dcc.Link(html.Button([html.Span(className="nav-dot"),"MTDI"],     className="nav-glass-btn", id="nav-mtdi"),     href="/mtdi",     style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
@@ -715,10 +732,10 @@ app.clientside_callback(
     "document.documentElement.classList.remove('nav-busy');"
     # FIRST render is Home because the head normalises every fresh document URL to /.
     # Leave the document at 0 while the fixed intro handles its own internal scroll.
-    "if(!window.__ivFirstRouteDone){window.__ivFirstRouteDone=true;return '';}"
+    "if(!window.__i3FirstRouteDone){window.__i3FirstRouteDone=true;return '';}"
     # Every later route change is ordinary module navigation. The removed intro is
     # no longer part of the document, so scroll 0 is always the module top.
-    "if(window.__ivResetScroll){window.__ivResetScroll();}"
+    "if(window.__i3ResetScroll){window.__i3ResetScroll();}"
     "else{window.scrollTo(0,0);"
     "if(document.documentElement)document.documentElement.scrollTop=0;"
     "if(document.body)document.body.scrollTop=0;}"

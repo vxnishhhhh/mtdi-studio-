@@ -26,7 +26,7 @@ FONTUI="'Inter','DM Sans','Helvetica Neue',sans-serif"
 SURFACE  = "rgba(16,23,38,0.74)"    # repeated small cards / tables / panels
 SURFACE2 = "rgba(21,30,49,0.80)"    # large feature cards (module cards, hero panels)
 
-def _ef_level_color(level):
+def _c2_level_color(level):
     return {"LOW":GREEN,"MID":AMBER,"HIGH":RED,"OVER":RED}.get(level, SUBTEXT)
 
 def _gain_label(g):

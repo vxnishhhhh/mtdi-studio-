@@ -570,7 +570,7 @@ class TelemetryService:
                 "audio_capture_devices": audio_devices, "audio_capture_note": audio_error,
                 "rtl_sdr_presence": "detected" if rtl_present else "not identified", "rtl_sdr_note": rtl_error,
                 "camera_inventory_note": "Video nodes can include codecs and image processors; camera capture is verified only when the device opens",
-                "tinysa_presence": "detected" if any("tinysa" in str(p).lower() for p in ports + usb)
+                "src3_presence": "detected" if any("src3" in str(p).lower() for p in ports + usb)
                 else "not identified", "inventory_timestamp": time.time()}
 
     def _network(self):
@@ -649,7 +649,7 @@ class TelemetryService:
     def collect(self):
         now = time.time()
         model = _read("/proc/device-tree/model") or _read("/sys/firmware/devicetree/base/model") or platform.machine()
-        raspberry_pi = "raspberry pi" in model.lower()
+        single_board = " pi " in f" {model.lower()} "
         cpu, cores = self._cpu()
         ps = self._psutil
         memory = {}
@@ -683,7 +683,7 @@ class TelemetryService:
         temperature_source = "unavailable"
         throttle = None
         power = []
-        vcgencmd = shutil.which("vcgencmd") if raspberry_pi else None
+        vcgencmd = shutil.which("vcgencmd") if single_board else None
         if vcgencmd:
             temp_raw, code = _run([vcgencmd, "measure_temp"])
             match = re.search(r"temp=([0-9.]+)", temp_raw)
@@ -694,7 +694,7 @@ class TelemetryService:
             match = re.search(r"0x[0-9a-fA-F]+", throttled_raw)
             if code == 0 and match:
                 throttle = decode_throttled(int(match.group(0), 16))
-            if "raspberry pi 5" in model.lower():
+            if " pi 5 " in f" {model.lower()} ":
                 pmic_raw, code = _run([vcgencmd, "pmic_read_adc"])
                 if code == 0:
                     for name, value, unit in re.findall(r"(\w+)\s+(?:\w+\([^)]*\)=)?([0-9.]+)([VA])", pmic_raw):
@@ -739,8 +739,8 @@ class TelemetryService:
                 process_rss = None
         minutes = int(uptime or 0) // 60
         result = {"state": "connected", "last_rx": now, "build_version": self.version,
-                  "host_model": model, "raspberry_pi": raspberry_pi,
-                  "host_kind": "host computer" if raspberry_pi else "Development host",
+                  "host_model": model, "single_board": single_board,
+                  "host_kind": "host computer" if single_board else "Development host",
                   "cpu_model": cpu_match.group(1) if cpu_match else platform.processor() or platform.machine(),
                   "os": match.group(1) if match else platform.system(), "kernel": platform.release(),
                   "hostname": socket.gethostname(), "mdns_hostname": socket.gethostname().split(".")[0] + ".local",

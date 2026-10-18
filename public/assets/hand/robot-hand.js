@@ -41,5 +41,5 @@ function pose(rig,P){
  if(P.pinch){const q=P.pinch;rig.saddle.rotation.set(.35*q,-.75*q,.95-.8*q);rig.thumb[0].rotation.set(-.8*q,0,0);rig.thumb[1].rotation.x=-.6*q;rig.fingers[0][0].rotation.set(-.65*q,-.18*q,.12*q);rig.fingers[0][1].rotation.x=-1.1*q;rig.fingers[0][2].rotation.x=-.65*q;}
  rig.hand.position.set(P.dx*.4,-P.dy*.65,0);rig.root.rotation.set(rig.pitch,rig.yaw,0);rig.camera.position.z=rig.zoom;rig.renderer.render(rig.scene,rig.camera);
 }
-window.IVRobotHand={create,pose};
+window.I3RobotHand={create,pose};
 })();

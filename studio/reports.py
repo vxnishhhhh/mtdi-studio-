@@ -136,7 +136,7 @@ def _pdf_bytes(blocks):
 
 # How much of the archive one PDF may carry. This is not a preference, it is what
 # the hardware allows. The Pi's archive reached 9.5 GB and 12.6 million
-# magnetometer rows; the old code did SELECT * with fetchall() and no LIMIT and
+# ch1probe rows; the old code did SELECT * with fetchall() and no LIMIT and
 # emitted one PDF text line per row, so the report needed every one of those rows
 # resident in memory at once and then again as formatted text. On a 4 GB copy the
 # route did not answer within 90 s locally, and on this host, with 8 GB of RAM shared
@@ -196,17 +196,17 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
          ("band", "SESSION SUMMARY"),
          ("rule", None), ("space", "")]
 
-    # ── magnetometer ──
-    with mag_lock:
-        m = dict(magnetic_data); mhist = list(magnetic_data["xyz_history"]); mmag = list(magnetic_data["history"])
+    # ── ch1probe ──
+    with c1_lock:
+        m = dict(ch1_data); mhist = list(ch1_data["xyz_history"]); mmag = list(ch1_data["history"])
     b += [("h", 'CHANNEL 1   (Source 1 @ bus 0x2C)')]
     if m["error"]:
         b += [("dim", f"Status: OFFLINE  -  {m['error']}")]
     else:
-        mn = 0.0 if m["min_mag"] == float("inf") else m["min_mag"]
+        mn = 0.0 if m["min_c1"] == float("inf") else m["min_c1"]
         b += [("kv", "Magnitude", f"{m['magnitude']:.2f} unit"),
               ("kv", "Vector X / Y / Z", f"{m['x']:.2f} / {m['y']:.2f} / {m['z']:.2f} unit"),
-              ("kv", "Session min / max", f"{mn:.2f} / {m['max_mag']:.2f} unit"),
+              ("kv", "Session min / max", f"{mn:.2f} / {m['max_c1']:.2f} unit"),
               ("kv", "Calibration", "hard/soft-iron profile applied" if m["calibrated"]
                                     else "none configured (readings are uncorrected)"),
               ("kv", "Rolling samples", f"{len(mhist)}")]
@@ -216,9 +216,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
             b += [("kv", "Noise sigma", f"{sd_:.2f} unit")]
     b += [("space", "")]
 
-    # ── e-field ──
-    with efield_lock:
-        e = dict(efield_data)
+    # ── ch2 ──
+    with ch2f_lock:
+        e = dict(ch2f_data)
     b += [("h", 'CHANNEL 2   (Source 2 @ bus 0x48, differential A0-A1)')]
     if e["error"]:
         b += [("dim", f"Status: OFFLINE  -  {e['error']}")]
@@ -227,15 +227,15 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     else:
         b += [("kv", "Level", str(e["level"])),
               ("kv", "Relative activity", f"{e['rel_index']:.0f}%   (ratio {e['ratio']:.1f}x baseline)"),
-              ("kv", "Field strength", f"{e['field_v_m']:.3f} V/m = {e['field_v_m']:.3f} N/C"),
-              ("kv", "Baseline / Peak", f"{e['baseline_v_m']:.3f} / {e['peak_v_m']:.3f} V/m"),
+              ("kv", "Field strength", f"{e['field_vu']:.3f} V/m = {e['field_vu']:.3f} N/C"),
+              ("kv", "Baseline / Peak", f"{e['baseline_vu']:.3f} / {e['peak_vu']:.3f} V/m"),
               ("kv", "ADC gain / utilisation", f"{_gain_label(e['gain'])}  /  {e['utilisation']:.0f}%"),
               ("kv", "Status", str(e["status"]))]
     b += [("space", "")]
 
-    # ── spectrum ──
-    with spectrum_lock:
-        s = dict(spectrum_data); peaks = list(spectrum_data["peaks"])
+    # ── sweep3 ──
+    with sweep3_lock:
+        s = dict(sweep3_data); peaks = list(sweep3_data["peaks"])
     b += [("h", 'CHANNEL 3 ANALYSER   (Source 3, USB)')]
     if s["error"] or s["last_rx"] is None:
         b += [("dim", f"Status: OFFLINE  -  {s['error'] or 'no sweep yet'}")]
@@ -272,7 +272,7 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
         b += [("dim", f"Channel 6: {bt['error'] or 'no scan'}")]
     b += [("space", "")]
 
-    # ── magnetic archive ──
+    # ── ch1 archive ──
     avg = ss["sum"] / ss["count"] if ss["count"] else 0.0
     amn = 0.0 if ss["min"] == float("inf") else ss["min"]
     b += [("h", 'CHANNEL 1 SIGNAL ARCHIVE'),
@@ -281,12 +281,12 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
           ("dim", 'Recent samples (time, magnitude unit, X, Y, Z):')]
     for a in arch[-60:]:
         ts = _t.strftime("%H:%M:%S", _t.localtime(a["t"]))
-        b += [("line", f"   {ts}   {a['mag']:>7.2f}    {a['x']:>7.2f}  {a['y']:>7.2f}  {a['z']:>7.2f}")]
+        b += [("line", f"   {ts}   {a['c1']:>7.2f}    {a['x']:>7.2f}  {a['y']:>7.2f}  {a['z']:>7.2f}")]
     b += [("space", "")]
 
-    # ── RF archive ──
-    with rf_archive_lock:
-        rfa = list(rf_archive); rfs = dict(rf_stats)
+    # ── CH3 archive ──
+    with ch3_archive_lock:
+        rfa = list(ch3_archive); rfs = dict(ch3_stats)
     b += [("h", 'CH 3 PEAK ARCHIVE')]
     if rfs["count"]:
         ravg = rfs["sum"] / rfs["count"]; st = rfs["strongest"]
@@ -309,9 +309,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     b += [("h", "MTDI HEALTH AND COMPLETENESS"),
           ("kv", 'Active source health', f"{md['active_health']:.0f}%"),
           ("kv", "System completeness", f"{md['completeness']:.0f}%"),
-          ("kv", 'Channel 1', f"{md['mag_health']:.0f}%  ({md['mag_note']})"),
-          ("kv", 'Channel 2', f"{md['efield_health']:.0f}%  ({md['efield_note']})"),
-          ("kv", 'Channel 3', f"{md['rf_health']:.0f}%  ({md['rf_note']})"),
+          ("kv", 'Channel 1', f"{md['c1_health']:.0f}%  ({md['c1_note']})"),
+          ("kv", 'Channel 2', f"{md['ch2f_health']:.0f}%  ({md['ch2f_note']})"),
+          ("kv", 'Channel 3', f"{md['ch3_health']:.0f}%  ({md['ch3_note']})"),
           ("space", ""),
           ("h", "HOST TELEMETRY   (host computer)"),
           ("kv", "LAN address", str(sd["wifi_ip"])),
@@ -339,7 +339,7 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     raw_appendix = []
     try:
         table_names = (
-            "sessions", "rf_sweeps", "magnetometer_samples", "efield_samples",
+            "sessions", "ch3_sweeps", "ch1probe_samples", "ch2f_samples",
             "wifi_discoveries", "bluetooth_discoveries", "system_health",
             "events", "calibration_profiles",
         )

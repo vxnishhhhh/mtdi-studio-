@@ -41,7 +41,7 @@ SCRUB_JS = r"""
   }
   // Shared with the routing clientside callback so route changes and in-page view
   // changes use ONE definition of "top of the current module".
-  window.__ivResetScroll=resetScroll;
+  window.__i3ResetScroll=resetScroll;
   function reduceMotion(){
     try{
       if(document.documentElement.classList.contains('no-anim')) return true;
@@ -54,11 +54,11 @@ SCRUB_JS = r"""
   // mode stylesheet can never reach them — they stayed dark-on-white and read as
   // foreign objects dropped into the page. Each render pulls its ink from here
   // instead of hardcoding hex, so they follow the theme like every other surface.
-  var _ivLight=null;
-  function ivTheme(){
+  var _i3Light=null;
+  function i3Theme(){
     var light=false;
-    if(_ivLight && _ivLight.light===light) return _ivLight;
-    _ivLight = light ? {
+    if(_i3Light && _i3Light.light===light) return _i3Light;
+    _i3Light = light ? {
       light:true,
       oceanIn:'rgba(238,243,249,.96)', oceanOut:'rgba(214,224,238,.98)',
       limb:'rgba(22,32,46,.38)', grat:'rgba(22,32,46,.14)',
@@ -75,14 +75,14 @@ SCRUB_JS = r"""
       ring:'rgba(137,163,194,.10)', starNear:'#c7d8e8', starFar:'#66809a',
       accent:'0,229,255', accent2:'41,121,255'
     };
-    return _ivLight;
+    return _i3Light;
   }
 
   var CHIP_INFO={
     'Item 1': {icon:'∿',field:'Heading 1',desc:'Paragraph. Enter your text here.',tag:'Text'},
     'Item 2': {icon:'σ',field:'Heading 1',desc:'Paragraph. Enter your text here.',tag:'Text'},
     'Item 3': {icon:'|v|',field:'Heading 1',desc:'Paragraph. Enter your text here.',tag:'Text'},
-    'Item 4': {icon:'µT',field:'Heading 1',desc:'Paragraph. Enter your text here.',tag:'Text'},
+    'Item 4': {icon:'unit',field:'Heading 1',desc:'Paragraph. Enter your text here.',tag:'Text'},
     'Item 5': {icon:'⚡',field:'Heading 2',desc:'Paragraph. Enter your text here.',tag:'Text'},
     'Item 6': {icon:'〜',field:'Heading 2',desc:'Paragraph. Enter your text here.',tag:'Text'},
     'Item 7': {icon:'Φ',field:'Heading 2',desc:'Paragraph. Enter your text here.',tag:'Text'},
@@ -375,7 +375,7 @@ SCRUB_JS = r"""
       ay+=.006*(frameDt/(1000/30));
       var cx=w/2,cy=h/2,scale=Math.min(w,h)*0.33;
       var cY=Math.cos(ay),sY=Math.sin(ay),cX=Math.cos(ax),sX=Math.sin(ax);
-      var TH=ivTheme();
+      var TH=i3Theme();
       // 'lighter' additively blends toward white, which is correct over the dark
       // shell but erases the sphere against a light panel.
       ctx.clearRect(0,0,w,h);
@@ -422,7 +422,7 @@ SCRUB_JS = r"""
     var fragment=`precision highp float;
 uniform vec2 iResolution;uniform float iTime;
 const float PI=3.14159265359;
-vec3 spectral4(int s){float x=float(s);return clamp(vec3(abs(x-3.)-1.,2.-abs(x-2.),2.-abs(x-4.)),0.,1.);}
+vec3 density4(int s){float x=float(s);return clamp(vec3(abs(x-3.)-1.,2.-abs(x-2.),2.-abs(x-4.)),0.,1.);}
 void main(){
  vec2 R=iResolution.xy;float aspect=R.x/R.y;
  vec2 p=(gl_FragCoord.xy+.5)*2./R-1.;p.x*=aspect;float yScreen=p.y;p/=.6;
@@ -435,7 +435,7 @@ void main(){
  float th=.03,inten=.01*(2.+low*1.5),soft=.01*(2.5+mid*.4);
  float yMain=A1*env*sin(p.x*1.1+drift);vec3 num=vec3(0.),den=vec3(0.);
  for(int s=0;s<4;s++){
-  vec3 hue=spectral4(s);den+=hue;float ab=mix(-AB,AB,float(s)/3.);
+  vec3 hue=density4(s);den+=hue;float ab=mix(-AB,AB,float(s)/3.);
   float yL=A2*env*sin(p.x+drift+ab),d=abs(p.y-yL);
   float line=inten/(sqrt(d*d+soft*soft)+th);
   float lo=min(yMain,yL),hi=max(yMain,yL),dBand=max(0.,max(p.y-hi,lo-p.y));
@@ -513,10 +513,10 @@ void main(){
       if(!Application)return false;
       try{
         var app=confinePointerTracking(function(){
-          return new Application(canvas,{wasmPath:'/_iv'});
+          return new Application(canvas,{wasmPath:'/_i3'});
         });
         host.__splineApp=app;
-        Promise.resolve(app.load('/_iv/nvtra-robot.splinecode'))
+        Promise.resolve(app.load('/_i3/nvtra-robot.splinecode'))
           .then(function(){
             try{app.addEventListener('mouseDown',function(event){
               var part=event&&event.target,name=String(part&&part.name||'').toLowerCase();if(!part||!part.rotation)return;
@@ -542,7 +542,7 @@ void main(){
     }
     if(!startRobot()){
       window.addEventListener('nvtra-spline-runtime-ready',startRobot,{once:true});
-      import('/_iv/spline-runtime.js').then(function(module){
+      import('/_i3/spline-runtime.js').then(function(module){
         window.__NvtraSplineApplication=module.Application;
         startRobot();
       }).catch(function(error){
@@ -613,7 +613,7 @@ void main(){
   // cheap and safe to call after a route change.
   function syncSettingsSeg(){
     var a;
-    try{a=localStorage.getItem('iv-anim')||'on';}
+    try{a=localStorage.getItem('i3-anim')||'on';}
     catch(e){a='on';}
     var m={'anim-on':a!=='off','anim-off':a==='off'};
     Object.keys(m).forEach(function(id){
@@ -741,11 +741,11 @@ void main(){
     });
   }
   function handVisionStatus(text,state){
-    var el=document.getElementById('iv-hand-vision-status');
-    if(!el){el=document.createElement('div');el.id='iv-hand-vision-status';el.className='iv-hand-vision-status';document.body.appendChild(el);}
-    el.className='iv-hand-vision-status'+(state?' '+state:'');el.textContent=text;
+    var el=document.getElementById('i3-hand-vision-status');
+    if(!el){el=document.createElement('div');el.id='i3-hand-vision-status';el.className='i3-hand-vision-status';document.body.appendChild(el);}
+    el.className='i3-hand-vision-status'+(state?' '+state:'');el.textContent=text;
     /* status is a notice, not a fixture: errors linger 8 s, everything else 4 s, then fade */
-    clearTimeout(el.__ivFade);el.__ivFade=setTimeout(function(){el.classList.add('iv-fade');},state==='error'?8000:4000);
+    clearTimeout(el.__i3Fade);el.__i3Fade=setTimeout(function(){el.classList.add('i3-fade');},state==='error'?8000:4000);
   }
   function loadExternalScript(src){
     return new Promise(function(resolve,reject){
@@ -756,22 +756,22 @@ void main(){
     });
   }
   async function startMacHandVision(canvas,controls){
-    if(window.__ivHandVisionRunning){window.__ivHandControls=controls;handVisionStatus('HAND VISION · TARGET CHANGED','live');return;}
+    if(window.__i3HandVisionRunning){window.__i3HandControls=controls;handVisionStatus('HAND VISION · TARGET CHANGED','live');return;}
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
       handVisionStatus('CAMERA BLOCKED · USE HTTPS OR A LOCALHOST CONNECTION','error');return;
     }
-    window.__ivHandControls=controls;handVisionStatus('REQUESTING CAMERA PERMISSION','');
+    window.__i3HandControls=controls;handVisionStatus('REQUESTING CAMERA PERMISSION','');
     try{
       await loadExternalScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
-      window.__ivHandVisionStarting=true;var cancelled=false;
+      window.__i3HandVisionStarting=true;var cancelled=false;
       var stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
       // The camera can be switched off while the hand model is still loading: release the
       // stream at once instead of leaving the light on until the model arrives.
-      window.__ivStopHandVision=function(){cancelled=true;window.__ivHandVisionStarting=false;window.__ivHandVisionRunning=false;try{stream.getTracks().forEach(function(t){t.stop();});}catch(e){}try{if(preview)preview.remove();}catch(e){}try{document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('focus',onVisible);window.removeEventListener('pageshow',onVisible);}catch(e){}handVisionStatus('CAMERA OFF','');};
+      window.__i3StopHandVision=function(){cancelled=true;window.__i3HandVisionStarting=false;window.__i3HandVisionRunning=false;try{stream.getTracks().forEach(function(t){t.stop();});}catch(e){}try{if(preview)preview.remove();}catch(e){}try{document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('focus',onVisible);window.removeEventListener('pageshow',onVisible);}catch(e){}handVisionStatus('CAMERA OFF','');};
       if(cancelled){stream.getTracks().forEach(function(t){t.stop();});return;}
-      var preview=document.createElement('div');preview.className='iv-hand-vision-preview';
-      var video=document.createElement('video');video.className='iv-hand-vision-video';video.autoplay=true;video.muted=true;video.playsInline=true;video.srcObject=stream;
-      var overlay=document.createElement('canvas');overlay.className='iv-hand-vision-overlay';overlay.width=640;overlay.height=480;
+      var preview=document.createElement('div');preview.className='i3-hand-vision-preview';
+      var video=document.createElement('video');video.className='i3-hand-vision-video';video.autoplay=true;video.muted=true;video.playsInline=true;video.srcObject=stream;
+      var overlay=document.createElement('canvas');overlay.className='i3-hand-vision-overlay';overlay.width=640;overlay.height=480;
       preview.appendChild(video);preview.appendChild(overlay);document.body.appendChild(preview);await video.play();
       var hands=new Hands({locateFile:function(file){return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+file;}});
       hands.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.55,minTrackingConfidence:.55});
@@ -784,8 +784,8 @@ void main(){
       // taking the device costs you the gesture, not the whole session: raise a hand
       // to your head and it comes back without reaching for the mouse.
       var armed=true,headSince=0,lastArmAt=0,reacquiring=false,reacquireAt=0;
-      window.__ivHandArmed=function(){return armed;};
-      window.__ivHandArm=function(on){armed=!!on;lastArmAt=performance.now();};
+      window.__i3HandArmed=function(){return armed;};
+      window.__i3HandArm=function(on){armed=!!on;lastArmAt=performance.now();};
       var links=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
       function fingerCount(hand){
         var count=0,w=hand[0],tips=[4,8,12,16,20],joints=[3,6,10,14,18];
@@ -836,11 +836,11 @@ void main(){
           var oth=sets[1],oy=(oth[0].y+oth[5].y+oth[9].y+oth[13].y+oth[17].y)/5;
           palmYc=(palmYc+oy)/2;
         }
-        if(lastPalmX!==null&&window.__ivHandControls&&window.__ivHandControls.rotate){
+        if(lastPalmX!==null&&window.__i3HandControls&&window.__i3HandControls.rotate){
           var visibleDx=-(palmX-lastPalmX),visibleDy=(palmYc-lastPalmY);
           if(Math.abs(visibleDx)<.002)visibleDx=0;
           if(Math.abs(visibleDy)<.002)visibleDy=0;
-          if(visibleDx||visibleDy)window.__ivHandControls.rotate(visibleDx,visibleDy);
+          if(visibleDx||visibleDy)window.__i3HandControls.rotate(visibleDx,visibleDy);
         }
         lastPalmX=palmX;lastPalmY=palmYc;
         if(sets.length>=2){
@@ -848,26 +848,26 @@ void main(){
           if(twoHandReference===null)twoHandReference=Math.max(.04,distance);
           var continuousZoom=Math.max(.58,Math.min(1.65,distance/twoHandReference));
           smoothed+=.22*(continuousZoom-smoothed);
-          if(window.__ivHandControls&&window.__ivHandControls.zoom)window.__ivHandControls.zoom(smoothed);
+          if(window.__i3HandControls&&window.__i3HandControls.zoom)window.__i3HandControls.zoom(smoothed);
           handVisionStatus('TWO-HAND ZOOM · SPREAD OUT OR MOVE TOGETHER','live');
         }else{
           twoHandReference=null;
           var fingers=fingerCount(hand),goal=fingers<=1?.66:(fingers>=4?1.34:smoothed);
           smoothed+=.20*(goal-smoothed);
-          if(window.__ivHandControls&&window.__ivHandControls.zoom)window.__ivHandControls.zoom(smoothed);
+          if(window.__i3HandControls&&window.__i3HandControls.zoom)window.__i3HandControls.zoom(smoothed);
           handVisionStatus('ONE HAND · '+fingers+' FINGERS · MOVE TO ROTATE','live');
         }
       };
       hands.onResults(resultsHandler);
       if(cancelled){try{hands.close();}catch(e){}return;}
-      window.__ivHandVisionStarting=false;
-      window.__ivHandVisionRunning=true;
+      window.__i3HandVisionStarting=false;
+      window.__i3HandVisionRunning=true;
       function rebuildHands(reason){
         if(performance.now()-rebuiltAt<5000)return;rebuiltAt=performance.now();
         try{hands.close();}catch(e){}
         try{
-          hands=new Hands({locateFile:function(file){return window.__ivHandModelUrl?window.__ivHandModelUrl(file):'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+file;}});
-          hands.setOptions(window.__ivHandOptions||{maxNumHands:2,modelComplexity:0,minDetectionConfidence:.55,minTrackingConfidence:.55});
+          hands=new Hands({locateFile:function(file){return window.__i3HandModelUrl?window.__i3HandModelUrl(file):'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+file;}});
+          hands.setOptions(window.__i3HandOptions||{maxNumHands:2,modelComplexity:0,minDetectionConfidence:.55,minTrackingConfidence:.55});
           hands.onResults(resultsHandler);
           lastResultAt=performance.now();sendErrors=0;busy=false;
           handVisionStatus('HAND VISION RESTARTED · '+reason,'');
@@ -883,11 +883,11 @@ void main(){
         // frame loop, so all three are handled here rather than in the watchdog.
         track.addEventListener('ended',function(){reacquireCamera('camera ended');});
         track.addEventListener('mute',function(){
-          if(!window.__ivHandVisionRunning)return;
+          if(!window.__i3HandVisionRunning)return;
           handVisionStatus('CAMERA SUSPENDED \u00b7 WILL RESUME','');
         });
         track.addEventListener('unmute',function(){
-          if(!window.__ivHandVisionRunning)return;
+          if(!window.__i3HandVisionRunning)return;
           video.play().catch(function(){});
           lastResultAt=performance.now();
           handVisionStatus(armed?'CAMERA BACK \u00b7 HAND VISION LIVE':'CAMERA BACK \u00b7 RAISE A HAND TO YOUR HEAD','live');
@@ -895,7 +895,7 @@ void main(){
       }
       stream.getVideoTracks().forEach(watchTrack);
       async function reacquireCamera(reason){
-        if(!window.__ivHandVisionRunning||reacquiring)return;
+        if(!window.__i3HandVisionRunning||reacquiring)return;
         if(performance.now()-reacquireAt<2500)return;
         reacquiring=true;reacquireAt=performance.now();
         handVisionStatus('CAMERA LOST \u00b7 RECONNECTING','error');
@@ -918,7 +918,7 @@ void main(){
       // may have been suspended. Resume deliberately instead of waiting for the loop to
       // notice, which is what used to leave the camera dead after a long switch away.
       function onVisible(){
-        if(!window.__ivHandVisionRunning||document.hidden)return;
+        if(!window.__i3HandVisionRunning||document.hidden)return;
         lastResultAt=performance.now();
         var live=stream.getVideoTracks().filter(function(t){return t.readyState==='live';});
         if(!live.length){reacquireCamera('no live track after app switch');return;}
@@ -930,7 +930,7 @@ void main(){
       window.addEventListener('focus',onVisible);
       window.addEventListener('pageshow',onVisible);
       async function frame(now){
-        if(!window.__ivHandVisionRunning)return;
+        if(!window.__i3HandVisionRunning)return;
         requestAnimationFrame(frame);if(busy&&now-lastSent>4000)busy=false;
         if(!document.hidden&&now-lastResultAt>3500){
           var tracks=stream.getVideoTracks();
@@ -947,9 +947,9 @@ void main(){
       }
       requestAnimationFrame(frame);
     }catch(error){
-      window.__ivHandVisionStarting=false;
+      window.__i3HandVisionStarting=false;
       var why=(error&&error.name)||'';var hint=why==='NotAllowedError'?'CAMERA BLOCKED · CLICK THE CAMERA ICON IN THE ADDRESS BAR AND ALLOW':why==='NotFoundError'?'NO CAMERA FOUND':why==='NotReadableError'?'CAMERA BUSY IN ANOTHER APP · CLOSE IT AND RETRY':'CAMERA OR HAND MODEL UNAVAILABLE · '+String((error&&error.message)||why).slice(0,60).toUpperCase();
-      handVisionStatus(hint,'error');var res=document.getElementById('iv-control-result');if(res)res.textContent=hint;
+      handVisionStatus(hint,'error');var res=document.getElementById('i3-control-result');if(res)res.textContent=hint;
       console.error('[studio] hand vision failed',error);
     }
   }
@@ -983,9 +983,9 @@ void main(){
                  ['host-telemetry','HOST TELEMETRY'],['uncertainty','UNCERTAINTY'],['clipping','CLIPPING'],
                  ['timing','TIMING QUALITY'],['sample-rate','SAMPLE RATE'],['calibration','CALIBRATION']]},
       {id:'environment',text:'ENVIRONMENTAL INTELLIGENCE',color:'#96d9bb',lat:.38,
-       children:[['baselines','BASELINES'],['magnetic-field','CHANNEL 1'],['electric-field','CHANNEL 2'],
-                 ['correlation','CORRELATION'],['rf-spectrum','CHANNEL 3'],
-                 ['noise-floor','NOISE FLOOR'],['mains-50hz','REFERENCE'],['harmonics-env','HARMONICS']]},
+       children:[['baselines','BASELINES'],['ch1-field','CHANNEL 1'],['ch2-field','CHANNEL 2'],
+                 ['correlation','CORRELATION'],['ch3-sweep3','CHANNEL 3'],
+                 ['noise-floor','NOISE FLOOR'],['linefreq-50hz','REFERENCE'],['harmonics-env','HARMONICS']]},
       {id:'nvtra',text:'NVTRA',color:'#e0c997',lat:-.30,
        children:[['completeness','COMPLETENESS'],['stability','STABILITY'],['trust','TRUST'],['diagnostics','DIAGNOSTICS'],
                  ['confidence','CONFIDENCE'],['consensus','CONSENSUS'],['transients','TRANSIENTS'],
@@ -1120,7 +1120,7 @@ void main(){
       var limitX=Math.max(1,w/2-width/2-pad),limitY=Math.max(1,h/2-size-pad);
       var edge=Math.min(1,limitX/Math.max(1,Math.abs(dx)),limitY/Math.max(1,Math.abs(dy)));
       var x=w/2+dx*edge-width/2,y=h/2+dy*edge+(node.core?size*.36:-(node.major?12:9));
-      var TH=ivTheme();
+      var TH=i3Theme();
       ctx.globalAlpha=Math.min(1,dim*.82);
       ctx.fillStyle='rgba('+TH.plate+',.72)';
       ctx.fillRect(x-5,y-size*.92,width+10,size*1.3);
@@ -1136,7 +1136,7 @@ void main(){
     function render(){
       var w=canvas.width/dpr,h=canvas.height/dpr,r=Math.min(w,h)*.29*zoom;
       ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-      var TH=ivTheme();
+      var TH=i3Theme();
       var centre=project(core,w,h,r),R=r*.86;
       // Background stars: screen space, so they read as distance rather than as
       // part of the object being rotated.
@@ -1458,7 +1458,7 @@ void main(){
       rotation=[Math.cos(ay),Math.sin(ay),Math.cos(ax),Math.sin(ax),Math.cos(az),Math.sin(az)];
       var w=canvas.width/dpr,h=canvas.height/dpr,r=Math.min(w,h)*.37*zoom;
       ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-      var TH=ivTheme();
+      var TH=i3Theme();
       var ocean=ctx.createRadialGradient(w*.42,h*.36,2,w/2,h/2,r);
       ocean.addColorStop(0,TH.oceanIn);ocean.addColorStop(1,TH.oceanOut);
       ctx.beginPath();ctx.arc(w/2,h/2,r,0,Math.PI*2);ctx.fillStyle=ocean;ctx.fill();
@@ -1699,10 +1699,10 @@ void main(){
     canvas.addEventListener('click',selectResearchNode);
     canvas.addEventListener('dblclick',doubleClick);
     size();updateDirectionLabel();canvas.dataset.recovering='0';canvas.dataset.recoveryCount='0';render();
-    if(window.__ivNaturalEarth){
-      installLand(window.__ivNaturalEarth.polygons,window.__ivNaturalEarth.points);
+    if(window.__i3NaturalEarth){
+      installLand(window.__i3NaturalEarth.polygons,window.__i3NaturalEarth.points);
     }else{
-      fetch('/_iv/natural-earth-land.json',{cache:'force-cache'}).then(function(response){
+      fetch('/_i3/natural-earth-land.json',{cache:'force-cache'}).then(function(response){
         if(!response.ok)throw new Error('Natural Earth asset unavailable');
         return response.json();
       }).then(function(data){
@@ -1717,7 +1717,7 @@ void main(){
           });
         if(!polygons.length)throw new Error('Natural Earth geometry is empty');
         var dots=buildDots(polygons);
-        window.__ivNaturalEarth={polygons:polygons,points:dots};
+        window.__i3NaturalEarth={polygons:polygons,points:dots};
         if(attached(canvas))installLand(polygons,dots);
       }).catch(function(){
         // Graticule-only fallback remains fully functional if the local asset fails.
@@ -2302,8 +2302,8 @@ void main(){
           setTimeout(resetScroll,0);
           setTimeout(resetScroll,250);
         }
-        if(t&&t.closest&&(t.closest('#em-tab-mag')||t.closest('#em-tab-elec')||
-                         t.closest('#em-tab-both'))){
+        if(t&&t.closest&&(t.closest('#p1-tab-c1')||t.closest('#p1-tab-c2x')||
+                         t.closest('#p1-tab-both'))){
           schedulePlotResize();
         }
       },true);

@@ -14,24 +14,24 @@ import threading
 import time
 
 CHANNELS = {
-    "magnetic": {"label": "Channel 1", "unit": "unit", "floor": 0.1, "stale": 2.0},
-    "electric": {"label": "Channel 2", "unit": "unit", "floor": 0.008, "stale": 4.0},
-    "rf": {"label": "Channel 3", "unit": "unit", "floor": 0.5, "stale": 90.0},
+    "ch1": {"label": "Channel 1", "unit": "unit", "floor": 0.1, "stale": 2.0},
+    "ch2": {"label": "Channel 2", "unit": "unit", "floor": 0.008, "stale": 4.0},
+    "ch3": {"label": "Channel 3", "unit": "unit", "floor": 0.5, "stale": 90.0},
     "current": {"label": "Channel 4", "unit": "unit", "floor": 0.02, "stale": 4.0, "optional": True},
 }
 # Ambient noise budget per channel: the noise floor a healthy sensor should sit under
 # in a quiet room (median absolute deviation, scaled). Used by the resolution regime.
-NOISE_BUDGET = {"magnetic": 1.0, "electric": 0.25, "rf": 2.5, "current": 0.08}
+NOISE_BUDGET = {"ch1": 1.0, "ch2": 0.25, "ch3": 2.5, "current": 0.08}
 # ── alert thresholds ──────────────────────────────────────────────────────────
 # A channel alert must clear BOTH tests: a robust z score (the deviation over that
 # channel's own measured MAD noise, so a quiet sensor is not judged against a loud
 # one) AND an absolute change in the channel's physical unit.
 #
-# Either test alone is wrong, and the old magnetometer rule was wrong in both
-# directions at once. It fired on a fixed 80 µT / 3 µT threshold, which in Durban's
-# ~30 µT ambient meant a large real change could pass unreported while simply
+# Either test alone is wrong, and the old ch1probe rule was wrong in both
+# directions at once. It fired on a fixed 80 unit / 3 unit threshold, which in Durban's
+# ~30 unit ambient meant a large real change could pass unreported while simply
 # rotating the instrument tripped it. A pure z test is no better: on a very quiet
-# channel a 0.2 µT wobble is statistically enormous and physically meaningless.
+# channel a 0.2 unit wobble is statistically enormous and physically meaningless.
 # Requiring both is what makes this fire for big changes only.
 ALERT_LEVELS = (                       # (name, minimum z, multiple of ALERT_CHANGE)
     ("critical", 30.0, 6.0),
@@ -39,9 +39,9 @@ ALERT_LEVELS = (                       # (name, minimum z, multiple of ALERT_CHA
     ("notice",    7.0, 1.0),
 )
 # The smallest change on each channel a person would call an event, in that
-# channel's unit. Magnetic 2 µT is roughly a phone charger at 10 cm; RF 4 dB is
-# comfortably outside sweep-to-sweep scatter on the tinySA.
-ALERT_CHANGE = {"magnetic": 2.0, "electric": 0.25, "rf": 4.0, "current": 0.15}
+# channel's unit. Ch1 2 unit is roughly a phone charger at 10 cm; CH3 4 dB is
+# comfortably outside sweep-to-sweep scatter on the src3.
+ALERT_CHANGE = {"ch1": 2.0, "ch2": 0.25, "ch3": 4.0, "current": 0.15}
 ALERT_REARM = 3.0      # z must fall back below this before a channel may fire again
 ALERT_HOLD = 2         # consecutive qualifying samples, so one bad sample is not an event
 ALERT_MIN_GAP = 6.0    # seconds between alerts on one channel
@@ -52,9 +52,9 @@ MTDI_WEIGHTS = {"availability": 0.20, "baseline": 0.15, "signal_to_noise": 0.20,
                 "clipping": 0.15, "timing": 0.10, "transient": 0.10,
                 "axial_consensus": 0.05, "correlation": 0.05}
 SIGNATURE_RULES = (
-    {"id": "magnetic_dominance", "test": 'channel 1 SNR >= 6 and channel 2 SNR < 3',
+    {"id": "ch1_dominance", "test": 'channel 1 SNR >= 6 and channel 2 SNR < 3',
      "condition": 'Channel 1 activity dominant', "text": 'Channel 1 activity with weak channel 2 activity suggests a nearby current loop or conductor. Probe sensitivity and geometry can also explain the difference.'},
-    {"id": "electric_dominance", "test": 'channel 2 SNR >= 6 and channel 1 SNR < 3',
+    {"id": "ch2_dominance", "test": 'channel 2 SNR >= 6 and channel 1 SNR < 3',
      "condition": 'Channel 2 activity dominant', "text": 'Channel 2 activity with weak channel 1 activity suggests capacitive coupling or a voltage driven source. This is a relative probe comparison.'},
     {"id": "radiated_rf", "test": 'channel 3 SNR >= 6 and channel 1 SNR < 3 and channel 2 SNR < 3',
      "condition": 'Channel 3 activity dominant', "text": 'A channel 3 change with weak low frequency activity suggests a channel 3 source. Source coupling and a swept scan do not establish source location or protocol.'},
@@ -346,7 +346,7 @@ class AnalysisEngine:
             raise ValueError("Baseline window must be between 2 and 600 seconds")
         with self.lock:
             for key in channels:
-                instances = [self.baselines[key]] + (self.axis_baselines if key == "magnetic" else [])
+                instances = [self.baselines[key]] + (self.axis_baselines if key == "ch1" else [])
                 for baseline in instances:
                     if window is not None:
                         baseline.window = float(window)
@@ -357,7 +357,7 @@ class AnalysisEngine:
                 if relock or window is not None:
                     self.transients[key] = TransientWatch()
                     self.histories[key].clear()
-                    if key == "magnetic":
+                    if key == "ch1":
                         self.axis_shares = None
                         self.filtered_vector = None
             return {key: self.baselines[key].snapshot() for key in channels}
@@ -376,14 +376,14 @@ class AnalysisEngine:
         uncertainty = finite(uncertainty, "Reference uncertainty")
         if scale <= 0 or uncertainty < 0:
             raise ValueError("Scale must be positive and uncertainty cannot be negative")
-        output_unit = unit or {"magnetic": "µT", "electric": "V/m", "rf": "dB", "current": "A"}[channel]
-        allowed = {"magnetic": {"µT", "uT"}, "electric": {"V/m", "mV RMS relative"}, "rf": {"dB"}, "current": {"A", "mA"}}
+        output_unit = unit or {"ch1": "unit", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
+        allowed = {"ch1": {"unit", "uT"}, "ch2": {"V/m", "mV RMS relative"}, "ch3": {"dB"}, "current": {"A", "mA"}}
         if output_unit not in allowed[channel]:
             raise ValueError("Unsupported calibration unit")
-        # A scalar calibration cannot correct magnetic vector offsets.
-        if channel == "magnetic" and abs(offset) > max(uncertainty, 1e-6):
-            raise ValueError("Magnetic scalar calibration requires proportional reference values; use the vector profile for axis offsets")
-        profile = {"scale": scale, "offset": 0.0 if channel == "magnetic" else offset,
+        # A scalar calibration cannot correct ch1 vector offsets.
+        if channel == "ch1" and abs(offset) > max(uncertainty, 1e-6):
+            raise ValueError("Ch1 scalar calibration requires proportional reference values; use the vector profile for axis offsets")
+        profile = {"scale": scale, "offset": 0.0 if channel == "ch1" else offset,
                    "uncertainty": uncertainty, "unit": output_unit, "method": str(method),
                    "timestamp": time.time(), "raw_reference": raw, "known_reference": known,
                    "scope": "Provided reference conditions only"}
@@ -421,7 +421,7 @@ class AnalysisEngine:
             base = self.baselines[channel]
             base.floor = CHANNELS[channel]["floor"] * scale
             deviation = base.update(corrected, mono, valid=not clipped)
-            if channel == "magnetic" and vector is not None:
+            if channel == "ch1" and vector is not None:
                 corrected_vector = [v * scale for v in vector]
                 for baseline in self.axis_baselines:
                     baseline.floor = 0.03 * scale
@@ -444,17 +444,17 @@ class AnalysisEngine:
                               "magnitude": deviation, "disagreement": disagreement * 100,
                               "agreement": agreement * 100, "contribution": [v * 100 for v in shares],
                               "confidence_contribution": agreement * MTDI_WEIGHTS["axial_consensus"] * 100,
-                              "unit": "µT", "method": "Half the sum of changes in squared axis contribution against a temporal reference"}
+                              "unit": "unit", "method": "Half the sum of changes in squared axis contribution against a temporal reference"}
                 fx, fy, fz = self.filtered_vector
                 self.vector = {"x": fx, "y": fy, "z": fz, "raw": delta_vector,
                                "bearing": math.degrees(math.atan2(fy, fx)) % 360 if deviation > 3 * base.noise else None,
                                "elevation": math.degrees(math.atan2(fz, math.hypot(fx, fy))),
                                "confidence": bounded(deviation / max(6 * base.noise, 1e-12)) * agreement * 100,
                                "reference": "Relative sensor axes; no geographic heading or source bearing"}
-            if channel == "rf" and "deviation_db" in metadata:
+            if channel == "ch3" and "deviation_db" in metadata:
                 deviation = finite(metadata["deviation_db"]) * scale
                 base.noise = max(base.floor, finite(metadata.get("noise_db", 0.5)) * scale)
-                base.settling = bool(metadata.get("spectrum_settling", base.settling))
+                base.settling = bool(metadata.get("sweep3_settling", base.settling))
             noise = max(base.noise, base.floor)
             snr = abs(deviation) / max(noise, 1e-12)
             self.transients[channel].update(mono, deviation, noise)
@@ -464,7 +464,7 @@ class AnalysisEngine:
             numeric_uncertainty = profile.get("uncertainty", instrument_uncertainty)
             uncertainty_text = (f"±{numeric_uncertainty:.3g} {profile.get('unit', unit or CHANNELS[channel]['unit'])}; reference uncertainty only"
                                 if numeric_uncertainty is not None else "Absolute accuracy unknown; ambient variation measured separately")
-            if channel == "electric" and not profile:
+            if channel == "ch2" and not profile:
                 uncertainty_text = "Relative input activity; field strength uncertainty unknown until probe calibration"
             if channel == "current" and not profile:
                 uncertainty_text = "Nominal clamp ratio only; ampere accuracy unknown until clamp calibration"
@@ -479,25 +479,25 @@ class AnalysisEngine:
                          "sample_rate": rate, "snr": snr, "uncertainty": uncertainty_text,
                          "uncertainty_value": numeric_uncertainty, "metadata": metadata,
                          "calibration": {"timestamp": profile.get("timestamp"), "calibrated": bool(profile),
-                                         "method": profile.get("method", "Factory nominal scaling" if channel == "magnetic" else "None"),
+                                         "method": profile.get("method", "Factory nominal scaling" if channel == "ch1" else "None"),
                                          "profile": profile}})
             display = {"direct": corrected, "deviation": deviation, "activity": max(0.0, deviation)}
-            if channel == "magnetic" and vector is not None:
+            if channel == "ch1" and vector is not None:
                 cx, cy, cz = corrected_vector
                 display.update({"x": cx, "y": cy, "z": cz, "magnitude": math.sqrt(cx * cx + cy * cy + cz * cz),
                                 "dx": delta_vector[0], "dy": delta_vector[1], "dz": delta_vector[2]})
-            if channel == "electric":
+            if channel == "ch2":
                 display.update({"rms_mv": value, "peak_mv": metadata.get("peak_mv"), "gain": metadata.get("gain"),
                                 "axes": metadata.get("axis_rms_counts"),
-                                "axes_v_m": metadata.get("axis_v_m"),
-                                "magnitude_v_m": metadata.get("magnitude_v_m")})
+                                "axes_vu": metadata.get("axis_vu"),
+                                "magnitude_vu": metadata.get("magnitude_vu")})
             item["display"] = display
             item["data_source"] = metadata.get("data_source", "HARDWARE")
             if item["data_source"] == "SIMULATED":
                 item["message"] = "SIMULATED DATA; no physical measurement"
                 item["uncertainty"] = "SIMULATED DATA; physical accuracy is not applicable"
             snap = base.snapshot()
-            if channel == "magnetic" and vector is not None:
+            if channel == "ch1" and vector is not None:
                 # For the vector lock the per-axis watches decide; the stale offset is the vector distance.
                 stale_axes = [b for b in self.axis_baselines if b.stale]
                 snap["stale"] = bool(stale_axes)
@@ -510,7 +510,7 @@ class AnalysisEngine:
                                         "stale_for": snap["stale_for"], "unit": item["unit"]})
                 self.baseline(channel, relock=True)
                 item["message"] = "Baseline re-learned: the quiet level had moved"
-            if channel == "magnetic" and vector is not None:
+            if channel == "ch1" and vector is not None:
                 item["axial"] = dict(self.axial)
                 item["baseline_vector"] = [baseline.value for baseline in self.axis_baselines]
             self.sequence += 1
@@ -663,7 +663,7 @@ class AnalysisEngine:
         for key, item in channels.items():
             profile = profiles[key]
             item["calibration"] = {"timestamp": profile.get("timestamp"), "calibrated": bool(profile),
-                "method": profile.get("method", "Factory nominal scaling" if key == "magnetic" else "None"), "profile": profile}
+                "method": profile.get("method", "Factory nominal scaling" if key == "ch1" else "None"), "profile": profile}
             item["baseline"] = baselines[key]
             item["transient"] = TransientWatch().snapshot(transient_values[key])
             item["history"] = [{"t": t, "deviation": v} for t, v, _ in histories[key]]
@@ -701,7 +701,7 @@ class AnalysisEngine:
                      "signal_to_noise": max(snr_term, quiet_term),
                      "clipping": float(not item["clipped"]), "timing": timing,
                      "transient": 0.75 if item["transient"]["state"] == "Bursty / transient" else 1.0,
-                     "axial_consensus": (axial["agreement"] / 100) if key == "magnetic" and axial else 1.0,
+                     "axial_consensus": (axial["agreement"] / 100) if key == "ch1" and axial else 1.0,
                      # Cross channel correlation is only testable while a signal exists; at
                      # rest it is neither confirmed nor contradicted, so partial credit.
                      "correlation": 0.8 if quiet else 0.5 + 0.5 * positive_correlation}
@@ -726,11 +726,11 @@ class AnalysisEngine:
             else:
                 selected = None
                 rule_by_id = {rule["id"]: rule for rule in SIGNATURE_RULES}
-                if snrs["magnetic"] >= 6 and "electric" in available and snrs["electric"] < 3:
-                    selected = rule_by_id["magnetic_dominance"]
-                elif snrs["electric"] >= 6 and "magnetic" in available and snrs["magnetic"] < 3:
-                    selected = rule_by_id["electric_dominance"]
-                elif snrs["rf"] >= 6 and all(key in available and snrs[key] < 3 for key in ("magnetic", "electric")):
+                if snrs["ch1"] >= 6 and "ch2" in available and snrs["ch2"] < 3:
+                    selected = rule_by_id["ch1_dominance"]
+                elif snrs["ch2"] >= 6 and "ch1" in available and snrs["ch1"] < 3:
+                    selected = rule_by_id["ch2_dominance"]
+                elif snrs["ch3"] >= 6 and all(key in available and snrs[key] < 3 for key in ("ch1", "ch2")):
                     selected = rule_by_id["radiated_rf"]
                 elif sum(s >= 3 for s in snrs.values()) >= 2:
                     selected = rule_by_id["mixed"]
@@ -754,7 +754,7 @@ class AnalysisEngine:
                      if item.get("metadata", {}).get("probe_health", "ok") != "ok"]
         warnings += [f"{item['label']}: baseline stale by {item['baseline']['stale_offset']:.2f} {item['unit']} for {item['baseline'].get('stale_for', 0):.0f} s; relock or wait for auto relock"
                      for item in channels.values() if item.get("baseline", {}).get("stale")]
-        if channels["magnetic"]["state"] != "connected":
+        if channels["ch1"]["state"] != "connected":
             if vector:
                 vector["confidence"] = 0.0
                 vector["bearing"] = None
