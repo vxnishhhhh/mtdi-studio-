@@ -47,7 +47,7 @@ def adopt(target, project_id=None, name=None, force=False):
         shutil.rmtree(vendored)
     shutil.copytree(ROOT / "mtdi", vendored, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     (vendored / "VENDORED.json").write_text(json.dumps(
-        {"mtdi": __version__, "source": "https://github.com/vxnishhhhh/mtdi-studio", "commit": _source_commit(),
+        {"mtdi": __version__, "source": "https://github.com/vxnishhhhh/mtdi-studio-", "commit": _source_commit(),
          "note": "Copied by `python -m mtdi adopt`. Do not edit here: improve MTDI Studio and re-adopt."}, indent=2) + "\n")
     done.append(f"copied MTDI {__version__} into {vendored}")
 
@@ -112,7 +112,7 @@ python -m mtdi run mtdi-project --headless       # JSON API only, for small boar
 * Firmware line format: `mtdi-docs/PROTOCOL.md`
 * Rules for AI agents: `AGENTS.md` (MTDI section) and `mtdi-docs/AI.md`
 
-Do not edit `mtdi/`. Improve MTDI Studio (https://github.com/vxnishhhhh/mtdi-studio) and
+Do not edit `mtdi/`. Improve MTDI Studio (https://github.com/vxnishhhhh/mtdi-studio-) and
 re-run `python -m mtdi adopt . --force` from a checkout of it to upgrade.
 Project id: `{project_id}`.
 """

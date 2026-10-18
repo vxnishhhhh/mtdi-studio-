@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/vxnishhhhh/mtdi-studio/docs/schema/project.schema.json",
+  "$id": "https://github.com/vxnishhhhh/mtdi-studio-/docs/schema/project.schema.json",
   "title": "MTDI 5.0 project manifest",
   "description": "One project.json per project. Authoritative validation is mtdi/project.py (python -m mtdi check).",
   "type": "object",

@@ -100,7 +100,7 @@ Report what was verified and what was not (for example "firmware not run on hard
 
 ## Prompt the user can paste into any AI
 
-> Use MTDI 5.0 from https://github.com/vxnishhhhh/mtdi-studio for my project. Read `docs/AI.md`
+> Use MTDI 5.0 from https://github.com/vxnishhhhh/mtdi-studio- for my project. Read `docs/AI.md`
 > in that repository first and follow it step by step: read the listed files, run
 > `python -m mtdi adopt` on my repository, map my project to channels with me, write the
 > manifest and any probes or firmware, then verify with the commands in step 5 and tell me

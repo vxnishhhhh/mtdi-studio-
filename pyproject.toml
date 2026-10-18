@@ -9,6 +9,7 @@ description = "MTDI 5.0: Microprocessing Technological Diagnostic Intelligence"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Vaishnav" }]
+license = { text = "MIT" }
 keywords = ["diagnostics", "sensors", "raspberry-pi", "monitoring", "anomaly-detection"]
 dependencies = []
 
@@ -19,6 +20,9 @@ all = ["dash>=2.17", "flask>=3", "pyserial>=3.5"]
 
 [project.scripts]
 mtdi = "mtdi.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/vxnishhhhh/mtdi-studio-"
 
 [tool.setuptools.packages.find]
 include = ["mtdi*"]

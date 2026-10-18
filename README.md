@@ -17,6 +17,7 @@ explains what it sees. Small enough for a Raspberry Pi.
 ![matlab](https://img.shields.io/badge/MATLAB%20twin-verified%20in%20Octave-ffab40?style=flat-square)
 ![pi](https://img.shields.io/badge/runs%20on-Raspberry%20Pi-c51a4a?style=flat-square)
 ![ai](https://img.shields.io/badge/AI--ready-llms.txt-ffd166?style=flat-square)
+![license](https://img.shields.io/badge/license-MIT-e8eeff?style=flat-square)
 
 [Use it from any AI](#use-mtdi-from-any-ai) · [Quick start](#quick-start) · [The pillars](#five-pillars-one-core) ·
 [Projects](#every-field-one-framework) · [Docs](docs/AI.md) · [Articles](docs/articles)
@@ -30,7 +31,7 @@ explains what it sees. Small enough for a Raspberry Pi.
 Paste this into ChatGPT, Claude, Gemini or any coding assistant:
 
 ```text
-Use MTDI 5.0 from https://github.com/vxnishhhhh/mtdi-studio for my project. Read docs/AI.md in that
+Use MTDI 5.0 from https://github.com/vxnishhhhh/mtdi-studio- for my project. Read docs/AI.md in that
 repository first and follow it step by step: read the listed files, run `python -m mtdi adopt` on my
 repository, map my project to channels with me, write the manifest and any probes or firmware, then
 verify with the commands in step 5 and tell me exactly what was and was not verified.
@@ -95,7 +96,7 @@ flowchart TB
 ## Quick start
 
 ```bash
-git clone https://github.com/vxnishhhhh/mtdi-studio && cd mtdi-studio
+git clone https://github.com/vxnishhhhh/mtdi-studio- && cd mtdi-studio-
 pip install -r requirements.txt
 
 python -m mtdi run projects/host-health                 # real data from the computer you are on
@@ -188,4 +189,4 @@ Raspberry Pi instrument that measures the electromagnetic environment, where it 
 layer that decided whether a measurement could be believed. Inductra Vaion remains its own
 repository. MTDI 5.0 is that layer made universal.
 
-*License: not yet chosen. Until a `LICENSE` file is added, all rights are reserved by the author.*
+Released under the [MIT License](LICENSE).

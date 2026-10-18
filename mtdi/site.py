@@ -29,7 +29,7 @@ from .project import load
 from .studio import views
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-REPO = "https://github.com/vxnishhhhh/mtdi-studio"
+REPO = "https://github.com/vxnishhhhh/mtdi-studio-"
 ASSETS = ROOT / "mtdi" / "pillars" / "i3" / "assets"
 SITE_ASSETS = ROOT / "site" / "assets"
 DEMOS = ["inductra-vaion", "host-health", "auth-watch", "network-watch", "ultrasonic-room"]
