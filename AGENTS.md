@@ -25,3 +25,5 @@ field that produces numbers.
    a test, keep every project and SDK passing, and record it in `CHANGELOG.md`.
 9. **Secrets.** API keys, tokens and the ingest token come from environment variables only. Never write
    them into files, manifests, logs or commits.
+10. **Scheduled sessions** follow `ops/NIGHTLY.md`, take work from `ops/BACKLOG.md` and record
+    it in `ops/STATE.md` and `ops/reports/`. Decisions live in `docs/adr/`.

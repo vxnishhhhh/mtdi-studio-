@@ -1,5 +1,8 @@
 # Architecture
 
+Pillars (ADR 0001): 00 Validation Chamber · 01 Environmental Intelligence · 02 Computational Core ·
+03 NVTRA · 04 I³, with Aether as the layer across all of them.
+
 ```
             sources                          framework (mtdi/)                         studio (studio/)
   ┌───────────────────────┐   lines    ┌──────────────────────────────┐   bridge   ┌─────────────────────────────┐

@@ -318,12 +318,14 @@ def cmd_adopt(args):
 def cmd_describe(args):
     from .adapters import build  # noqa: F401  (import check: every adapter module loads)
     from .core import DEFAULT_WEIGHTS
-    from .pillars import PILLARS
+    from .pillars import AETHER, COMPUTATIONAL_MODULES, PILLARS
     from .project import ADAPTERS, KINDS, KNOWN_DOMAINS, TRANSFORMS
     from . import llm
     print(json.dumps({
         "mtdi": __version__,
         "pillars": [{k: p[k] for k in ("num", "id", "title", "role", "desc")} for p in PILLARS],
+        "aether": {k: AETHER[k] for k in ("id", "title", "role", "desc")},
+        "computational_core": COMPUTATIONAL_MODULES,
         "adapters": sorted(ADAPTERS), "channel_kinds": sorted(KINDS), "transforms": sorted(TRANSFORMS),
         "domains": {"known": sorted(KNOWN_DOMAINS), "open": "any lowercase word"},
         "score_factors": DEFAULT_WEIGHTS,
