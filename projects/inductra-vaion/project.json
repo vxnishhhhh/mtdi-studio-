@@ -1,0 +1,88 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "inductra-vaion",
+    "name": "Inductra Vaion",
+    "author": "Vaishnav",
+    "domain": "electromagnetic",
+    "tagline": "ELECTROMAGNETIC INTELLIGENCE — OUR SIXTH SENSE",
+    "description": "A real-time electromagnetic diagnostic instrument. It reads a [[QMC5883P three-axis magnetometer]] and three [[electric-field probe]] channels through an [[Arduino Uno]], resolves them into [[magnetic vectors]] and [[relative E-field activity]], and measures how far each sits from its own environment."
+  },
+
+  "hardware": [
+    {"name": "RASPBERRY PI", "role": "Host + server"},
+    {"name": "ARDUINO UNO R3", "role": "Sensor bridge · USB"},
+    {"name": "QMC5883P", "role": "Magnetometer @ 0x2C"},
+    {"name": "E-FIELD PROBE", "role": "3 plates · Uno A0–A2"},
+    {"name": "TINYSA ULTRA", "role": "Spectrum · USB"},
+    {"name": "RTL-SDR", "role": "IQ receiver · USB"}
+  ],
+
+  "sources": [
+    {"id": "uno", "adapter": "serial", "port": "auto", "baud": 115200,
+     "note": "firmware/inductra_uno_bridge.ino on an Uno plugged into this machine"},
+    {"id": "bridge", "adapter": "tcp", "listen": "0.0.0.0:8765",
+     "note": "the same Uno on a Mac, forwarded by bridge/uno_network_bridge.py --host <this machine>"},
+    {"id": "rf", "adapter": "http",
+     "note": "tinySA is read by Inductra's own driver, not a line protocol; POST {\"source\":\"rf\",\"values\":{\"RF_DEV_DB\":x}} to /mtdi/ingest"}
+  ],
+
+  "channels": [
+    {
+      "id": "magnetic", "label": "Magnetic field", "physical": "magnetic", "kind": "vector",
+      "source": ["uno", "bridge"], "keys": ["MAGX", "MAGY", "MAGZ"], "axes": ["x", "y", "z"],
+      "unit": "µT", "scale": 0.0066666667, "raw_range": [-32768, 32767],
+      "noise_floor": 0.1, "noise_budget": 1.0, "alert_change": 2.0, "stale_after": 2.0,
+      "simulate": {"mean": [18.0, -6.0, 41.0], "noise": 0.08}
+    },
+    {
+      "id": "electric", "label": "Electric activity", "physical": "electric", "kind": "vector",
+      "source": ["uno", "bridge"], "keys": ["CH3", "CH2", "CH1"], "axes": ["x", "y", "z"],
+      "unit": "mV RMS", "scale": 4.8875855, "raw_range": [0, 1023],
+      "transform": "ac_rms", "window": 25,
+      "noise_floor": 2.0, "noise_budget": 10.0, "alert_change": 5.0, "expected_rate": 50, "stale_after": 4.0,
+      "simulate": {"mean": [2500, 2450, 2550], "noise": 6, "wave": {"amp": 25, "hz": 0.2}}
+    },
+    {
+      "id": "rf", "label": "RF spectrum", "physical": "rf", "kind": "scalar",
+      "source": "rf", "keys": ["RF_DEV_DB"], "unit": "dB",
+      "noise_floor": 0.5, "noise_budget": 2.5, "alert_change": 4.0, "stale_after": 90.0, "optional": true
+    }
+  ],
+
+  "environment": {"window": 10.0, "auto_relock_after": null},
+
+  "nvtra": {
+    "rules": [
+      {"id": "magnetic_dominance", "when": {"magnetic": ">=6", "electric": "<3"},
+       "condition": "Magnetic activity dominant",
+       "text": "Magnetic activity with weak electric activity suggests a nearby current loop or conductor. Probe sensitivity and geometry can also explain the difference."},
+      {"id": "electric_dominance", "when": {"electric": ">=6", "magnetic": "<3"},
+       "condition": "Electric activity dominant",
+       "text": "Electric activity with weak magnetic activity suggests capacitive coupling or a voltage driven source. This is a relative probe comparison."},
+      {"id": "radiated_rf", "when": {"rf": ">=6", "magnetic": "<3", "electric": "<3"},
+       "condition": "RF activity dominant",
+       "text": "A spectrum change with weak low frequency activity suggests an RF source. Antenna coupling and a swept scan do not establish source location or protocol."}
+    ]
+  },
+
+  "aether": {
+    "purpose": "Aether is the soul layer. It is not a sensor or a formula. It is the part of Inductra Vaion created by failure, obsession, rebuilding and the need to make the invisible visible.",
+    "story": ["MTDI makes it stand. I³ makes it beautiful. NVTRA makes it speak. Aether makes it alive."],
+    "authorship": [
+      "I selected the sensors. I designed the diagnostic structure. I created MTDI. I defined I³. I integrated the Pi and the dashboard logic. I tested the sensor behaviour. I shaped the purpose. I made the decisions. I carried the idea.",
+      "AI helped me build faster, but it did not dream this for me. This came from me."
+    ],
+    "quote": "It started as induction. It became interference. Now it is intelligence."
+  },
+
+  "interface": {
+    "force_home_on_load": true,
+    "intro": {"title_top": "INDUCTRA", "title_bottom": "VAION"},
+    "home_opening": {
+      "kind": "field",
+      "title": "Electromagnetic interference is unwanted electromagnetic energy that flows into other systems.",
+      "tagline": "It leaks from motors, chargers, radios and wiring, rides along cables and through the air, and disturbs whatever it reaches. Inductra Vaion measures it as magnetic, electric and radio-frequency energy, so you can see where it comes from and how strong it is."
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "template",
+    "name": "Template",
+    "author": "",
+    "domain": "",
+    "tagline": "",
+    "description": "What this project measures and why. Use [[term]] to highlight technical terms."
+  },
+  "hardware": [
+    {"name": "BOARD", "role": "What it does"},
+    {"name": "SENSOR", "role": "What it measures"}
+  ],
+  "sources": [
+    {"id": "device", "adapter": "serial", "port": "auto", "baud": 115200}
+  ],
+  "channels": [
+    {"id": "signal", "label": "Signal", "physical": "generic", "kind": "scalar",
+     "keys": ["VALUE"], "unit": "", "scale": 1.0, "offset": 0.0, "raw_range": [0, 1023],
+     "noise_floor": 1.0, "expected_rate": 20,
+     "simulate": {"mean": 500, "noise": 1.5}}
+  ],
+  "environment": {"window": 10.0, "auto_relock_after": null},
+  "weights": {},
+  "nvtra": {"rules": []},
+  "aether": {"purpose": "", "story": [], "authorship": [], "quote": null},
+  "interface": {}
+}

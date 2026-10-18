@@ -1,0 +1,36 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "ultrasonic-room",
+    "name": "Ultrasonic Room",
+    "author": "MTDI Studio example",
+    "domain": "acoustic ranging",
+    "tagline": "ENVIRONMENTAL INTELLIGENCE BY ECHO",
+    "description": "An example that is not electromagnetic: an [[HC-SR04 ultrasonic]] range finder learns the empty room as its environment, then reports anything that enters the beam as a deviation from it."
+  },
+  "hardware": [
+    {"name": "HC-SR04", "role": "Ultrasonic ranger · 2–400 cm"},
+    {"name": "ARDUINO / ESP32", "role": "Any board · USB serial"}
+  ],
+  "sources": [
+    {"id": "ranger", "adapter": "serial", "port": "auto", "baud": 115200}
+  ],
+  "channels": [
+    {"id": "distance", "label": "Echo distance", "physical": "ultrasonic", "kind": "scalar",
+     "keys": ["DIST_CM"], "unit": "cm", "raw_range": [2, 400],
+     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 5.0, "expected_rate": 20,
+     "simulate": {"mean": 182.0, "noise": 0.4}},
+    {"id": "echo", "label": "Echo time", "physical": "ultrasonic", "kind": "scalar",
+     "keys": ["ECHO_US"], "unit": "µs", "raw_range": [100, 23500],
+     "noise_floor": 15, "noise_budget": 120, "expected_rate": 20, "optional": true,
+     "simulate": {"mean": 10600, "noise": 20}}
+  ],
+  "nvtra": {
+    "rules": [
+      {"id": "entered_beam", "when": {"distance": ">=6"},
+       "condition": "Something is in the beam",
+       "text": "The echo moved well beyond the room's learned ambient variation: an object or person is in the beam, or the sensor moved."}
+    ]
+  },
+  "aether": {"purpose": "Shows that MTDI's pillars do not care what a sensor measures: the same Validation Chamber, Environmental Intelligence and NVTRA that serve Inductra serve an echo."}
+}
