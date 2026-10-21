@@ -158,6 +158,7 @@ html.nav-busy #nav-progress{{opacity:1;animation:navProgress 1.4s cubic-bezier(0
 .pillar:hover .pillar-title{{color:{CYAN}}}
 .pillar-chips{{display:flex;flex-direction:column;padding:10px 0 4px;flex:1}}
 .pillar-chip{{font-family:{FONT};font-size:10px;color:{SUBTEXT};padding:10px 20px;letter-spacing:0.03em;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.04);transition:color 0.2s,background 0.2s,text-shadow 0.2s;line-height:1.4;cursor:pointer;user-select:none;position:relative}}
+.cc-areas{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:18px}}.cc-mod{{justify-content:space-between}}.cc-mod-state{{font-size:9px;letter-spacing:.08em;text-transform:uppercase}}.cc-mod-state.ok{{color:#00e676}}.cc-mod-state.bad{{color:#ff5252}}
 .pillar-chip:last-child{{border-bottom:none}}
 .pillar-chip::before{{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0;background:rgba(0,229,255,0.25);transition:background 0.2s,box-shadow 0.2s}}
 .pillar-chip:hover{{color:{WHITE}!important;background:rgba(0,229,255,0.06);text-shadow:0 0 12px rgba(0,229,255,0.3)}}

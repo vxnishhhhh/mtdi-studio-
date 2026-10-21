@@ -1,10 +1,11 @@
-"""The five MTDI pillars and the Aether layer (ADR 0001).
+"""The six MTDI pillars and the Aether layer (ADR 0001, ADR 0007).
 
     00  validation     Validation Chamber          Evidence     is each channel present, fresh, on time, in range
     01  environment    Environmental Intelligence  Baselines    learn, lock and compare the real environment
     02  computational  Computational Core          Computation  ML, mathematics, simulation, agents, integrations
     03  nvtra          NVTRA                       Explanation  explain what the pillars found, in plain language
     04  i3             I³                          Interface    the interface everything is seen through
+    05  research       Research                    Data         find, license, credit and catalogue real data
 
     ··  aether         Aether                      Soul         the layer across every pillar: terminal, Easter
                                                                 eggs, purpose and authorship; shown, never scored
@@ -23,6 +24,9 @@ PILLARS = [
      "desc": "The intelligence that explains what the pillars found.", "accent": "#ffd166"},
     {"id": "i3", "num": "04", "title": "I³", "role": "Interface",
      "desc": "Induction, interference and intelligence made visible.", "accent": "#b388ff"},
+    {"id": "research", "num": "05", "title": "Research", "role": "Data",
+     "desc": "Find, license, credit and catalogue the real data every other pillar learns from.",
+     "accent": "#ffab40"},
 ]
 
 AETHER = {"id": "aether", "num": "··", "title": "Aether", "role": "Soul",

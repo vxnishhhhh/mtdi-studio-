@@ -2051,6 +2051,69 @@ def _count_word(n):
             6: "Six", 7: "Seven", 8: "Eight"}.get(n, str(n))
 
 
+# ════════════════════════════════════════════════════════
+#  COMPUTATIONAL CORE (pillar 02) and RESEARCH (pillar 05)
+# ════════════════════════════════════════════════════════
+# Both read the framework (mtdi.pillars) instead of repeating it, so the studio can never
+# list a module or pillar the code does not have. Import status is checked for real each
+# time the page is built: "ready" means the module imported, "missing" shows the error.
+# Aether note: if you are reading this at 2 a.m., the modules are fine. It's you. Go to bed.
+
+def _computational_modules():
+    import importlib
+    from mtdi.pillars import COMPUTATIONAL_MODULES
+    rows = []
+    for area, modules in COMPUTATIONAL_MODULES.items():
+        for name in modules:
+            try:
+                importlib.import_module(name)
+                rows.append((area, name, True, ""))
+            except Exception as exc:  # a missing optional dependency, shown rather than hidden
+                rows.append((area, name, False, type(exc).__name__))
+    return rows
+
+
+def computational_core_section():
+    rows = _computational_modules()
+    areas = []
+    for area in dict.fromkeys(r[0] for r in rows):
+        chips = [html.Div([html.Span(name.replace("mtdi.", ""), className="cc-mod-name"),
+                           html.Span("ready" if ok else f"missing · {err}",
+                                     className="cc-mod-state " + ("ok" if ok else "bad"))],
+                          className="pillar-chip cc-mod") for a, name, ok, err in rows if a == area]
+        areas.append(html.Div([html.Div(area.upper(), className="section-label"),
+                               html.Div(chips, className="pillar-chips")], className="cc-area"))
+    ready = sum(1 for r in rows if r[2])
+    return html.Div([
+        _section_head("PILLAR 02", "Computational Core",
+                      "Every service and algorithm MTDI is built with, available to the projects built on it.",
+                      f"{ready}/{len(rows)} MODULES READY", CYAN),
+        html.Div(areas, className="cc-areas"),
+    ], id="mtdi-computational", className="mtdi-section-card", style={"--acc": CYAN, "--glow": f"{CYAN}22"})
+
+
+def research_section():
+    import json, pathlib
+    catalogue = pathlib.Path(__file__).resolve().parents[1] / "registry" / "datasets.json"
+    try:
+        datasets = json.loads(catalogue.read_text()).get("datasets", [])
+    except (OSError, ValueError):
+        datasets = []
+    if datasets:
+        body = [html.Div([html.Span(d.get("name", d.get("id", "?")), className="cc-mod-name"),
+                          html.Span(d.get("source", ""), className="cc-mod-state ok")],
+                         className="pillar-chip cc-mod") for d in datasets]
+    else:  # honest empty state: no dataset is shown until one is really catalogued
+        body = [html.Div("No datasets catalogued yet. Each one appears here with its source, licence and credit.",
+                         className="mtdi-section-copy")]
+    return html.Div([
+        _section_head("PILLAR 05", "Research",
+                      "Real data, found and credited, feeding the Validation Chamber and Environmental Intelligence.",
+                      f"{len(datasets)} DATASETS", AMBER),
+        html.Div(body, className="pillar-chips"),
+    ], id="mtdi-research", className="mtdi-section-card", style={"--acc": AMBER, "--glow": f"{AMBER}22"})
+
+
 # The D4 analysis engine is deliberately NOT in this list. It is a signal-processing
 # engine, not one of MTDI's diagnostic pillars - MTDI asks whether the instrument can
 # be trusted, while D4 asks what the field is doing. It lives on the Page 3 page
@@ -2060,11 +2123,17 @@ MTDI_ORBIT_PILLARS = [
      'Text', BLUE, validation_chamber_section),
     ("environment", "01", "Environmental Intelligence", "Baselines",
      'Text', GREEN, environmental_intelligence_section),
-    ("nvtra", "02", "NVTRA", "Health",
+    ("computational", "02", "Computational Core", "Computation",
+     'Text', CYAN, computational_core_section),
+    ("nvtra", "03", "NVTRA", "Explanation",
      'Paragraph. Enter your text here.', YELLOW, nvtra_field_section),
-    ("i3", "03", 'Text', "Meaning",
+    ("i3", "04", 'Text', "Interface",
      'Text', PURPLE, i3_field_section),
-    ("aether", "04", "Aether", "Reason",
+    ("research", "05", "Research", "Data",
+     'Text', AMBER, research_section),
+    # Aether is the layer across every pillar (ADR 0001), not pillar 06: it keeps its
+    # place in the orbit so the terminal and the Easter eggs stay one click away.
+    ("aether", "··", "Aether", "Soul",
      'Text', RED, aether_field_section),
 ]
 

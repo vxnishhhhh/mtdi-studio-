@@ -11,6 +11,8 @@ Updated by every session. Newest first.
 
 ## Log
 
+* 2026-10-21 · S1-01: MTDI page now shows six pillars (Computational Core 02 with a live module check, Research 05 with an honest empty catalogue) plus Aether as the layer; constellation gains both branches. 56 tests, tour clean.
+
 * 2026-10-18 · Owner added ADR 0006: Compatibility Laboratory, capability records and runtime
   selection, Intelligence Profiles (Edge, Scientific, Vision, Autonomous, Hybrid, Research). Backlog
   S1-03 to S1-05; reference projects and the universality gate renumbered S1-07 to S1-09.
