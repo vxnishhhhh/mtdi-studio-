@@ -41,7 +41,7 @@ COMPUTATIONAL_MODULES = {
                          "mtdi.ml.features", "mtdi.ml.monitor"],
     "language models": ["mtdi.llm", "mtdi.policy"],
     "voice": ["mtdi.voice"],
-    "intelligence": ["mtdi.bot"],
+    "intelligence": ["mtdi.bot", "mtdi.agents"],
     "storage": ["mtdi.storage"],
     "integrations": ["mtdi.integrations.github", "mtdi.integrations.vercel", "mtdi.integrations.notion",
                      "mtdi.integrations.matlab"],
