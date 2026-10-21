@@ -974,7 +974,7 @@ void main(){
     function coast(strength){coastUntil=Math.max(coastUntil,performance.now()+Math.min(3300,420+strength*90));}
     // ── the constellation ────────────────────────────────────────────────────
     // A branching graph rather than a flat ring of cards: MTDI at the core, the
-    // five pillars on an inner shell, and each pillar's diagnostics on an outer
+    // six pillars and the Aether layer on an inner shell, and each pillar's diagnostics on an outer
     // shell above and below it. The ids and order match MTDI_ORBIT_PILLARS, so
     // what is drawn here is the page's own structure and not a decoration.
     var GROUPS=[
@@ -986,6 +986,9 @@ void main(){
        children:[['baselines','BASELINES'],['ch1-field','CHANNEL 1'],['ch2-field','CHANNEL 2'],
                  ['correlation','CORRELATION'],['ch3-sweep3','CHANNEL 3'],
                  ['noise-floor','NOISE FLOOR'],['linefreq-50hz','REFERENCE'],['harmonics-env','HARMONICS']]},
+      {id:'computational',text:'COMPUTATIONAL CORE',color:'#9fe7f2',lat:.30,
+       children:[['ml','MACHINE LEARNING'],['matlab','MATLAB'],['llm','LANGUAGE MODELS'],['agents','AGENTS'],
+                 ['storage','STORAGE'],['voice-cc','VOICE'],['integrations','INTEGRATIONS'],['sdks','SDKS']]},
       {id:'nvtra',text:'NVTRA',color:'#e0c997',lat:-.30,
        children:[['completeness','COMPLETENESS'],['stability','STABILITY'],['trust','TRUST'],['diagnostics','DIAGNOSTICS'],
                  ['confidence','CONFIDENCE'],['consensus','CONSENSUS'],['transients','TRANSIENTS'],
@@ -994,6 +997,9 @@ void main(){
        children:[['induction','INDUCTION'],['interference','INTERFERENCE'],['intelligence','INTELLIGENCE'],
                  ['harmonics','HARMONICS'],['fingerprint','FINGERPRINT'],['signature','SIGNATURE'],
                  ['d4','D4 ENGINE'],['filters','FILTERS'],['trend','TREND']]},
+      {id:'research',text:'RESEARCH',color:'#f2c48d',lat:.26,
+       children:[['datasets','DATASETS'],['sources','SOURCES'],['licences','LICENCES'],['credits','CREDITS'],
+                 ['catalogue','CATALOGUE'],['offline','OFFLINE']]},
       {id:'aether',text:'AETHER',color:'#d8a3b1',lat:-.23,
        children:[['purpose','PURPOSE'],['persistence','PERSISTENCE'],['authorship','AUTHORSHIP'],['origin','ORIGIN'],
                  ['struggle','STRUGGLE'],['obsession','OBSESSION'],['rebuilding','REBUILDING'],
