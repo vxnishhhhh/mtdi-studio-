@@ -388,6 +388,7 @@ class Integrations(unittest.TestCase):
             bare = pathlib.Path(tmp) / "remote.git"
             subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
             # no background gc or maintenance after the push: it races the temp-dir cleanup (seen with git 2.55)
+            # HOURS-WASTED: 1 - a test that failed now and then, because git tidied up after itself mid-delete
             for key, value in (("gc.auto", "0"), ("receive.autogc", "false"), ("maintenance.auto", "false")):
                 subprocess.run(["git", "--git-dir", str(bare), "config", key, value], check=True)
 
@@ -442,3 +443,35 @@ class Integrations(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AetherTags(unittest.TestCase):
+    def test_scan_counts_tags_and_hours_and_flags_unreadable(self):
+        import tempfile
+        from mtdi.pillars import aether
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            (root / "a.py").write_text("x = 1  # HOURS-WASTED: 2.5 - serial port named COM3 on a Mac\n"
+                                       "# GUIDE: add channels in project.json\n# HOURS-WASTED: lots\n", encoding="utf-8")
+            (root / "b.ino").write_text("// AETHER: it works on my bench\n// CONTEXT: 115200 baud\n", encoding="utf-8")
+            (root / "c.m").write_text("% HOURS-WASTED: 1h - MATLAB index starts at 1\n", encoding="utf-8")
+            (root / "node_modules").mkdir()
+            (root / "node_modules" / "x.js").write_text("// HOURS-WASTED: 99 - not ours\n", encoding="utf-8")
+            (root / "d.py").write_text("s = 'see # HOURS-WASTED: 5 - inside a string'\n"
+                                       '"""\n# HOURS-WASTED: 5 - inside a docstring\n"""\n'
+                                       "x = \"don't\";# GUIDE: after an apostrophe, no space\n", encoding="utf-8")
+            (root / "e.js").write_text("const u = 'http://x'; // AETHER: after a URL in a string\n"
+                                       "let s = \"// HOURS-WASTED: 7 - in a string\";\n"
+                                       "/* // HOURS-WASTED: 5 - in a block */\n/*\n// HOURS-WASTED: 6 - in a long block\n*/\n"
+                                       "f(); /* x */ // GUIDE: after a closed block\n"
+                                       "const m = `/*`; // AETHER: after a template literal\n"
+                                       "const t = `line one\n// HOURS-WASTED: 4 - inside a multi-line template\n`;\n",
+                                       encoding="utf-8")
+            result = aether.scan(root)
+        self.assertEqual(result["hours"], 3.5)
+        self.assertEqual([len(result["tags"][t]) for t in aether.TAGS], [3, 1, 3, 2])
+        self.assertEqual([m["where"] for m in result["malformed"]], ["a.py:3"])
+        self.assertIn("3.5", aether.render(result))
+        self.assertIn("unreadable", aether.render(result))
+        with self.assertRaises(FileNotFoundError):
+            aether.scan(pathlib.Path(d) / "typo")

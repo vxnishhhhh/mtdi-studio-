@@ -337,6 +337,15 @@ def cmd_capabilities(args):
         print(f"\n{tid}")
         for prof, (runtime, why) in row.items():
             print(f"  {prof:<11} {runtime:<14} {why}")
+def cmd_aether(args):
+    from .pillars import aether
+    try:
+        result = aether.scan(args.root)
+    except FileNotFoundError as error:
+        sys.exit(f"mtdi aether: {error}")
+    print(json.dumps(result, indent=2) if args.json else aether.render(result))
+
+
 def cmd_registry(args):
     from . import registry
     snap = registry.snapshot()
@@ -377,7 +386,7 @@ def cmd_describe(args):
                          "command": "python -m mtdi capabilities"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
                      **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
-        "commands": ["capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "commands": ["aether", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -434,6 +443,10 @@ def main(argv=None):
     watch.add_argument("project")
     watch.add_argument("--simulate", action="store_true")
     watch.set_defaults(func=cmd_watch)
+    aeth = sub.add_parser("aether", help="guides, context notes and the hours-wasted counter from code comments")
+    aeth.add_argument("root", nargs="?", default=".")
+    aeth.add_argument("--json", action="store_true")
+    aeth.set_defaults(func=cmd_aether)
     check = sub.add_parser("check", help="validate a project manifest")
     check.add_argument("project")
     check.add_argument("--target", help="reference target id (default: this machine)")
