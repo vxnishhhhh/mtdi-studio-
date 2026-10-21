@@ -58,6 +58,19 @@ class Capabilities(unittest.TestCase):
             cap.select_runtime(self.targets["desktop"], "telepathy")
         with self.assertRaises(ValueError):
             cap.validate({"id": "x"})
+        with self.assertRaises(ValueError):
+            cap.validate(dict(self.targets["desktop"], languages=None))
+        with self.assertRaises(ValueError):
+            cap.validate(dict(self.targets["desktop"], memory_mb="lots"))
+
+    def test_targets_ship_inside_the_package(self):
+        self.assertEqual(cap.TARGETS.parent.name, "mtdi")
+        import shutil, tempfile, subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            shutil.copytree(ROOT / "mtdi", pathlib.Path(tmp) / "mtdi")  # what `mtdi adopt` copies
+            out = sp.run([sys.executable, "-c", "from mtdi.capabilities import load_targets; print(len(load_targets()))"],
+                         cwd=tmp, capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.stdout.strip(), "8", out.stderr)
 
     def test_host_detection_and_cli(self):
         host = cap.detect_host()

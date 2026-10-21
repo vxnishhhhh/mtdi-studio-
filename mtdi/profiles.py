@@ -37,7 +37,7 @@ PROFILES = {
     "hybrid": {"for": "hardware + firmware + cloud + AI together",
                "modules": CORE + ML + ["mtdi.analysis", "mtdi.llm", "mtdi.bot", "mtdi.bridge", "mtdi.storage"]},
     "research": {"for": "datasets, ML experiments, reproducibility",
-                 "modules": CORE + ML + ["mtdi.analysis", "mtdi.adapters.replay", "mtdi.storage", "mtdi.capabilities"]},
+                 "modules": CORE + ML + ["mtdi.analysis", "mtdi.adapters.replay", "mtdi.storage", "mtdi.capabilities", "mtdi.registry"]},
 }
 DEFAULT = "hybrid"
 

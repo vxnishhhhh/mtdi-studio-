@@ -337,6 +337,12 @@ def cmd_capabilities(args):
         print(f"\n{tid}")
         for prof, (runtime, why) in row.items():
             print(f"  {prof:<11} {runtime:<14} {why}")
+def cmd_registry(args):
+    from . import registry
+    snap = registry.snapshot()
+    print(json.dumps(snap, indent=2) if args.json else registry.render(snap))
+    if not all(m["ok"] for m in snap["modules"]):
+        sys.exit(1)
 
 
 def cmd_describe(args):
@@ -369,7 +375,9 @@ def cmd_describe(args):
         "capabilities": {"targets": sorted(__import__("mtdi.capabilities", fromlist=["x"]).load_targets()),
                          "runtimes": ["line-protocol", "edge", "full", "remote"],
                          "command": "python -m mtdi capabilities"},
-        "commands": ["capabilities", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
+                     **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
+        "commands": ["capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -479,6 +487,9 @@ def main(argv=None):
     caps = sub.add_parser("capabilities", help="show what each target can run and the runtime MTDI picks")
     caps.add_argument("--json", action="store_true")
     caps.set_defaults(func=cmd_capabilities)
+    reg = sub.add_parser("registry", help="list integrations and Computational Core modules with status")
+    reg.add_argument("--json", action="store_true")
+    reg.set_defaults(func=cmd_registry)
     describe = sub.add_parser("describe", help="print MTDI's capabilities as JSON")
     describe.set_defaults(func=cmd_describe)
     args = parser.parse_args(argv)

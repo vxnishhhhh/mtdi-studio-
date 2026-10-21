@@ -348,7 +348,7 @@ class AdoptAndDescribe(unittest.TestCase):
             main(["describe"])
         data = json.loads(buf.getvalue())
         self.assertIn("process", data["adapters"])
-        self.assertEqual(len(data["pillars"]), 5)
+        self.assertEqual(len(data["pillars"]), 6)
 
 
 class TwoImplementations(unittest.TestCase):
