@@ -17,3 +17,7 @@ Updated by every session. Newest first.
 
 * 2026-10-18 · Plan approved (all four decisions as recommended; Africa/Johannesburg time).
   Pillars per ADR 0001. Ops backbone, ADRs 0001-0005, tour tool. Scheduled sessions created.
+
+## Owner to-do, deferred (raise at the next owner session)
+* Codex: Settings → Code Review → mtdi-studio- → Trigger = every PR (no automatic review posted on PR #1).
+* Vercel connector: grant team `vaishnavsh-3150s-projects` (the connector currently sees no teams).
