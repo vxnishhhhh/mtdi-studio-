@@ -29,6 +29,19 @@ class Fusion(unittest.TestCase):
             fusion.fuse([])
         with self.assertRaises(ValueError):
             fusion.fuse([(1.0, 0.0)])
+        with self.assertRaises(ValueError):
+            fusion.fuse([(float("nan"), 1.0)])
+        with self.assertRaises(ValueError):
+            fusion.Kalman1D().update(1.0, r=float("inf"))
+
+    def test_plane_fit_is_scale_independent_and_rejects_collinear(self):
+        raw = [i * 1e-6 for i in range(10)]
+        temp = [20 + (i % 3) * 1e-6 for i in range(10)]
+        ref = [2.0 * r + 0.5 * (t - 25.0) + 1.0 for r, t in zip(raw, temp)]
+        cal = fusion.Calibration.fit(raw, ref, temperature=temp)
+        self.assertAlmostEqual(cal.gain, 2.0, places=6)
+        with self.assertRaises(ValueError):
+            fusion.Calibration.fit([1, 2, 3, 4], [2, 4, 6, 8], temperature=[2, 4, 6, 8])
 
     def test_kalman_converges_and_shrinks_uncertainty(self):
         rng = random.Random(7)

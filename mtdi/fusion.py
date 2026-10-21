@@ -33,8 +33,9 @@ def fuse(readings):
     pts = [(float(v), float(var)) for v, var in readings if v is not None]
     if not pts:
         raise ValueError("fuse() needs at least one reading")
-    if any(var <= 0 for _, var in pts):
-        raise ValueError("every variance must be > 0 (use the sensor's measured noise, sigma squared)")
+    if any(not (math.isfinite(v) and math.isfinite(var)) or var <= 0 for v, var in pts):
+        raise ValueError("readings must be finite and every variance finite and > 0 "
+                         "(use the sensor's measured noise, sigma squared)")
     weight = sum(1.0 / var for _, var in pts)
     return sum(v / var for v, var in pts) / weight, 1.0 / weight
 
@@ -53,6 +54,8 @@ class Kalman1D:
 
     def update(self, z, r=None):
         r = self.r if r is None else float(r)
+        if not math.isfinite(r) or r <= 0 or not math.isfinite(float(z)):
+            raise ValueError("the reading must be finite and its variance finite and > 0")
         if self.x is None:
             self.x, self.p = float(z), r
             return self.x, self.p
@@ -147,32 +150,21 @@ def _least_squares_line(x, y):
 
 
 def _least_squares_plane(x, t, y):
-    """y = a*x + b*t + c by the normal equations (3x3, solved directly)."""
+    """y = a*x + b*t + c. Centring first keeps the 2x2 system well conditioned at any scale."""
     n = len(x)
-    sx, st, sy = sum(x), sum(t), sum(y)
-    sxx = sum(a * a for a in x)
-    stt = sum(b * b for b in t)
-    sxt = sum(a * b for a, b in zip(x, t))
-    sxy = sum(a * c for a, c in zip(x, y))
-    sty = sum(b * c for b, c in zip(t, y))
-    m = [[sxx, sxt, sx], [sxt, stt, st], [sx, st, n]]
-    v = [sxy, sty, sy]
-    det = _det3(m)
-    if abs(det) < 1e-12:
+    mx, mt, my = sum(x) / n, sum(t) / n, sum(y) / n
+    xc, tc, yc = [a - mx for a in x], [b - mt for b in t], [c - my for c in y]
+    sxx = sum(a * a for a in xc)
+    stt = sum(b * b for b in tc)
+    sxt = sum(a * b for a, b in zip(xc, tc))
+    det = sxx * stt - sxt * sxt
+    if sxx == 0 or stt == 0 or det <= 1e-12 * sxx * stt:  # relative test: scale-independent
         raise ValueError("raw readings and temperature are collinear; vary them independently")
-    sol = []
-    for col in range(3):
-        mm = [row[:] for row in m]
-        for r in range(3):
-            mm[r][col] = v[r]
-        sol.append(_det3(mm) / det)
-    return sol[0], sol[1], sol[2]
-
-
-def _det3(m):
-    return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-            - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
+    sxy = sum(a * c for a, c in zip(xc, yc))
+    sty = sum(b * c for b, c in zip(tc, yc))
+    a = (sxy * stt - sty * sxt) / det
+    b = (sty * sxx - sxy * sxt) / det
+    return a, b, my - a * mx - b * mt
 
 
 # ── the Environmental ↔ Validation loop (ADR 0007) ──────────────────────────
