@@ -81,6 +81,10 @@ def interpret(project, channels):
             warnings.append(f"{c['label']}: {ev['state']}")
         if ev["clipped"]:
             warnings.append(f"{c['label']}: clipping, the value is a lower bound")
+        checks = (c.get("calibration") or {}).get("checks") or {}
+        if checks.get("drift"):
+            warnings.append(f"{c['label']}: calibration drift, spot checks off by {checks['rms']:.3g} {c['unit']} RMS "
+                            f"(limit {checks['limit']:.3g}); recalibrate")
         if env.get("stale"):
             warnings.append(f"{c['label']}: baseline stale by {env['stale_offset']:.3g} {c['unit']}; re-learn or wait")
     simulated = any(channels[c]["evidence"]["data_source"] == "SIMULATED" for c in live)

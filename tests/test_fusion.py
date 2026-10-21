@@ -181,3 +181,43 @@ class CalibratedChannel(unittest.TestCase):
                                                              encoding="utf-8")
                 with self.assertRaisesRegex(ManifestError, needle):
                     load(d)
+
+
+class CalibrationDrift(unittest.TestCase):
+    def runner(self, residual_sd=0.5):
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        m = normalise({"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
+                       "channels": [{"id": "co", "label": "CO", "unit": "ppm", "keys": ["CO"], "noise_floor": 0.1,
+                                     "calibration": {"gain": 1.0, "offset": 0.0, "residual_sd": residual_sd}},
+                                    {"id": "raw", "keys": ["R"], "noise_floor": 0.1}]})
+        r = Runner(m, start=False)
+        r.engine.ingest_values("s", {"CO": 10.0, "R": 1.0})
+        return r
+
+    def test_summary(self):
+        self.assertIsNone(fusion.drift_summary([], 0.5)["drift"])
+        self.assertIsNone(fusion.drift_summary([0.1, 0.2], 0.5)["drift"])        # too few checks
+        self.assertFalse(fusion.drift_summary([0.1, -0.2, 0.3], 0.5)["drift"])
+        self.assertTrue(fusion.drift_summary([2.0, 2.1, 1.9], 0.5)["drift"])
+        self.assertIsNone(fusion.drift_summary([5, 5, 5], None)["drift"])        # no promise to break
+        self.assertAlmostEqual(fusion.drift_summary([1.0, 3.0], 1.0)["bias"], 2.0)
+
+    def test_checks_flag_drift_into_snapshot_and_warnings(self):
+        r = self.runner()
+        msg = r.action("check", {"channel": "co", "reference": 10.2})
+        self.assertIn("need 2 more", msg)
+        r.action("check", {"channel": "co", "reference": 12.0})
+        msg = r.action("check", {"channel": "co", "reference": 12.1})
+        self.assertIn("DRIFT", msg)
+        packet = r.engine.snapshot()
+        self.assertTrue(packet["channels"]["co"]["calibration"]["checks"]["drift"])
+        self.assertTrue(any("calibration drift" in w for w in packet["fusion"]["warnings"]))
+
+    def test_bad_checks_are_refused(self):
+        r = self.runner()
+        for args, err in [({"channel": "raw", "reference": 1}, ValueError), ({"channel": "nope", "reference": 1}, KeyError),
+                          ({"channel": "co", "reference": "x"}, ValueError), ({"channel": "co", "reference": None}, ValueError),
+                          ({"channel": "co", "reference": float("nan")}, ValueError), ({"reference": 1}, ValueError)]:
+            with self.assertRaises(err):
+                r.action("check", args)

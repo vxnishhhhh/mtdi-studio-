@@ -54,6 +54,7 @@ class Runner:
         return Bot(self).reply(question)["text"]
 
     def action(self, action, args):
+        from .fusion import DRIFT_MIN_CHECKS
         engine, channel = self.engine, args.get("channel")
         if action == "learn":
             engine.learn(channel)
@@ -73,6 +74,15 @@ class Runner:
                 raise ValueError(f"no saved environment called '{name}'")
             engine.load_environment(name)
             return f"Comparing live readings against '{name}'."
+        if action == "check":
+            if not channel:
+                raise ValueError("check needs a channel")
+            summary = engine.check_calibration(channel, args.get("reference"))
+            verdict = {True: "DRIFT: recalibrate", False: "within the calibration's promise",
+                       None: f"need {DRIFT_MIN_CHECKS - summary['checks']} more check(s)"
+                       if summary["checks"] < DRIFT_MIN_CHECKS
+                       else "no residual on file, drift unknown"}[summary["drift"]]
+            return f"Check {summary['checks']} recorded, RMS {summary['rms']:.3g}: {verdict}."
         raise ValueError(f"unknown action '{action}'")
 
     # ── machine API ──────────────────────────────────────────────────────────

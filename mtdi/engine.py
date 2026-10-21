@@ -18,6 +18,7 @@ import threading
 import time
 
 from . import core
+from .fusion import drift_summary
 from .pillars import aether, nvtra
 from .pillars.environment import ChannelEnvironment, EnvironmentLibrary
 from .pillars.validation import ChannelEvidence, clipped as is_clipped
@@ -40,6 +41,7 @@ class _Channel:
             self.cal = Calibration(**{k: cal[k] for k in ("gain", "offset", "temp_coeff", "temp_ref",
                                                           "residual_sd", "method", "n") if k in cal})
             self.cal_temp_key = cal.get("temperature_key")
+            self.cal_checks = deque(maxlen=20)   # reference - calibrated value, newest last
         self.history = deque(maxlen=600)      # (t, deviation) for correlation and sparklines
         self.value = None                     # latest physical value (scalar or vector)
         self.raw = None
@@ -138,6 +140,28 @@ class Engine:
                 ch.env.learn()
             self._event("environment", f"Re-learning baseline: {channel or 'all channels'}")
 
+    def check_calibration(self, channel, reference):
+        """Record one spot check of a calibrated channel against a reference instrument."""
+        try:
+            reference = float(reference)
+        except (TypeError, ValueError):
+            raise ValueError("reference must be a number") from None
+        if not math.isfinite(reference):
+            raise ValueError("reference must be a finite number")
+        with self.lock:
+            if channel not in self.channels:
+                raise KeyError(f"unknown channel {channel}")
+            ch = self.channels[channel]
+            if ch.cal is None:
+                raise ValueError(f"{channel} has no calibration to check")
+            if ch.value is None:
+                raise ValueError(f"{channel} has no reading yet")
+            ch.cal_checks.append(reference - ch.value)
+            summary = drift_summary(ch.cal_checks, ch.cal.residual_sd)
+            self._event("validation", f"{ch.spec['label']}: calibration check {reference - ch.value:+.3g} "
+                                      f"{ch.spec['unit']}" + (" · DRIFT" if summary["drift"] else ""))
+            return summary
+
     def lock_baseline(self, channel=None, frozen=True):
         with self.lock:
             for ch in self._targets(channel):
@@ -204,7 +228,8 @@ class Engine:
                 }
                 if ch.cal is not None:
                     channels[cid]["calibration"] = {"method": ch.cal.method, "residual_sd": ch.cal.residual_sd,
-                                                    "n": ch.cal.n, "temperature_key": ch.cal_temp_key}
+                                                    "n": ch.cal.n, "temperature_key": ch.cal_temp_key,
+                                                    "checks": drift_summary(ch.cal_checks, ch.cal.residual_sd)}
             counted = [c for c in channels.values() if not (c["optional"] and c["evidence"]["state"] != "connected")]
             live = [c for c in counted if c["evidence"]["state"] == "connected"]
             fusion = nvtra.interpret(self.project, channels)
