@@ -66,3 +66,4 @@ been done, and **hardware the owner needs to do**.
 - Aether voice: Gen Z, like a 17-18 year old, jokes, the owner's humour, "2 a.m. coding" energy that changes with the time of day. **No brain rot.**
 - Storage: anything online that holds a lot of data; **not local** unless the owner sets something up.
 - The owner reports a MATLAB link (files edited from the MATLAB app). No MATLAB tool is visible in these sessions yet; find out which path it uses (MATLAB Drive or GitHub sync).
+- Notion: "MTDI Data Library" page id 400c21d9-9a95-8065-a6da-dc2a1a044e6f (the dataset catalogue mirror). Reachable from owner-started sessions; scheduled sessions may lack the connector, so the repo catalogue is the source of truth.
