@@ -87,8 +87,10 @@ class Complementary:
 class Calibration:
     """true = gain * raw + offset + temp_coeff * (temperature - temp_ref). Fit, apply, save, load."""
 
-    def __init__(self, gain=1.0, offset=0.0, temp_coeff=0.0, temp_ref=25.0, residual_sd=None, method="identity", n=0):
+    def __init__(self, gain=1.0, offset=0.0, temp_coeff=0.0, temp_ref=25.0, residual_sd=None, method="identity", n=0,
+                 temperature_key=None):
         self.gain, self.offset = float(gain), float(offset)
+        self.temperature_key = temperature_key   # protocol key carrying temperature, so a saved fit is usable as-is
         self.temp_coeff, self.temp_ref = float(temp_coeff), float(temp_ref)
         self.residual_sd, self.method, self.n = residual_sd, method, int(n)
 
@@ -108,7 +110,7 @@ class Calibration:
 
     # Many paired readings against a reference instrument: least squares.
     @classmethod
-    def fit(cls, raw, reference, temperature=None, temp_ref=25.0):
+    def fit(cls, raw, reference, temperature=None, temp_ref=25.0, temperature_key=None):
         x = [float(v) for v in raw]
         y = [float(v) for v in reference]
         if len(x) != len(y) or len(x) < 3:
@@ -122,14 +124,15 @@ class Calibration:
                 raise ValueError("temperature must pair with every reading")
             gain, coeff, offset = _least_squares_plane(x, t, y)
             cal = cls(gain=gain, offset=offset, temp_coeff=coeff, temp_ref=temp_ref,
-                      method="least-squares+temperature", n=len(x))
+                      method="least-squares+temperature", n=len(x), temperature_key=temperature_key)
         residuals = [yi - cal.apply(xi, None if temperature is None else temperature[i])
                      for i, (xi, yi) in enumerate(zip(x, y))]
         cal.residual_sd = math.sqrt(sum(r * r for r in residuals) / max(1, len(residuals) - 2))
         return cal
 
     def to_dict(self):
-        return {k: getattr(self, k) for k in ("gain", "offset", "temp_coeff", "temp_ref", "residual_sd", "method", "n")}
+        return {k: getattr(self, k) for k in ("gain", "offset", "temp_coeff", "temp_ref", "residual_sd", "method", "n",
+                                            "temperature_key")}
 
     def save(self, path):
         pathlib.Path(path).write_text(json.dumps(self.to_dict(), indent=2) + "\n", encoding="utf-8")

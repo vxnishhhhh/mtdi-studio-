@@ -33,6 +33,13 @@ class _Channel:
         self.env = ChannelEnvironment(spec, window)
         self.evidence = ChannelEvidence(spec)
         self.rms = [deque(maxlen=int(spec["window"])) for _ in spec["keys"]]
+        cal = spec.get("calibration")
+        self.cal = None
+        if cal:
+            from .fusion import Calibration   # only projects that calibrate pay for the import
+            self.cal = Calibration(**{k: cal[k] for k in ("gain", "offset", "temp_coeff", "temp_ref",
+                                                          "residual_sd", "method", "n") if k in cal})
+            self.cal_temp_key = cal.get("temperature_key")
         self.history = deque(maxlen=600)      # (t, deviation) for correlation and sparklines
         self.value = None                     # latest physical value (scalar or vector)
         self.raw = None
@@ -100,6 +107,9 @@ class Engine:
                         ch.evidence.record(t, wall, clip, data_source, values.get("_SEQ"))
                         continue
                     phys = [_ac_rms(buf) for buf in ch.rms]
+                if ch.cal is not None:
+                    temperature = values.get(ch.cal_temp_key) if ch.cal_temp_key else None
+                    phys = [ch.cal.apply(phys[0], temperature)]
                 state = ch.env.update(phys, t, valid=not clip)
                 ch.evidence.record(t, wall, clip, data_source, values.get("_SEQ"))
                 ch.value = phys if len(phys) > 1 else phys[0]
@@ -192,6 +202,9 @@ class Engine:
                     "score": core.score(terms, self.weights, active),
                     "spark": [round(d, 6) for _, d in list(ch.history)[-SPARK_POINTS:]],
                 }
+                if ch.cal is not None:
+                    channels[cid]["calibration"] = {"method": ch.cal.method, "residual_sd": ch.cal.residual_sd,
+                                                    "n": ch.cal.n, "temperature_key": ch.cal_temp_key}
             counted = [c for c in channels.values() if not (c["optional"] and c["evidence"]["state"] != "connected")]
             live = [c for c in counted if c["evidence"]["state"] == "connected"]
             fusion = nvtra.interpret(self.project, channels)

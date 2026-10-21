@@ -105,3 +105,79 @@ class Fusion(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CalibratedChannel(unittest.TestCase):
+    def manifest(self, cal):
+        return {"project": {"id": "cal"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "calibration": cal}]}
+
+    def test_engine_applies_calibration_with_temperature(self):
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        cal = {"gain": 2.0, "offset": 1.0, "temp_coeff": 0.5, "temp_ref": 20.0, "temperature_key": "T",
+               "method": "least-squares+temperature", "n": 40, "residual_sd": 0.3}
+        engine = Engine(normalise(self.manifest(cal)))
+        engine.ingest_values("s", {"CO": 3.0, "T": 24.0})
+        ch = engine.snapshot()["channels"]["co"]
+        self.assertAlmostEqual(ch["value"], 2.0 * 3.0 + 1.0 + 0.5 * 4.0)
+        self.assertEqual(ch["raw"], [3.0])
+        self.assertEqual(ch["calibration"]["method"], "least-squares+temperature")
+        engine.ingest_values("s", {"CO": 3.0})             # temperature missing: no compensation
+        self.assertAlmostEqual(engine.snapshot()["channels"]["co"]["value"], 7.0)
+
+    def test_manifest_loads_a_saved_calibration_file(self):
+        from mtdi.project import load
+        with tempfile.TemporaryDirectory() as d:
+            fusion.Calibration.two_point(0, 0, 10, 50).save(pathlib.Path(d) / "co.cal.json")
+            m = self.manifest("co.cal.json")
+            (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(m), encoding="utf-8")
+            project = load(d)
+        cal = project["channels"][0]["calibration"]
+        self.assertEqual((cal["gain"], cal["method"], cal["file"]), (5.0, "two-point", "co.cal.json"))
+
+    def test_saved_temperature_fit_loads_and_compensates(self):
+        from mtdi.engine import Engine
+        from mtdi.project import load
+        rng = random.Random(3)
+        raw = [rng.uniform(0, 10) for _ in range(30)]
+        temp = [rng.uniform(15, 35) for _ in range(30)]
+        truth = [2 * r + 1 + 0.3 * (t - 25) for r, t in zip(raw, temp)]
+        cal = fusion.Calibration.fit(raw, truth, temperature=temp, temperature_key="T")
+        with tempfile.TemporaryDirectory() as d:
+            cal.save(pathlib.Path(d) / "co.cal.json")
+            (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(self.manifest("co.cal.json")),
+                                                         encoding="utf-8")
+            engine = Engine(load(d))
+        engine.ingest_values("s", {"CO": 4.0, "T": 35.0})
+        self.assertAlmostEqual(engine.snapshot()["channels"]["co"]["value"], 2 * 4 + 1 + 0.3 * 10, places=6)
+
+    def test_bad_calibration_is_named(self):
+        from mtdi.project import ManifestError, load, normalise
+        for cal, needle in [([1, 2], "object or a file path"), ({"gain": "2"}, "gain must be a finite number"),
+                            ({"gain": True}, "gain must be a finite number"),
+                            ({"temp_coeff": 0.1}, "no temperature_key"),
+                            ({"gian": 2.0}, "unknown field.*gian"), ({"n": "x"}, "n must be a whole number"),
+                            ({"residual_sd": -1}, "residual_sd"), ({"method": 3}, "method must be text"),
+                            ({"gain": float("nan")}, "gain must be a finite number"),
+                            ({"offset": float("inf")}, "offset must be a finite number"),
+                            ({"temp_coeff": 0.1, "temperature_key": "room temp"}, "must be a protocol key")]:
+            with self.assertRaisesRegex(ManifestError, needle):
+                normalise(self.manifest(cal))
+        vec = self.manifest({"gain": 2})
+        vec["channels"][0]["keys"] = ["X", "Y"]
+        with self.assertRaisesRegex(ManifestError, "scalar channels only"):
+            normalise(vec)
+        with tempfile.TemporaryDirectory() as d:
+            (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(self.manifest("missing.json")),
+                                                         encoding="utf-8")
+            with self.assertRaisesRegex(ManifestError, "missing.json"):
+                load(d)
+            for path, body, needle in [("../outside.json", None, "outside the project folder"),
+                                       ("null.json", "null", "must hold a JSON object")]:
+                if body is not None:
+                    (pathlib.Path(d) / path).write_text(body, encoding="utf-8")
+                (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(self.manifest(path)),
+                                                             encoding="utf-8")
+                with self.assertRaisesRegex(ManifestError, needle):
+                    load(d)
