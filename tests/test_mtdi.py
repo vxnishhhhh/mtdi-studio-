@@ -457,10 +457,16 @@ class AetherTags(unittest.TestCase):
             (root / "c.m").write_text("% HOURS-WASTED: 1h - MATLAB index starts at 1\n", encoding="utf-8")
             (root / "node_modules").mkdir()
             (root / "node_modules" / "x.js").write_text("// HOURS-WASTED: 99 - not ours\n", encoding="utf-8")
-            (root / "d.py").write_text("s = 'see # HOURS-WASTED: 5 - inside a string'\n", encoding="utf-8")
+            (root / "d.py").write_text("s = 'see # HOURS-WASTED: 5 - inside a string'\n"
+                                       '"""\n# HOURS-WASTED: 5 - inside a docstring\n"""\n'
+                                       "x = \"don't\";# GUIDE: after an apostrophe, no space\n", encoding="utf-8")
+            (root / "e.js").write_text("const u = 'http://x'; // AETHER: after a URL in a string\n"
+                                       "let s = \"// HOURS-WASTED: 7 - in a string\";\n", encoding="utf-8")
             result = aether.scan(root)
         self.assertEqual(result["hours"], 3.5)
-        self.assertEqual([len(result["tags"][t]) for t in aether.TAGS], [1, 1, 1, 2])
+        self.assertEqual([len(result["tags"][t]) for t in aether.TAGS], [2, 1, 2, 2])
         self.assertEqual([m["where"] for m in result["malformed"]], ["a.py:3"])
         self.assertIn("3.5", aether.render(result))
         self.assertIn("unreadable", aether.render(result))
+        with self.assertRaises(FileNotFoundError):
+            aether.scan(pathlib.Path(d) / "typo")

@@ -339,7 +339,10 @@ def cmd_capabilities(args):
             print(f"  {prof:<11} {runtime:<14} {why}")
 def cmd_aether(args):
     from .pillars import aether
-    result = aether.scan(args.root)
+    try:
+        result = aether.scan(args.root)
+    except FileNotFoundError as error:
+        sys.exit(f"mtdi aether: {error}")
     print(json.dumps(result, indent=2) if args.json else aether.render(result))
 
 

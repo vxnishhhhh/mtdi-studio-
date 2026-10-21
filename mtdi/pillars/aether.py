@@ -28,32 +28,71 @@ def record(project):
 #   CONTEXT       why it is like this (the decision, not the code)
 #   AETHER        the human layer: a joke, a note, a story. Never brain rot.
 #   HOURS-WASTED  <hours> - what ate them. Summed by `python -m mtdi aether`.
+import io  # noqa: E402
+import os  # noqa: E402
 import pathlib  # noqa: E402
 import re  # noqa: E402
+import tokenize  # noqa: E402
 
 TAGS = ("GUIDE", "CONTEXT", "AETHER", "HOURS-WASTED")
-_TAG = re.compile(r"(?:^|\s)(?:#|//|%)\s*(GUIDE|CONTEXT|AETHER|HOURS-WASTED):\s*(.*)$")
+_BODY = re.compile(r"^\s*(GUIDE|CONTEXT|AETHER|HOURS-WASTED):\s*(.*)$")
 _HOURS = re.compile(r"^(\d+(?:\.\d+)?)\s*(?:h|hours?)?\s*[-–—:]\s*(.+)$")
 _SKIP = {".git", "node_modules", "vendor", "public", "__pycache__", ".venv", "build", "dist"}
-_EXT = {".py", ".js", ".mjs", ".ts", ".m", ".c", ".h", ".cpp", ".hpp", ".ino", ".java", ".sh", ".yml", ".yaml"}
+# Line-comment marker per file type. Python is read with its own tokenizer instead (docstrings, f-strings).
+_MARKER = {".sh": "#", ".yml": "#", ".yaml": "#", ".m": "%",
+           **dict.fromkeys((".js", ".mjs", ".ts", ".c", ".h", ".cpp", ".hpp", ".ino", ".java"), "//")}
+
+
+def _python_comments(text):
+    for tok in tokenize.generate_tokens(io.StringIO(text).readline):
+        if tok.type == tokenize.COMMENT:
+            yield tok.start[0], tok.string[1:]
+
+
+def _line_comments(text, marker):
+    """Comments outside '...' and "..." on each line (escapes honoured). Block comments are not tags."""
+    for n, line in enumerate(text.splitlines(), 1):
+        quote, i = None, 0
+        while i < len(line):
+            c = line[i]
+            if quote:
+                if c == "\\":
+                    i += 1
+                elif c == quote:
+                    quote = None
+            elif c in "'\"":
+                quote = c
+            elif line.startswith(marker, i):
+                yield n, line[i + len(marker):]
+                break
+            i += 1
+
+
+def _files(root):
+    for here, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in _SKIP)   # pruned before descending
+        for name in sorted(files):
+            path = pathlib.Path(here) / name
+            if path.suffix == ".py" or path.suffix in _MARKER:
+                yield path
 
 
 def scan(root="."):
     """Every tagged comment under root: {"tags": {TAG: [..]}, "hours": total, "malformed": [..]}."""
     root = pathlib.Path(root)
+    if not root.is_dir():
+        raise FileNotFoundError(f"{root} is not a folder")
     found = {t: [] for t in TAGS}
     malformed = []
-    for path in sorted(root.rglob("*")):
-        if path.suffix not in _EXT or any(part in _SKIP for part in path.relative_to(root).parts):
-            continue
+    for path in _files(root):
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeDecodeError):
+            text = path.read_text(encoding="utf-8")
+            comments = list(_python_comments(text) if path.suffix == ".py" else _line_comments(text, _MARKER[path.suffix]))
+        except (OSError, UnicodeDecodeError, tokenize.TokenError, SyntaxError):
             continue
-        for n, line in enumerate(lines, 1):
-            m = _TAG.search(line)
-            # A tag inside a string literal is not a comment: odd quotes before it means "in a string".
-            if not m or any(line[:m.start()].count(q) % 2 for q in ("'", '"')):
+        for n, body in comments:
+            m = _BODY.match(body)
+            if not m:
                 continue
             tag, text = m.group(1), m.group(2).strip()
             where = f"{path.relative_to(root).as_posix()}:{n}"
