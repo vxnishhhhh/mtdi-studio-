@@ -1814,7 +1814,8 @@ def nvtra_identity_section():
             ], className="nvtra-session-sidebar"),
             html.Div([
                 html.Div([
-                    html.Div("NVTRA", className="chat-main-brand"),
+                    html.Div([html.Img(src="/assets/brand/nvtra-mark.webp", alt="", className="nvtra-mark"),
+                              "NVTRA"], className="chat-main-brand"),
                     html.Div(active_session.get("title", "New session"),
                              id="nvtra-session-title", className="chat-session-title"),
                 ], className="chat-main-head"),
