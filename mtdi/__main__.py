@@ -315,6 +315,14 @@ def cmd_adopt(args):
     print(f"next: cd {args.target} && python -m mtdi check mtdi-project && python -m mtdi run mtdi-project")
 
 
+def cmd_registry(args):
+    from . import registry
+    snap = registry.snapshot()
+    print(json.dumps(snap, indent=2) if args.json else registry.render(snap))
+    if not all(m["ok"] for m in snap["modules"]):
+        sys.exit(1)
+
+
 def cmd_describe(args):
     from .adapters import build  # noqa: F401  (import check: every adapter module loads)
     from .core import DEFAULT_WEIGHTS
@@ -342,7 +350,9 @@ def cmd_describe(args):
         "sdks": {"python": "mtdi/", "cpp": "sdk/cpp/mtdi.hpp", "java": "sdk/java", "javascript": "sdk/js/mtdi.mjs",
                  "matlab": "matlab/+mtdi", "arduino": "firmware/mtdi_template_arduino",
                  "micropython": "firmware/mtdi_template_micropython"},
-        "commands": ["run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
+                     "integrations": [r["id"] for r in __import__("mtdi.registry", fromlist=["x"]).load_integrations()]},
+        "commands": ["registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -448,6 +458,9 @@ def main(argv=None):
     mat.add_argument("--local", action="store_true")
     mat.add_argument("--dry-run", action="store_true")
     mat.set_defaults(func=cmd_matlab)
+    reg = sub.add_parser("registry", help="list integrations and Computational Core modules with status")
+    reg.add_argument("--json", action="store_true")
+    reg.set_defaults(func=cmd_registry)
     describe = sub.add_parser("describe", help="print MTDI's capabilities as JSON")
     describe.set_defaults(func=cmd_describe)
     args = parser.parse_args(argv)
