@@ -59,6 +59,24 @@ class LocalFirst(unittest.TestCase):
         self.assertEqual(seen["body"]["messages"][0]["role"], "system")
         self.assertEqual(seen["body"]["model"], "llama3.2:3b")
 
+    def test_falls_back_when_local_is_down(self):
+        svc = FakeService({("POST", "/v1/chat/completions"):
+                           lambda r: (200, {"choices": [{"message": {"content": "cloud"}}]}, "application/json")})
+        try:
+            env = dict(CLEAN, OLLAMA_HOST="http://127.0.0.1:9", GROQ_API_KEY="gsk_x", MTDI_GROQ_BASE_URL=svc.url)
+            with mock.patch.dict(os.environ, env):
+                out = llm.chat([{"role": "user", "content": "hi"}], timeout=3)
+        finally:
+            svc.close()
+        self.assertEqual(out["provider"], "groq")
+
+    def test_plain_http_only_to_local_or_lan(self):
+        with mock.patch.dict(os.environ, dict(CLEAN, OLLAMA_HOST="http://192.168.1.20:11434")):
+            self.assertTrue(llm._base("ollama").startswith("http://192.168"))
+        with mock.patch.dict(os.environ, dict(CLEAN, OLLAMA_HOST="http://8.8.8.8:11434")):
+            with self.assertRaises(llm.LLMError):
+                llm._base("ollama")
+
     def test_local_is_off_unless_asked(self):
         with mock.patch.dict(os.environ, CLEAN):
             self.assertNotIn("ollama", llm.available())

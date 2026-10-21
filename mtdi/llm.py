@@ -10,8 +10,10 @@ GROQ_API_KEY, XAI_API_KEY. A local model needs no key: set OLLAMA_HOST (or MTDI_
 for http://localhost:11434) and Ollama is tried first, so NVTRA runs offline on a Pi 5 or Mac. ``MTDI_LLM_PROVIDER`` picks one, ``MTDI_LLM_MODEL`` overrides
 the model, ``MTDI_<PROVIDER>_BASE_URL`` points a provider at a proxy or a test server.
 """
+import ipaddress
 import json
 import os
+import urllib.parse
 import urllib.error
 import urllib.request
 
@@ -42,12 +44,32 @@ def _key(provider):
     return os.environ.get(PROVIDERS[provider]["env"], "").strip()
 
 
+def _private_or_local(host):
+    """Loopback or a private LAN address (the owner's Pi serving the Mac at home)."""
+    if host in ("localhost", ""):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return host.endswith(".local")  # mDNS names such as raspberrypi.local
+    return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+def _check_transport(provider, url):
+    """Prompts carry project data: plain HTTP is allowed only to this machine or the home LAN."""
+    parts = urllib.parse.urlparse(url)
+    if parts.scheme == "https" or (parts.scheme == "http" and _private_or_local(parts.hostname or "")):
+        return url
+    raise LLMError(f"{provider}: refusing {parts.scheme or 'no-scheme'}:// to {parts.hostname}; "
+                   "use https, or http only for localhost or a private LAN address")
+
+
 def _base(provider):
     default = PROVIDERS[provider]["base"]
     if provider == "ollama" and os.environ.get("OLLAMA_HOST", "").strip():
         host = os.environ["OLLAMA_HOST"].strip()
         default = host if host.startswith("http") else "http://" + host
-    return (os.environ.get(f"MTDI_{provider.upper()}_BASE_URL", "").strip() or default).rstrip("/")
+    return _check_transport(provider, (os.environ.get(f"MTDI_{provider.upper()}_BASE_URL", "").strip() or default).rstrip("/"))
 
 
 def available():
@@ -67,8 +89,25 @@ def _post(url, body, headers, timeout):
 
 
 def chat(messages, system=None, provider=None, model=None, max_tokens=700, temperature=0.3, timeout=40):
-    """Send a conversation, return {"text", "provider", "model"}. Raises LLMError."""
-    provider = provider or os.environ.get("MTDI_LLM_PROVIDER") or (available() or [None])[0]
+    """Send a conversation, return {"text", "provider", "model"}. Raises LLMError.
+
+    With no provider pinned (argument or MTDI_LLM_PROVIDER), every configured provider is tried
+    in ORDER, so a sleeping Pi falls back to a free cloud tier instead of NVTRA going quiet."""
+    pinned = provider or os.environ.get("MTDI_LLM_PROVIDER")
+    if pinned:
+        return _chat_one(messages, system, pinned, model, max_tokens, temperature, timeout)
+    errors = []
+    for candidate in available():
+        try:
+            return _chat_one(messages, system, candidate, model, max_tokens, temperature, timeout)
+        except LLMError as error:
+            errors.append(f"{candidate}: {error}")
+    if errors:
+        raise LLMError("every configured provider failed: " + "; ".join(errors))
+    return _chat_one(messages, system, None, model, max_tokens, temperature, timeout)
+
+
+def _chat_one(messages, system, provider, model, max_tokens, temperature, timeout):
     if provider not in PROVIDERS:
         raise LLMError("no language model configured: set one of " +
                        ", ".join(PROVIDERS[p]["env"] for p in ORDER))
