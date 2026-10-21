@@ -32,6 +32,7 @@ AETHER = {"id": "aether", "num": "··", "title": "Aether", "role": "Soul",
 # The Computational Core's modules, by area. Each entry names the Python module that
 # implements it; the registry (mtdi.registry) checks every one imports.
 COMPUTATIONAL_MODULES = {
+    "sensor fusion and calibration": ["mtdi.fusion"],
     "machine learning": ["mtdi.ml.anomaly", "mtdi.ml.classify", "mtdi.ml.cluster", "mtdi.ml.forecast",
                          "mtdi.ml.features", "mtdi.ml.monitor"],
     "language models": ["mtdi.llm"],
