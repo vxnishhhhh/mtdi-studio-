@@ -1,0 +1,27 @@
+{
+  "id": "mac-m5",
+  "name": "MacBook Pro M5 (24 GB, owner's)",
+  "class": "desktop",
+  "memory_mb": 24576,
+  "storage_mb": 1000000,
+  "float": "double",
+  "network": [
+    "wifi"
+  ],
+  "os": "macos-arm64",
+  "languages": [
+    "python",
+    "cpp",
+    "octave",
+    "node",
+    "java",
+    "matlab",
+    "swift"
+  ],
+  "accelerators": [
+    "apple-neural-engine",
+    "metal-gpu"
+  ],
+  "notes": "owner hardware; MATLAB licence status unknown",
+  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+}
