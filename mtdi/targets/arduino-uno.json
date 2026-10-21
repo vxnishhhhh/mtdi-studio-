@@ -12,5 +12,5 @@
   ],
   "accelerators": [],
   "notes": "2 KB SRAM, 32 KB flash: prints protocol lines only",
-  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+  "source": "manufacturer datasheet values"
 }
