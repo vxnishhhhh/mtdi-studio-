@@ -41,7 +41,7 @@ decisions and adds features. The plan is a guide, not a straight line: ideas fou
   datasets, algorithms, ML patterns, hypotheses, cancer research and "everything related to tech".
   An offline mode is needed. Size isn't a concern ("20 GB is fine").
 - **Credit everything.** A credits page on the site credits every dataset, source and kilobyte, with no
-  length limit. It includes the acknowledgements in the Inductra Vaion ISEF final report (owner's desktop,
+  length limit. It includes the acknowledgements in the Inductra Vaion ISF final report (owner's desktop,
   Eskom Expo 2026 folder).
 
 ## Code conventions
@@ -52,3 +52,11 @@ decisions and adds features. The plan is a guide, not a straight line: ideas fou
 ## Reporting (each update in chat)
 A table, plus: new features, ideas, next steps, what Claude struggled with, weaknesses, what should have
 been done, and **hardware the owner needs to do**.
+
+## Follow-up answers (21 Oct)
+- Bulk data can be 100 GB or more, in free cloud storage. Notion holds the catalogue and notes. Data must be useful for ML; start with 25 high-value datasets and keep growing.
+- The Computational Core lists every service used to build MTDI 5, and users can use the same services to build their own projects.
+- Hardware: Raspberry Pi 5 with 8 GB RAM, no AI HAT. MacBook Pro M5 (base chip), 24 GB RAM, 1 TB SSD.
+- MATLAB licence is unknown. Name of the event: Eskom Expo **ISF** (not ISEF).
+- NVTRA: website https://nvtra-xxxx.vercel.app; logo `brand/nvtra-logo.webp`; gold #E3B945 on black.
+- NVTRA personality: think exactly like an engineer, talk like a person, with personality and Aether.
