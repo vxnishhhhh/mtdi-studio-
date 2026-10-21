@@ -371,6 +371,8 @@ class Bot(unittest.TestCase):
         self.assertIn("Kalman filtering (1960, crossref)", out["text"])
         self.assertIn("not measurements", out["text"])
         self.assertIn("wikipedia did not answer", out["text"])
+        self.assertEqual(botmod.format_references({"result": [], "errors": {}}), "No references found on that.")
+        self.assertIn("arxiv", botmod.format_references({"result": [], "errors": {"arxiv": "timeout"}}))
         with no_keys(), mock.patch.object(botmod.agents, "research") as research:
             botmod.Bot(self.runner()).reply("what is the research level?")
         research.assert_not_called()

@@ -54,8 +54,9 @@ RESEARCH = re.compile(r"^\s*(?:research|look up|find papers on)\s*[:\-]?\s+(.+)$
 def format_references(found, limit=5):
     hits = found["result"][:limit]
     if not hits:
-        missing = ", ".join(found.get("errors") or {}) or "every source"
-        return f"Found nothing on that. Sources that did not answer: {missing}."
+        if not found.get("errors"):
+            return "No references found on that."
+        return f"No references found. Sources that did not answer: {', '.join(found['errors'])}."
     lines = [f"{i}. {h.get('title') or 'Untitled'} ({h.get('year') or 'n.d.'}, {h['source']}) {h.get('url') or ''}".rstrip()
              for i, h in enumerate(hits, 1)]
     tail = f" ({', '.join(found['errors'])} did not answer)" if found.get("errors") else ""
