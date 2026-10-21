@@ -1,6 +1,7 @@
 """Capability records and runtime selection (S1-03, ADR 0006).
 
-Every execution target describes itself in a capability record (registry/targets/*.json, or
+Every execution target describes itself in a capability record (mtdi/targets/*.json, shipped
+inside the package so adopted and installed copies have them, or
 `detect_host()` for the machine this runs on). From that record and a project's Intelligence
 Profile, `select_runtime` picks how MTDI runs there, and always says why:
 
@@ -20,7 +21,7 @@ import platform
 import shutil
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-TARGETS = ROOT / "registry" / "targets"
+TARGETS = pathlib.Path(__file__).resolve().parent / "targets"
 CLASSES = ("microcontroller", "edge-board", "single-board", "desktop", "cloud", "browser")
 RUNTIMES = ("line-protocol", "edge", "full", "remote")
 FIELDS = ("id", "name", "class", "memory_mb", "storage_mb", "float", "network", "os",
@@ -37,6 +38,14 @@ def validate(rec):
     missing = [k for k in FIELDS if k not in rec]
     if missing:
         raise ValueError(f"target {rec.get('id', '?')}: missing {', '.join(missing)}")
+    for key, kinds in (("languages", list), ("network", list), ("accelerators", list),
+                       ("memory_mb", (int, float)), ("storage_mb", (int, float)), ("name", str)):
+        value = rec[key]
+        if not isinstance(value, kinds) or isinstance(value, bool) or \
+                (isinstance(value, list) and not all(isinstance(v, str) for v in value)):
+            raise ValueError(f"target {rec['id']}: {key} has the wrong type ({type(value).__name__})")
+    if rec["memory_mb"] < 0 or rec["storage_mb"] < 0:
+        raise ValueError(f"target {rec['id']}: memory and storage cannot be negative")
     if rec["class"] not in CLASSES:
         raise ValueError(f"target {rec['id']}: unknown class {rec['class']!r}")
     return rec
