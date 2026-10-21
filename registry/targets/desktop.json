@@ -1,0 +1,22 @@
+{
+  "id": "desktop",
+  "name": "Generic desktop (Linux/Windows/macOS)",
+  "class": "desktop",
+  "memory_mb": 8192,
+  "storage_mb": 256000,
+  "float": "double",
+  "network": [
+    "ethernet",
+    "wifi"
+  ],
+  "os": "any",
+  "languages": [
+    "python",
+    "cpp",
+    "node",
+    "java"
+  ],
+  "accelerators": [],
+  "notes": "",
+  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+}
