@@ -50,18 +50,25 @@ def _python_comments(text):
 
 
 def _line_comments(text, marker):
-    """Comments outside '...' and "..." on each line (escapes honoured). Block comments are not tags."""
+    """Line comments outside '...', "..." and (for //) /* ... */ blocks, which may span lines.
+    Block comments are deliberately not tag carriers."""
+    block = False
     for n, line in enumerate(text.splitlines(), 1):
         quote, i = None, 0
         while i < len(line):
             c = line[i]
-            if quote:
+            if block:
+                if line.startswith("*/", i):
+                    block, i = False, i + 1
+            elif quote:
                 if c == "\\":
                     i += 1
                 elif c == quote:
                     quote = None
             elif c in "'\"":
                 quote = c
+            elif marker == "//" and line.startswith("/*", i):
+                block, i = True, i + 1
             elif line.startswith(marker, i):
                 yield n, line[i + len(marker):]
                 break

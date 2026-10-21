@@ -461,10 +461,12 @@ class AetherTags(unittest.TestCase):
                                        '"""\n# HOURS-WASTED: 5 - inside a docstring\n"""\n'
                                        "x = \"don't\";# GUIDE: after an apostrophe, no space\n", encoding="utf-8")
             (root / "e.js").write_text("const u = 'http://x'; // AETHER: after a URL in a string\n"
-                                       "let s = \"// HOURS-WASTED: 7 - in a string\";\n", encoding="utf-8")
+                                       "let s = \"// HOURS-WASTED: 7 - in a string\";\n"
+                                       "/* // HOURS-WASTED: 5 - in a block */\n/*\n// HOURS-WASTED: 6 - in a long block\n*/\n"
+                                       "f(); /* x */ // GUIDE: after a closed block\n", encoding="utf-8")
             result = aether.scan(root)
         self.assertEqual(result["hours"], 3.5)
-        self.assertEqual([len(result["tags"][t]) for t in aether.TAGS], [2, 1, 2, 2])
+        self.assertEqual([len(result["tags"][t]) for t in aether.TAGS], [3, 1, 2, 2])
         self.assertEqual([m["where"] for m in result["malformed"]], ["a.py:3"])
         self.assertIn("3.5", aether.render(result))
         self.assertIn("unreadable", aether.render(result))
