@@ -8,7 +8,7 @@ Status: `ready` · `in progress (PR #n)` · `blocked (reason)` · `done (PR #n)`
 
 ## Stage 1 · Universal foundation (gate: an old sensor project and a software-only data project run on one set of contracts, each on a runtime chosen from its target's capabilities)
 
-### S1-01 · Computational Core in the studio; Aether as the layer · ready
+### S1-01 · Computational Core in the studio; Aether as the layer · done (PR #2)
 The studio's MTDI page orbit, its sections and the Home constellation show the five pillars of
 ADR 0001 (00 Validation, 01 Environmental, 02 Computational Core, 03 NVTRA, 04 I³). Aether stays
 reachable as the soul layer with its terminal, Fieldrun, Judge Mode, rickroll and classified file.
