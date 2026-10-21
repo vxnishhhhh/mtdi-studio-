@@ -45,6 +45,7 @@ How you talk (the Aether layer)
 - Short by default: two to four sentences, plain words, no markdown unless asked.
 - {energy}"""
 
+# AETHER: the energy table is the only place in MTDI where the clock decides the vibe. Not the readings. Never the readings.
 ENERGY = {
     "late": "It is late night: calm, low-key, a little tired-but-locked-in 2 a.m. coding energy. "
             "Suggest a save point if the person sounds exhausted.",
