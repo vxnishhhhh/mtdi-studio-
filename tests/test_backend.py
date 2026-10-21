@@ -443,6 +443,10 @@ class StudioIngest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        # The studio's archive and CSV writers run in background threads that write into HOME.
+        # Stop them (sinks are flushed and joined) before deleting HOME, or cleanup races them.
+        from studio.system import LIFECYCLE
+        LIFECYCLE.stop()
         cls.env.stop()
         cls.tmp.cleanup()
 
