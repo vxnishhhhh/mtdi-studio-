@@ -67,3 +67,4 @@ been done, and **hardware the owner needs to do**.
 - Storage: anything online that holds a lot of data; **not local** unless the owner sets something up.
 - The owner reports a MATLAB link (files edited from the MATLAB app). No MATLAB tool is visible in these sessions yet; find out which path it uses (MATLAB Drive or GitHub sync).
 - Notion: "MTDI Data Library" page id 400c21d9-9a95-8065-a6da-dc2a1a044e6f (the dataset catalogue mirror). Reachable from owner-started sessions; scheduled sessions may lack the connector, so the repo catalogue is the source of truth.
+- Hugging Face: username `vxnish`; token stored as GitHub Actions secret `HF_TOKEN` (fine-grained; needs write access to repos under vxnish). Datasets go to huggingface.co/datasets/vxnish/mtdi-*.
