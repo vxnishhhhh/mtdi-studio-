@@ -1,5 +1,7 @@
 # Owner brief for MTDI 5 (21 Oct 2026, answer to "question 10")
 
+> **Hard rule (owner, 21 Oct): never start a subscription, trial or anything the owner has to pay for. Free tiers only. The only paid thing is the owner's Claude subscription.**
+
 Binding input for every session. It goes with `2026-10-21-whiteboard.md` and `2026-10-21-chatgpt-handoff.md`.
 The owner dictated it by voice: "MTTI" means **MTDI**, "Ether" means **Aether**, "EVS" means Environmental
 Intelligence. The owner says this is about 10% of the planning. Claude directs the project, makes its own
