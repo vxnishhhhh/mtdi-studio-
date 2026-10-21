@@ -145,8 +145,8 @@ class Engine:
             reference = float(reference)
         except (TypeError, ValueError):
             raise ValueError("reference must be a number") from None
-        if not math.isfinite(reference):
-            raise ValueError("reference must be a finite number")
+        if not math.isfinite(reference) or abs(reference) > 1e12:
+            raise ValueError("reference must be a finite number within ±1e12")
         with self.lock:
             if channel not in self.channels:
                 raise KeyError(f"unknown channel {channel}")
@@ -156,9 +156,11 @@ class Engine:
             if ch.value is None:
                 raise ValueError(f"{channel} has no reading yet")
             # A reference taken now must meet a reading taken now, from real hardware.
-            state = ch.evidence.snapshot(self.clock())["state"]
-            if state != "connected":
-                raise ValueError(f"{channel} is {state}; check it while it is live")
+            evidence = ch.evidence.snapshot(self.clock())
+            if evidence["state"] != "connected":
+                raise ValueError(f"{channel} is {evidence['state']}; check it while it is live")
+            if evidence["clipped"]:
+                raise ValueError(f"{channel} is clipping; its value is only a bound, so it cannot be checked")
             if ch.evidence.data_source == "SIMULATED":
                 raise ValueError(f"{channel} is showing SIMULATED data; a calibration check needs real readings")
             ch.cal_checks.append(reference - ch.value)

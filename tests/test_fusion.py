@@ -207,6 +207,24 @@ class CalibrationDrift(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SIMULATED"):
             r.action("check", {"channel": "co", "reference": 10})
 
+    def test_clipped_reading_and_missing_residual(self):
+        from mtdi.project import ManifestError, normalise
+        from mtdi.runtime import Runner
+        base = {"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "raw_range": [0, 1023],
+                              "calibration": {"gain": 1.0}}]}
+        r = Runner(normalise(base), start=False)
+        r.engine.ingest_values("s", {"CO": 10.0})
+        self.assertIn("cannot be judged", r.action("check", {"channel": "co", "reference": 10}))
+        r.engine.ingest_values("s", {"CO": 1023.0})
+        with self.assertRaisesRegex(ValueError, "clipping"):
+            r.action("check", {"channel": "co", "reference": 10})
+        with self.assertRaisesRegex(ValueError, "within"):
+            r.action("check", {"channel": "co", "reference": 1e300})
+        base["channels"][0]["calibration"] = {"residual_sd": 1e308}
+        with self.assertRaisesRegex(ManifestError, "residual_sd must be a number from 0 to"):
+            normalise(base)
+
     def test_summary(self):
         self.assertIsNone(fusion.drift_summary([], 0.5)["drift"])
         self.assertIsNone(fusion.drift_summary([0.1, 0.2], 0.5)["drift"])        # too few checks
@@ -217,6 +235,7 @@ class CalibrationDrift(unittest.TestCase):
         self.assertTrue(fusion.drift_summary([0.1, 0.1, 0.1], 0.0)["drift"])     # exact fit: any error is drift
         big = fusion.drift_summary([1e200, 1e200, 1e200], 0.5)
         self.assertTrue(math.isfinite(big["rms"]) and big["drift"])
+        self.assertTrue(math.isfinite(fusion.drift_summary([1e308] * 3, 0.5)["bias"]))
 
     def test_checks_flag_drift_into_snapshot_and_warnings(self):
         r = self.runner()

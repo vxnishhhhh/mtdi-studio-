@@ -78,10 +78,11 @@ class Runner:
             if not channel:
                 raise ValueError("check needs a channel")
             summary = engine.check_calibration(channel, args.get("reference"))
-            verdict = {True: "DRIFT: recalibrate", False: "within the calibration's promise",
-                       None: f"need {DRIFT_MIN_CHECKS - summary['checks']} more check(s)"
-                       if summary["checks"] < DRIFT_MIN_CHECKS
-                       else "no residual on file, drift unknown"}[summary["drift"]]
+            if summary["limit"] is None:   # no residual_sd: more checks will never decide it
+                verdict = "no residual_sd on file, so drift cannot be judged; refit to get one"
+            else:
+                verdict = {True: "DRIFT: recalibrate", False: "within the calibration's promise",
+                           None: f"need {DRIFT_MIN_CHECKS - summary['checks']} more check(s)"}[summary["drift"]]
             return f"Check {summary['checks']} recorded, RMS {summary['rms']:.3g}: {verdict}."
         raise ValueError(f"unknown action '{action}'")
 

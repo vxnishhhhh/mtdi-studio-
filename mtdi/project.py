@@ -209,8 +209,8 @@ def _channel(ch, where, default_source, source_ids):
         for field in ("gain", "offset", "temp_coeff", "temp_ref"):
             _require(_finite(cal.get(field, 0)), f"{where}.calibration.{field} must be a finite number")
         sd = cal.get("residual_sd")
-        _require(sd is None or (_finite(sd) and sd >= 0),
-                 f"{where}.calibration.residual_sd must be a number >= 0 or null")
+        _require(sd is None or (_finite(sd) and 0 <= sd <= SD_RANGE[1]),
+                 f"{where}.calibration.residual_sd must be a number from 0 to {SD_RANGE[1]:g}, or null")
         _require(isinstance(cal.get("n", 0), int) and not isinstance(cal.get("n", 0), bool) and cal.get("n", 0) >= 0,
                  f"{where}.calibration.n must be a whole number >= 0")
         _require(isinstance(cal.get("method", ""), str), f"{where}.calibration.method must be text")

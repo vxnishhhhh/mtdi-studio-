@@ -160,7 +160,8 @@ def drift_summary(residuals, residual_sd):
     rms = scale * math.sqrt(sum((v / scale) ** 2 for v in r) / len(r)) if scale else 0.0
     limit = DRIFT_FACTOR * residual_sd if residual_sd is not None else None   # an exact fit (sd 0) is a promise too
     drift = None if limit is None or len(r) < DRIFT_MIN_CHECKS else rms > limit
-    return {"checks": len(r), "rms": rms, "bias": sum(r) / len(r), "limit": limit, "drift": drift}
+    bias = scale * (sum(v / scale for v in r) / len(r)) if scale else 0.0
+    return {"checks": len(r), "rms": rms, "bias": bias, "limit": limit, "drift": drift}
 
 
 def _least_squares_line(x, y):
