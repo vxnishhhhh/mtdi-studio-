@@ -4,7 +4,7 @@ Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 52 tests; Vercel READY)
-* **Next item:** S1-01
+* **Next item:** S1-01 (then S1-10 to S1-16 from the owner brief, ADR 0007)
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
