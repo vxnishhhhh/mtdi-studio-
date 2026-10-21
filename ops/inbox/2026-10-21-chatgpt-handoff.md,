@@ -1,0 +1,342 @@
+   ASTROTEC + MTDI 5.0/5.1/6.0
+COMPREHENSIVE CONVERSATION HANDOFF FOR CLAUDE
+Prepared 21 October 2026
+
+IMPORTANT SCOPE AND ACCURACY NOTICE
+This document is a detailed handoff of the user-visible discussion and project-relevant context available to the assistant, not a verbatim export of the platform's full internal context window. Private system/developer instructions, hidden reasoning and unavailable conversation metadata are not included. Most exchanges are paraphrased in detail, while key formulations and examples are reproduced where useful. No code repository has been audited by the author of this handoff, no production ASTROTEC software has been built in this conversation, and no screenshot rules have been implemented or objectively benchmarked. The source conversation repeatedly contained assistant detection mistakes corrected by the user. The user's corrections take precedence over earlier assistant guesses. Treat unresolved disagreements as open issues, not as settled algorithm rules.
+
+════════════════════════════════════════════════════════════════════
+A. IDENTITY, OWNERSHIP, ORIGIN STORY, AND CORE GOALS
+════════════════════════════════════════════════════════════════════
+
+The user develops engineering and software projects under the NVTRA Creates identity. NVTRA stands for “Noble Vision that Redefines All.” NVTRA is both a broader business/project identity and the name of an intelligence layer in prior work. One past project is Inductra Vaion (also spelled Vion in conversational references), an electromagnetic diagnostic instrument for Eskom Expo 2026. Its name intentionally derived from induction and the creator's initials/AI/ion symbolism. That earlier naming strategy was an EXAMPLE of meaningful name construction, not an instruction to reuse the suffix Vaion or the letters VAI for the new project.
+
+Previous projects helped develop a recurring engineering framework called MTDI, short for Microprocessing Technological Diagnostic Intelligence. The user insists MTDI must be a genuine reusable framework rather than a prose description or collection of copied prompts. Historical trajectory, as discussed:
+- Third Eye: MTDI's origin as a simple sensor fusion and microprocessing framework.
+- SymbioScan: evolution of sensor fusion, processing, and interface integration.
+- Intermediate generation D3: exact identity and features NOT reliably established; Claude must investigate actual records before asserting history.
+- Inductra Vaion: advanced MTDI D4, with sophisticated sensor acquisition/fusion, environmental intelligence, validation, mathematics, NVTRA Intelligence, I³ interface, hardware/software integration.
+- ASTROTEC: first software-defined project of MTDI 5.0, focusing on angel-number/spiritual symbolism recognition, screenshot analysis, manual observations, interpretation and human correction.
+- MTDI 5.1: reuse the generalized computer vision, relational reasoning, mathematics, learning, review and presentation emerging from ASTROTEC, PLUS restore/extend prior hardware/firmware/sensor-fusion capabilities, applied to a DIFFERENT domain/project; no specific project has been chosen.
+- MTDI 6.0: potential new major framework generation associated with future Eskom Expo 2027 project; the user has NOT yet described that project and Claude must not invent it.
+
+The software project name was chosen and confirmed as ASTROTEC (the user occasionally writes AstroTech, Ashtrotech, or Astrotech; canonical brand selected was ASTROTEC, all capitals in branding). Breakdown: ASTRO from Greek astron/star; TEC from technology/Greek techne/skill. The name reflects cosmic/spiritual themes blended with computational technology. A separate branding/trademark search previously flagged similar companies, but the user deliberately chose ASTROTEC regardless as the project name. That is a branding choice, NOT a legal clearance.
+
+ASTROTEC must be an independently useful app for personal, optionally eventually multi-user, spiritual/numerological interpretation. It should not be reframed primarily as industrial diagnostic software. Its reusable technology may later support broader scientific, industrial, medical (subject to appropriate regulatory safeguards), accounting, UI testing, electronics and research applications, but the actual ASTROTEC product remains devoted to symbolic observation and personal meaning. More generally, ASTROTEC's underlying reasoning pipeline is useful because it extracts observations across visual regions, maps real contextual relationships, performs mathematical pattern classification, distinguishes independent and repeated sightings, accepts human correction, and makes evidence-linked interpretations. Angel-number predictions are not scientifically established, and symbolic meanings should not be presented as objective forecasts.
+
+A gold-on-black ASTROTEC logo was generated from the gold-on-black angular NVTRA logo reference. The user's desired corporate family aesthetic is cold, minimal, premium, technologically inclined, celestial, shared gold tone on black, but ASTROTEC should have a universal emblem rather than a V representing the creator. The user explicitly confirmed the generated ASTROTEC logo. Its visual concept is a metallic gold four-point central star, circular/orbital geometry and small orbiting dots/spheres, with gold-on-black styling. The user wanted transparent-background PNG and ideally SVG/vector; a rendered PNG was produced, but an editable SVG has NOT been verified. Preserve logo identity rather than randomly redesigning it. The actual generated file in the conversation was named golden_orbital_star_emblem.png, but Claude must request/import the asset separately if needed; this handoff file does not embed binary art.
+
+════════════════════════════════════════════════════════════════════
+B. ORIGINAL ASTROTEC PRODUCT WORKFLOW AND USER EXPERIENCE
+════════════════════════════════════════════════════════════════════
+
+User's problem: they repeatedly notice apparent angel numbers in phone clocks, battery percentages, TikTok/Instagram engagement stats and notifications, videos, receipts, workouts, random physical locations, etc. They screenshot these many times a day, potentially ~100/day, and cannot manage the volume or independently research every symbolic meaning.
+
+Desired original workflow:
+1. ACQUISITION: Upload screenshots, generally in increments of up to 10 at a time due to ChatGPT upload restrictions. The website may support its own larger batches.
+2. HOLD/STORAGE: Accumulate screenshots in a session; do not automatically produce interpretations. Store securely and allow review/removal.
+3. ANALYSIS: User presses explicit RELEASE control to initiate bulk image extraction, spatial parsing, pattern detection, cross-referencing, nested recognition, strict validated transformations, counting emphasis and contextual intelligence.
+4. HUMAN REVIEW: After processing but BEFORE final interpretation, display detected accepted angel numbers, their source data, transformations and visual evidence. User can remove false positives, manually add missed numbers, edit detections, fix source relationships, approve/reject entries and regenerate analyses repeatedly without reuploading.
+5. SYNTHESIS: Produce ONE coherent overall symbolic interpretation paragraph combining all validated numbers, symbolic meanings, repetition/emphasis, temporal framing, and optional journal context. NO individual mini-explanations and critically NO literal angel-number digits inside the final interpretation paragraph. Separate detection list UI may show exact numbers and how they were found. Example of desired phrasing: “This symbolizes abundance and achievements,” NOT “The symbolism of 88 is traditionally associated with abundance and achievements.”
+6. HISTORY: Persist approved structured records, screenshot provenance, manual inputs, interpretations, corrections and analytic trends. Allow users to delete old screenshots while keeping historical structured records when they choose. Allow all user data to be edited/exported/deleted.
+
+PERSONAL OBSERVATION / QUICK LOG: User often spots relationships that cannot be captured because a video timestamp moves. Example: watching a show at minute 25 while the show is season 2 episode 5 -> 25 (minute) + 25 (season/episode) -> valid 2525. Users must be able to log such descriptions manually, including exact observed numbers, context, timestamp, and how components relate. Mark them user-reported, not screenshot-verified. Manual records should enter the SAME RELEASE analysis as screenshot records if the user chooses, or be journal-only or independently interpreted.
+
+CUSTOM OBSERVATION SUBSETS: The logging UI should provide familiar categories (e.g., TV/Movies/Entertainment, Digital Devices, Social Media), but also a “+ Add New” source/subset mechanism. If user notices a number on their car dashboard, allow naming a “Car Dashboard” source and either (a) use just once without adding permanently, or (b) save it as reusable custom subset in the user's private database. Category/subset labels should be editable, renameable, mergeable and removable without losing historical references. Preserve ID relationships, use user-scoped settings. Allow free-form description; the list must not restrict possible observation contexts.
+
+PERSONAL JOURNAL: User may write life events and reflections; AI can extract themes and contextualize symbolic interpretation. Include optional mood/event graphing, journal-linked observations, time trends, opportunity/good/bad phase self-descriptions, and historical pattern graphs; no claims that numerical signs actually cause or forecast life events. User chooses whether journal content feeds interpretation.
+
+════════════════════════════════════════════════════════════════════
+C. EXACT RECOGNITION PHILOSOPHY — MOST IMPORTANT SECTION
+════════════════════════════════════════════════════════════════════
+
+The user repeatedly emphasized that assistant recognition errors now would propagate into Codex/Claude prompts and ruin the implemented algorithm. They want the specification to distinguish seeing numbers, noticing a pattern, and justifiably relating two or more visually separated observations. MOST IMPORTANT: DO NOT arbitrarily concatenate every visible digit or accept any random numerical value as an angel number. An empty result is correct when no defensible pattern exists.
+
+Working model:
+(a) Capture raw unaltered evidence (pixels, OCR tokens, source context, bounding boxes, leading zeros, separators, unit, time, etc.).
+(b) Classify semantic source regions (clock, status-bar battery, battery widget, independent device battery, TikTok/Instagram/ChatGPT badge, social-media count, exercise row, episode/season, etc.).
+(c) Construct a typed visual/contextual relationship graph, preserving spatial grouping and source provenance.
+(d) Recognize VALID structural families and approved target sequences. These include direct repeated digits (11, 22, 33, 44, 77, 88, 111, etc.), repeating pairs (1212, 1313, 1515, 2525, 2828, 6565, 9191), compounds of repeats (3322, 2244), selected special zero patterns (00, 0000), and palindromic/mirrored sequences of any appropriate odd or even length (626, 727, 737, 747, 757, 1331, 46664, 12321). User especially clarified 737 is valid because 7 surrounds 3; 46664 is valid because 4 surrounds 666. Do not restrict palindromes to predefined enumeration.
+(e) Detect valid shorter components nested inside longer patterns, retaining physical source/evidence spans. e.g., 3322 also contains 33 and 22; 22:00 contains 22 and 00; 22:44 contains 2244 (if accepted), 22 and 44. Not all substrings are automatically valid, and no arbitrary slicing/reordering.
+(f) Allow legitimate CROSS-SOURCE construction where the values are visibly and semantically distinguishable as a relationship. E.g., a clock hour 13 and visually grouped notification badges 1 and 3 can generate 13 + 1 + 3 = 1313; unrelated time 12 and only ChatGPT badge 2 cannot generate 1212. Clock hour + battery value can form a cross-reference if source relationship and final pattern qualify. Repeated battery percentage on status bar and widget can be symbolically combined as e.g., 22+22=2222 and 91+91=9191 although they might be two displays of ONE physical battery; record repeated DISPLAY emphasis without pretending they are independent measurements. Independent accessory batteries in the same widget may also form relationships. A video minute 25 + season/episode 2/5 can form 2525 as user-reported visually structured context. A workout matrix/rows can yield 1212, 6565, 2525, 1515 when relevant values are genuinely grouped. Arbitrarily selecting digits from unrelated content is PROHIBITED.
+(g) Maintain strict NEAR MATCH controls. Observed value can differ from a valid target by EXACTLY 0, -1 or +1 under permitted operations. e.g., actual 738 -> valid mirror 737, observed +1, metaphorically 'passed'; 736 -> 737, observed -1, 'upcoming'; 46665 -> 46664, +1; 46663 -> 46664, -1; clock 13:32 -> 13:31 (1331), +1 passed; 07:56 -> 07:57 (757), -1 upcoming; 11:34 -> 11:33 (1133), +1 passed; 13:30 -> 13:31, -1 upcoming; 23:59 -> 00:00 is one minute before next day via modulo-1440 clock arithmetic. For pure non-time numerics, label exact/+1/-1, but avoid pretending those correspond to empirically actual past/future events. These temporal labels are user-defined SYMBOLIC framings.
+(h) A second type of adjustment, POSITIONAL +/-1, was asserted by the user when they accepted 20:10 -> 20:20, changing a digit/part (minute tens 1 -> 2) by +1 while the minute value changed by +10. This is a SEPARATE context-bound operation and must NOT become blanket permission to change any digit in any random number. User says “allowed to do round-ups from anywhere in the number” but all operations require visually/contextually defensible structure. The exact general admissibility rule is NOT fully settled.
+(i) Further apparent exception: user expressly approved 05:37 -> 535 (05:35), despite clock difference 2 minutes. Earlier assistant flagged this as inconsistent with strict minute +/-1. Do not silently use +/-2 universally. This still needs clarification; perhaps a visual reconstruction or another reference. Treat current positive example as an unresolved exception fixture until user gives general transform rule. Explicitly flag contradictions rather than overfitting.
+(j) Strong negative examples: 85 is NOT an angel number just because 85% battery repeats; 92 should not be counted; 1713 is NOT 1717 because numerical distance is 4 (only 1716 or 1718 would be eligible +/-1 to 1717); 3333 must NOT be fabricated from 3322; 111 must not be fabricated by pooling digits from different unrelated regions. 07:13 and battery 92 and dense TikTok counts was an intentional trick screenshot with NO angel numbers. Interior picture with no relevant numbers also EMPTY.
+(k) REPETITION = EMPHASIS. When the same valid sign occurs multiple times, increase the thematic emphasis in final synthesis. Distinguish identical displayed values (two readouts of the same physical battery) versus independent events; both may support symbolic repetition but should not be misreported as independent observations. The user specifically accepted 23:23 twice in one screenshot based on two distinct battery-pair derivations/rounded eligible values; maintain both provenance paths and an explicit repeat count.
+(l) Do NOT cap detected numbers per screenshot. Different independent and nested valid patterns may coexist. Reject all ungrounded/hallucinated combos, even if they have plausible interpretations.
+(m) The user wants NORMAL OUTPUT ONLY VALID ANGEL NUMBERS (not lists of rejected numbers or all observed numbers) and final interpretation excluding digit strings. Debug/Evidence Explorer may show rejected candidates on demand for educational/engineering purposes.
+(n) Once the approved dataset is reviewed, combine meanings weighted by repetition/temporal status/context, no disjoint number-by-number recitation. Meanings are traditional/socially constructed and not universal scientifically verified truths. Separate structural detection correctness from interpretative subjectivity.
+
+════════════════════════════════════════════════════════════════════
+D. DETAILED SCREENSHOT TRAINING EXAMPLES AND HISTORICAL CORRECTIONS
+════════════════════════════════════════════════════════════════════
+
+The user uploaded many phone screenshots. Most files are not embedded in this handoff. Ask for images or use the conversation attachments if available. Below are named image tests as relayed through responses; prioritize the user's final corrections. Some screenshot readouts previously given by the assistant may have been wrong and should be reverified from original pixels.
+
+TEST 001 (image showing 13:32 clock, 33% battery):
+Assistant initially constructed 13+33=13:33, called 13:32 'upcoming' for 13:33 and offered a creative interpretation. USER CORRECTED: actual underlying angel number is 1331, because actual clock 13:32 is one minute AFTER 13:31, so 1331 is PASSED. Battery 33 is separately valid. Desired interpretation combines passed 1331 meaning with exact/current 33 meaning into one paragraph. The user's sample meaning (“hope for the future” then “many more years”) was ILLUSTRATIVE, not a canonical definition.
+
+TEST 002 (13:07, 22 batteries, badges):
+Assistant initially returned just 22 and rejected clock-hour cross references. USER CORRECTED: 13 from hour + TikTok badge 1 + Instagram badge 3 = 1313; two displays of 22 battery (left and right/status+widget) = 2222; nested/exact 22 itself. Later additional screenshot of same conditions demonstrated 11 from TikTok badge 1 and ChatGPT badge 1. Final confirmed accepted set for the later richer capture: 1313, 2222, 22, 11. UI layout, human perception, and the relative grouping of badges are part of whether combinations are valid.
+
+TEST 003 (08:38 clock, 88% battery):
+Assistant identified 88 and user said identification was CORRECT. Unified message rule corrected: must NEVER literally mention the angel number string in the paragraph, only its symbolic message. Example disallowed: “The symbolism of 88 is ...”; allowed: “This symbolizes ...”.
+
+TEST 004 (two screenshots, 07:47/95% and 07:56/91% + battery sources):
+First screenshot correct 747 from 07:47, nothing else.
+Second screenshot user expected: 757 from 07:56 -> 07:57 (upcoming minus one), 9191 from 91% duplicated in status/widget, and 22 from accessory battery. Assistant initially erroneously included 100 from earbud charging; user removed it. Repetition of battery values may indicate a longer pattern despite duplicate physical origin.
+
+TEST 005 (screenshots 22:44 and 22:00):
+First screenshot: 2244 (if treating full clock), 22 and 44. Second: 2222 from clock hour 22 plus accessory battery 22; 22 itself; 2828 from duplicated phone battery 28; 00 from clock minutes 22:00. User specifically reprimanded assistant for overlooking nested 22 and 00. Longer patterns don't cancel their valid smaller components.
+
+TEST 006 (three screenshots, 13:30, 15:15, 13:16):
+First: 13:30 -> 1331 upcoming (minus one). Second: 15:15 = 1515 direct, and duplicated 54% status/widget = 5454 according to then-assistant; some pattern families beyond core could need explicit validation. Third: 13:16, 48% displayed twice, TikTok badge 1 and Instagram badge 1. USER POINT: two notification 1s must yield 11, and duplicate signs emphasize theme. Assistant also mentioned 1311 and 4848 as cross-ref candidates and 48 as observed, but those were not all explicitly approved by user as angel numbers; DO NOT assume 48 or 1311 are confirmed.
+
+TEST 007 (07:27/88%, 07:38/85%, 07:13/92%, multiple social numbers):
+First: 727 (07:27 direct), 88 exact, 8888 from duplicated 88%. Second: 737 from 07:38 because +1 relative to 07:37; passed. 85 is NOT angel number; 8585 must NOT be promoted automatically just because 85 repeats. Third: intentionally NO angel number. “92” isn't one, neither are unqualified 713 or metrics 788, and 07:13 cannot become 717 (difference four minutes; only 07:16, 07:17, 07:18 valid relative to 07:17). Assistant researched angel-number pattern families and established a stronger whitelist/grammar-plus-human-approval approach. User later specifically clarified 737 palindrome, 46664 palindrome, 738 -> 737 and 46665 -> 46664 under +/-1 rule.
+
+TEST 008 (four screenshots: 23:59, 00:00, 20:10, 11:34 + a workout/other displayed data):
+Assistant initial error: invented second 22 from ChatGPT 2 + Instagram 1 in first screenshot. USER CORRECTED: no such cross-reference. First: 0000 as upcoming midnight from 23:59, and actual battery/accessory 22 if visible (assistant's accepted observation was not objected to beyond invented second 22). Second: 0000 exact and 00 nested, 22, plus 2323 TWICE because user identified rounded eligible 23 from battery/charger values on left/right and relationships; repeated 2323 = stronger emphasis. Third: 2020 expected using 20:10 and positional/composite adjustment; assistant wrongly rejected. Fourth: 11:34 -> 1133 passed; also 11, 33, 77, 6565, 2525, 1212 from structured set values, and 1515. User insists no numerical cap: scan whole layout and multiple pattern types simultaneously. Assistant recognized that positional transformation needs separate formal rule; do not merely apply numeric +/-1 to the concatenated 2010 and expect 2020.
+
+TEST 009 (five images: 13:07; 12:44; 06:26 social count; 05:37; interior):
+Image1 user explicitly said correct: 1313, 2222, 22, 11.
+Image2 only 44, NOT invented 1212 or 22. Clock first '12' + lone badge '2' doesn't provide another 12; an acceptable counterexample would be clock hour 12 + adjacent notifications 1 and 2, yielding another 12. Do not pluck the 2 out of existing 12 to combine it with badge 2 as 22.
+Image3 626 from 06:26 time, 3322 from visible “3 322” likes/engagement, nested 33 and 22. NOT 1717 from 1713, NOT 3333, NOT random rearrangements or arbitrary unrelated engagement digits.
+Image4 535 approved by user, and NO 555. Apparent 05:37 -> 05:35 discrepancy must be resolved transparently (strict minute +/-1 alone would reject). Do not create a blanket +/-2 rule.
+Image5 no accepted angel numbers.
+
+IMPORTANT: These are the conversational labels; tests should be captured as typed scenario fixtures and paired with original screenshot images plus manually verified bounding boxes before claiming vision performance. Do not treat the assistant's past hallucinated candidates as user-approved. Add strongly negative/no-detection tests. A robust detector should confidently return an empty array rather than invent a sign.
+
+════════════════════════════════════════════════════════════════════
+E. ASTROTEC PRODUCT FEATURES, DESIGN CHOICES AND DATA GOVERNANCE
+════════════════════════════════════════════════════════════════════
+
+Twelve user-selected features were all chosen for further BRAINSTORMING, NOT final approval:
+1. Quick Capture: rapid logging, voice optional, automatic timestamps, custom source subsets and one-time source locations.
+2. Pattern Reconstruction Studio: visual explanation of how contributing fields/values formed accepted patterns, and invalid constructions rejected.
+3. Chronos Timeline: dated recurrence history, symbolic upcoming/current/passed status, timestamp provenance, possible personal event context and comparison views.
+4. Intelligence Confidence: separate OCR confidence, source relationship confidence, hard rule validity, interpretation uncertainty; never use a single deceptive all-purpose score.
+5. Evidence Explorer: highlight bounding boxes, exact source images, source relationships, manual explanations, transform provenance.
+6. Personal Symbolic Journal: private entries, life events, moods and subjective reflections; configurable context access and historical analysis.
+7. Feedback Learning Lab: corrections turned into labeled records, versioned rules, model training examples and regression tests.
+8. Batch RELEASE Intelligence: session holding queue, upload in batches, manual observations, review before synthesis, a single final summary.
+9. Pattern Family Discovery: MATLAB analyzes mathematical symmetry, periodicity, repeat structures; newly discovered classes require human approval and are not automatically accepted as spiritually meaningful.
+10. Source Relationship Graph: nodes = observed digits/regions/context, edges = allowed relationships with provenance, spatial semantics and relevance.
+11. Offline MTDI Mode: edge/local inference when practical; offline queues and synchronization, encryption, local limitations explicitly documented.
+12. Intelligence Replay: reprocess historical records after rule/model updates, compare output differences, catch regressions, allow rollback.
+
+Three proposed cross-cutting additions: MTDI Module Registry; Rule Conflict Resolver; Privacy/Data Control. User also explicitly added a 13th central behavior, HUMAN-IN-THE-LOOP REVIEW BEFORE INTERPRETATION, editable findings with repeatable recomputation. Nothing should proceed to final synthesis until release and any elected manual review is complete.
+
+Visual design: Black/dark, cold, minimalist, sophisticated, gold brand family color closely matching NVTRA; celestial but not kitsch. Clear data hierarchy and evidence visuals, restrained use of decoration. The public project names/labels can be customized per implementation. ASTROTEC website should support other users in future, with private user-specific data. Must not imply an actual database exists inside ChatGPT examples; prior chat-side forms/controls were only demo mockups.
+
+════════════════════════════════════════════════════════════════════
+F. MTDI AS A REUSABLE FRAMEWORK PLATFORM (INDEPENDENT OF ASTROTEC)
+════════════════════════════════════════════════════════════════════
+
+User does NOT want to need to paste a gigantic prompt into every future project. They want a portable application/library/software package with reusable code, interface components, computational algorithms, configuration manifests, feature registry, exportable templates and a dedicated website/app, possibly called MTDI Framework Studio. GitHub alone is NOT enough as the daily user experience; GitHub remains authoritative for code. MTDI Studio must be a real configurable builder/manager providing a visual view of the framework and its historical evolution.
+
+Proposed separate resources:
+- A new independent GitHub repository, suggested 'mtdi-framework', under an appropriate NVTRA owner. Preserve old Inductra Vaion repository without destructive changes. The user says Claude is already connected to the GitHub repo and will receive its latest contents; Claude must actually inspect it, not assume a previous assistant has read it. Previously mentioned account/repo in other context: vxnishhhhh/inductra-vaion; verify in connected GitHub rather than assert path blindly.
+- Public MTDI website with explanatory architecture diagrams and rich detailed “MTDI Framework” tab.
+- Private MTDI Framework Studio web application to configure projects, pillars, interfaces, modules and exports.
+- PostgreSQL or similar relational database for versions, modules, projects, configurations, observations, corrections, users and permissions.
+- Private object storage for screenshots/artifacts; encrypted local storage as applicable.
+- GitHub for source, tests, CI/CD, release artifacts, changelog; not the application’s transactional record database.
+- Vercel for public site, Studio frontend, manageable serverless endpoints; heavy inference should run separate local or compute service rather than assuming Vercel executes MATLAB or long-running native code.
+- Notion for project knowledge, research, manuals and perhaps synchronized selected journal/observation entries; NOT substitute for primary transactional database or confidential binary image storage.
+- MATLAB for mathematical prototype, statistical/ML work, graph inference, time series, optimization and tests; use supported MATLAB Coder code generation (where supported), standalone compiled runtime, Python/C++ equivalents or remote compute API when appropriate. Need verify actual licensing/toolbox/coder compatibility. Raspberry Pi 5 can run efficient deployed components; don't promise full MATLAB natively there. Source code size is not the determinant of compute efficiency; optimize runtime throughput, memory and correctness.
+
+MTDI definition: Microprocessing Technological Diagnostic Intelligence. It originated in microprocessors/sensor fusion, then generalized to any observation->validation->mathematics->intelligence->interactive presentation domain. Efficient but not intentionally dumbed down; can target MCUs when applicable, Raspberry Pi 5, desktop or cloud, with profiles depending on algorithm.
+
+CORE PILLARS (canonical draft):
+P1 Environmental Intelligence: Originally real-world sensor responsiveness; generalized for software input/context/environment, OCR and screenshot processing, hardware acquisition, manual human observations, source normalization. User initially objected that Environmental Intelligence traditionally meant physical sensors, then accepted that it can conceptually cover digital surroundings as well. Preserve hardware heritage and use adapters.
+P2 Validation Chamber: evidence quality, provenance, strict domain constraints, rule validation, confidence and error checking, consistency tests, human review entrypoints, no invented data.
+P3 MCDI Computational Core: the user corrected earlier assistant wording to MCDI and explicitly wants the MATHEMATICS AND TECHNOLOGICAL COMPUTATIONAL ARCHITECTURE HERE. MATLAB, Python, C/C++, optimization, graph theory, vision, statistics, sensor fusion, signal processing, ML, computing runtimes. Framework itself remains MTDI.
+P4 NVTRA Intelligence: transforms technical validated findings into user-understandable reasoning/synthesis, domain adapters, personalization, context, feedback, careful uncertainty.
+P5 I³: named “Interactive Intelligence Interface” in conversations; preserve I-cubed brand. Interface generation, dashboard visualization, explainability, layout, controls, evidence, human-review screens, export. User once mistyped “IQB” but context indicates I³.
+OPTIONAL SPECIALIST PILLARS discussed, not definitively ratified:
+P6 Chronos Intelligence: cross-cutting temporal analysis / timelines.
+P7 Memory Intelligence: persistent observation/context storage.
+P8 Adaptive Intelligence: training, correction, replay / model/rule evolution.
+The assistant recommended five foundational + three opt-in specialist pillars for portability, but user has NOT definitively approved exact pillar count. Design registry allowing completely new pillars in future; avoid forcing every MTDI project into ASTROTEC-specific modules.
+
+The framework must abstract project-specific hard-coded sensor names/labels, charts, business logic and narrative. I³ templates use safe typed schema and placeholders such as {{project.name}}, {{project.subtitle}}, {{metrics.primary.label}}, {{metrics.primary.value}}, {{modules.primary.title}}, {{validation.status}}, {{theme.id}}. A generic interface must NOT show Inductra Vaion RF/electric fields or ASTROTEC spiritual vocabulary unless explicitly configured by that project's adapter. Conditional layout, repeatable components, customizable metrics/titles/units, branding, accessible views, no arbitrary executable-template injection.
+
+Proposed MTDI Framework Studio tabs/features:
+- Framework Overview / MTDI Framework deep dive.
+- Evolution timeline / D1–D5 and future roadmaps.
+- Pillar Architecture visual designer.
+- Project Registry / Builder.
+- Module & Mathematical Engine Registry.
+- I³ Interface Studio / theme/config preview.
+- Validation Laboratory.
+- Evolution Archive and Changelog.
+- Export Center and Releases.
+- API/Developer documentation.
+- Security/admin settings.
+
+REQUIRED “MTDI Framework” TAB: User demands a SUBSTANTIAL DEEP DIVE, not a short intro. Include: exact acronym and purpose, complete narrative and origin story, Third Eye, SymbioScan, intermediate history (verified only), Inductra Vaion, transition to ASTROTEC, descriptions of foundational and optional pillars, architectural diagrams, data workflows, lightweight computation philosophy, firmware/hardware integrations, software-only domains, MATLAB mathematical core, Validation Chamber, Environmental Intelligence, NVTRA intelligence, I³, interface personalization, evidence auditing, reuse/portability, version lifecycle and future goals for MTDI 5.1 and MTDI 6.0. Explain distinguishing strengths and scientific limits. Historical assertions need grounding in actual repos and records; do not invent awards/benchmarks.
+
+Proposed monorepo structure (guideline, inspect original repo first): apps/web, apps/studio, packages/core, packages/contracts, packages/pillars, packages/validation, packages/compute, packages/i3, packages/adapters, packages/registry, packages/exporter, matlab, services, database, templates, docs, tests, .github/workflows.
+
+MTDI 5.0 release vs ASTROTEC project version should be tracked separately (e.g. MTDI 5.0 / ASTROTEC 1.0), with compatibility manifests, semver, migration tests, reusable modules, staging & production, typed input/output schemas. Hardware-specific plugins may have limited profiles. Don't literally copy ASTROTEC's spiritual rules into universal MTDI 5.1.
+
+════════════════════════════════════════════════════════════════════
+G. EVOLUTION SCHEDULE AND PRODUCT BOUNDARIES
+════════════════════════════════════════════════════════════════════
+
+User's latest explicit decision:
+- EVERY engineering project uses MTDI as a base, continuing to upgrade it.
+- ASTROTEC is the FIRST software-only reference project of MTDI 5.0, and also a personal testbed for new intelligence concepts, while still genuinely serving the original angel-number purpose.
+- MTDI 5.1 means taking EXACT GENERALIZABLE intelligent pattern/vision/relational architecture demonstrated through ASTROTEC and applying it to something completely different; at this stage combine new software modules with reusable HARDWARE/FIRMWARE and past sensor fusion from previous years; build improvements in the new application. Exact 5.1 application not selected.
+- MTDI 6.0 might be created for 2027 Eskom Expo project using components from MTDI 5.1 and further engineering, but specific project hasn't been shared.
+- Major/minor version numbering represents design evolution, not necessarily standard semantic versioning; preserve user's chosen release names but internally provide software semver/compatibility.
+
+Potential non-spiritual applied directions discussed as explorations, not finalized missions: visual analysis of business dashboards and invoices; engineering instrument UI reading & relational consistency checks; industrial quality inspection combining operator notes and machine readings; scientific research figures/data extraction; automated software UI screenshot testing. Example demonstration: screenshot shows 12.1 V, 2.0 A and 30 W; under matched DC conditions predicted power P=VI=24.2 W, so potential mismatch. This is measurable reasoning unlike spiritual interpretations. Potential research question: degree to which human-guided visual relational reasoning improves numerical relation detection versus OCR-only baseline. Compare OCR-only, OCR+fixed rules, OCR+spatial graphs, and human-feedback-assisted approach using precision/recall, false positives, latency and correction rates. User asked about future commercial/billion-dollar potential, but no established market advantage or revenue; focus on one objectively valuable problem before extrapolation.
+
+════════════════════════════════════════════════════════════════════
+H. CLAUDE/CODEX SOFTWARE DEVELOPMENT ROLE AND TWO-PROMPT PLAN
+════════════════════════════════════════════════════════════════════
+
+User wants to prompt Claude Code or Codex. Earlier assistant recommended Codex High thinking for code implementation as an initial subjective choice, while user later specifically requested full prompts for CLAUDE with existing GitHub access. Do not claim a quantified efficiency rating without benchmark. The user wants TWO MAIN DEVELOPMENT PROMPTS:
+1. MTDI master prompt: audit Inductra Vaion, extract actual legacy architecture, then create universal independent MTDI 5.0 source packages, Studio web app, full-framework website, structured database, I³, validation, mathematical engine, export tooling, GitHub repo, Vercel config, tests and docs. Historic and future versions included.
+2. ASTROTEC prompt: implement software-defined angel-number application using MTDI 5.0 with ALL domain-specific visual recognition, nested, cross-reference, +/-1/positional, review, journals, quick capture, interpretation, replay and app analytics.
+
+A later supplementary LONG “ASTROTEC Master Intelligence Engine Specification” was written for Claude focusing on OCR and relational pattern recognition, including exact behavior fixtures. It is important enough to include here as requirements, not as evidence the software is already implemented.
+
+The Claude instructions were to:
+- Work as principal software architect, full-stack engineer, MATLAB integration engineer and computational systems engineer, actually build a repo/platform, not stop at a plan.
+- Audit existing Inductra Vaion GitHub repository and identify implemented vs planned before reusing any code. Preserve old repo.
+- Write audit report on hardcoded sensors/domain-specific coupling, UI abstraction, validation code, CI and MATLAB, then create new mtdi-framework repo; choose proper repo owner and obtain permissions when required.
+- Implement five core pillars plus optional plugin pillars with versioned contracts; generic adapter-based input and intelligence output, i3 UI template engine, Studio builder, package exports, proper test suite and migration/rollback process.
+- Use database migrations, UUIDs, FK relations, user ownership, authZ/authN, audit log, data retention/deletion, secure uploads, secrets, rate limits, private object store, role-based authorization; no credentials in client source.
+- Implement human-in-the-loop workflow Acquire → Validate → Compute → Review → Revalidate → Recompute → Interpret → Present. Raw machine results remain immutable/versioned, user edits separate, final result from reviewed set. In other scientific domains, user changes do not magically become verified physical evidence.
+- Ensure project export contains actual runnable starter code, manifests, compatible modules/tests/docs/config instead of copy-paste text/prompt alone.
+- GitHub code and Vercel frontend, external service for heavy OCR/ML/MATLAB-generated/native compute, Notion knowledge layer, PostgreSQL operational store.
+- Build framework tab as 24-topic deep dive: meaning, origin, project history, pillars, validation, MCDI, NVTRA Intelligence, I³, human in loop, portability, chip efficiency, MATLAB, versions and future direction.
+- Distinguish done vs blocked; verify actual links/test status/builds/URLs; don't claim deployment without checking. Ask user approval for external changes when needed.
+- Do not create a fictitious MTDI 5.1 application or 2027 Eskom project.
+
+ASTROTEC specific Claude instruction in prior long prompt:
+- Read screenshot layout first; each OCR token holds original text, coordinates, source, parent visual component, confidence, timestamps, duplicate-source relationship.
+- Use OCR, UI detection, graph construction, deterministic pattern validators, context-bound candidate generation, hard constraints, optional model-assisted ranking; do NOT simply use OCR+regex.
+- Graph edges only for legitimate visual/semantic/spatial/temporal/user-declared relationships; arbitrary connected paths are not enough; each combined output requires provenance.
+- Store transform type, original value, normalized target, change magnitude, target family, semantic direction, rule version.
+- Output accepted numbers, not raw visual-number dump or fake matches.
+- Review before synthesis, recurrence emphasis and single coherent summary without literal numbers, no factual future claims.
+- MATLAB reference engines, graph theory, optimization, temporal arithmetic, time series, classification/evaluation; differential tests against deployed runtime.
+- User-corrected cases become versioned ground-truth fixtures and negative tests; held-out test data, bounding box labels, precision/recall/FPR/latency, do not claim accuracy from examples used to design rules.
+- Unresolved 05:37->535 exception to be highlighted rather than assumed to justify arbitrary ±2.
+
+════════════════════════════════════════════════════════════════════
+I. PROPOSED TECHNICAL SCHEMAS / INVARIANTS FOR IMPLEMENTERS
+════════════════════════════════════════════════════════════════════
+
+These are RECOMMENDED IMPLEMENTATION DETAILS developed from the discussion, not user-approved canonical source code.
+
+Entity Observation:
+observation_id, session_id, user_id, source (screenshot/manual), raw_content, normalized_tokens, capture_time, ingestion_time, source_type, semantic_label, bounding_box, parent_group, physical_measurement_id if deducible, confidence, privacy_scope, screenshot_asset_uri optional, human_description optional, created_at.
+
+Entity NumericToken:
+token_id, observation_id, original_text, units, locale, positional_value, grouping_role (hour/minutes/battery/notification/episode/etc.), char span, OCR bbox, OCR confidence, parsed numeric value or structured time, exclusion constraints.
+
+Entity Relationship:
+edge_id, left/right token IDs, relationship_type, supporting visual geometry, semantic justification, user-declared flag, repeat-source independence level, algorithm confidence, permitted_for_construction flag, rule_version.
+
+Entity CandidatePattern:
+candidate_id, target_digits, canonical_display, recognized_family, component_sources, construction_order, transformations, temporal_status, nested_parent, evidence_paths, acceptance_status, rejection_reason if applicable, user_override flags.
+
+Entity ReviewRevision:
+version_id, original automated detections, approved added/edited/rejected patterns, reasons, actor, timestamps, rule/model versions, dependent interpretations, rollback link.
+
+Entity Interpretation:
+interpretation_id, reviewed_pattern_set_version, meaning_database_version, journal_context_snapshot, output prose, generation method/model, timestamp, disclaimer_metadata, feedback.
+
+Source Subset:
+subset_id, user_id, name, category_id, saved_or_ephemeral, parent_id optional, deleted_at/archive, retained historical display_name when archived.
+
+Invariants:
+- Never overwrite raw observation when correcting pattern;
+- Every claimed detection can be traced to observed/human-reported token(s) and permitted operations;
+- A constructed candidate must not use arbitrarily selected digits from unrelated sources;
+- No general unconstrained global digit scramble; all transformations versioned/context-bound;
+- User can override an interpretation candidate for personal use but this is marked user-supplied, not machine-verified;
+- Separate physical source independence from repeated displays/sightings;
+- No arbitrary cap on patterns; bounded computational candidate search via graph constraints rather than arbitrary truncation of valid detections;
+- Empty accepted pattern list is legitimate;
+- Never invent spiritual meaning confidence as scientific probability;
+- Recognize exact, nested, cross-sourced and user-reported patterns in one session;
+- Review/edit step BEFORE final synthesis and allow multiple revisions;
+- Framework vs project schema boundaries clearly typed;
+- Respect user data privacy and allow deletion/export.
+
+════════════════════════════════════════════════════════════════════
+J. OPEN QUESTIONS, CONTRADICTIONS, UNVERIFIED ASSUMPTIONS
+════════════════════════════════════════════════════════════════════
+
+Formal definition of positional +/-1 and “round up from anywhere” to permit 20:10->20:20 without exploding false positives; require approved positional grouping and numerical operation grammar.
+Formal reason 05:37 can produce 535 despite +/-1 strict clock rule. This cannot be explained by simple 05:35 difference; user has approved it. Resolve by asking about actual visual source/regrouping, not secretly changing mathematical rule.
+Exact list/grammar of accepted angel-number families and how unusual examples (5454, 4848, 8585 invalid because 85 unapproved, 100 not automatically valid, compounds 3322) are curated. Distinguish pattern family eligibility from spiritual reference library membership. A mathematically repeated-pair shape does not always imply approval.
+Whether 'passed/upcoming' labels for non-clock ±1 should be used as spiritual phase metaphors. Past conversations sometimes attached temporal labels to all numeric +/-1, sometimes preferred only clock observations; preserve explicit context.
+Source relationship permissions: sometimes clock hour + TikTok/IG badges is accepted; sometimes clock 12 + lone ChatGPT badge 2 is rejected; approved badge + hour combinations must require visually complete second unit and ordered/grouped source evidence. The pair of TikTok 1 and ChatGPT 1 forms 11 in approved example although not necessarily adjacent; require semantic grouping rules and explicit user feedback rather than simplistic spatial thresholds.
+The exact screenshot 2 of Test 008 (2323 twice) needs image-level bounding-box analysis and a deterministic explanation of which charging readings combine and which +1 normalization occurs. Conversational description isn't enough to reconstruct precise paths.
+First/second battery indicator distinctions: same underlying phone battery displayed in two locations vs two accessory batteries in same widget. Preserve both physical origin and symbolic display repetition.
+Historical MTDI D3 unknown; don't invent intermediate version details.
+Exact Inductra Vaion GitHub repo contents, MATLAB integration, tests, website stack, active deployment credentials haven't been inspected within this handoff.
+Auth/access rules, public site vs personal journal privacy, privacy when using AI services, Notion scopes, billing, domain names, Vercel resources, MATLAB licenses and target hardware capabilities still need implementation decisions.
+The user has not formally ratified proposed three optional MTDI pillars nor every proposed ASTROTEC feature; twelve features prioritized for brainstorming, not final approved product backlog.
+“I³” expansion called Interactive Intelligence Interface in past responses; confirm official historic acronym from repository rather than overwrite Inductra Vaion's original wording.
+ASTROTEC naming and logo settled by user, but trademark clearance not established; domain availability unverified.
+There are no performance measurements or working vision code to report yet. Assistants in chat sometimes gave confident inaccurate detections. Treat historical accepted outputs as a conceptual dataset, not validation of implementation.
+════════════════════════════════════════════════════════════════════
+K. HISTORICAL CONVERSATION TRAJECTORY — NEAR-CHRONOLOGICAL RECAP
+════════════════════════════════════════════════════════════════════
+
+User introduced angel number screenshot problem (~100/day), MATLAB central, ten-at-a-time chat batches, RELEASE, one combined interpretation, GitHub/Vercel, future analytics. Asked assistant to clarify and later develop meaningful Greek/Latin/tech/project-inspired names. Assistant summarized four stages and asked about accepted numbers, OCR review, interpretation tone, learning, MATLAB vs deployment, audience.
+User chose recognize all then rank significant, automatic screenshot detection, both spiritual symbolism + personal context, statistical patterns + feedback/journal events, technically efficient architecture retaining MATLAB, private initially/public-ready later. Assistant proposed five-stage MTDI-style processing and follow-up significance, journal, storage, UI questions.
+User prioritized recognized/repeated patterns, AI thematic journal analysis, permanent structured records with deletable old screenshots, scientific-plus-celestial gold/dark aesthetic. Assistant generated invented names like Noemaion, Arithvaion, Synora, Numevai, KairoVAI, Signovaion.
+User clarified Vaion was just an example, not a fixed naming component. Assistant proposed newer hybrid Greek/Latin names Noesyra, Astreno, Arithen, Kairoth, Synestra, Signethra, Noumera, Arcanumer.
+User liked word Astron because natural/short but wanted mythical/spiritual concept + technology concept in one sound. Assistant proposed Astron, Aetheron, Astrix, Noetron, Etherix, Oracode, Astronix.
+User wanted “more like Astronix”; multiple lists followed: Astronex, Astronyx, Astronet, Aetherix, Cosmatrix, Astralytix, Noetrix, Cosmotrix, Aethron, Astre[x], etc. User cared MOST about sound, not forced literal suffix or exhaustive etymology.
+User selected Astrotec. Assistant broke down Astro+Tec, mentioned brand conflicts with audio-tech/communications/related names, user reasoned different industries can coexist, finally explicitly confirmed ASTROTEC. Name becomes locked despite unresolved formal legal check.
+User uploaded NVTRA emblem and requested matching-gold minimalist celestial universally inclusive ASTROTEC logo, transparent PNG and ideally SVG. Assistant generated gold four-point star/orbit emblem, explained symbolism, user confirmed as final.
+User asked next step. Assistant proposed Phase 1 ChatGPT screenshot tests. User started teaching detailed detection rules.
+User described clock+status battery cross-reference (13 from hour + 31% battery -> 1331); nearby minutes are temporal +/-1, not arbitrary rounding; also combinations with captions in specific situations, but avoid unwarranted matches with album cover, etc. Assistant partially understood and overrestricted source relationships.
+First screenshot 13:32 / 33 battery: assistant initially guessed 1333 but user corrected 1331 passed + 33 exact, with a unified interpretation; assistant updated temporal model.
+Later 13:07 screenshot assistant missed 1313 across hour and TikTok/IG badge, missed duplicated battery 2222; user corrected and assistant added accepted nested 22, distinct duplicate-readout provenance.
+08:38/88% user confirmed 88 detection but demanded interpretation paragraph must NOT mention any angel-number digits or list individual definitions.
+07:47 and 07:56 batch: assistant missed 757 upcoming from 07:56, 9191 duplicated phone 91, 22 accessory; user corrected.
+22:44 and 22:00 batch: assistant missed 00 nested independent; user clarified whole and nested patterns must both survive. 2244, 22, 44, 2222, 2828 etc.
+Three-image batch 13:30, 15:15, 13:16: user reinforced two separate app badges 1+1 => 11; repetition boosts emphasis; no independent-source fabrication.
+Three-image batch 07:27/88%, 07:38/85%, 07:13/92%: assistant incorrectly called 85/8585 an angel number and hallucinated patterns in intentional negative case. User demanded research into angel-number structures. Assistant identified repeated, mirrored, sequences and the danger of over-detection. User clarified odd-length palindromes 737 and 46664 and +/-1 applies to entire numeric value, e.g., 738=>737, 46665=>46664.
+Four-image batch 23:59/00:00/20:10/11:34: user rejected fake 22 from unrelated ChatGPT/IG badges, added 2323 twice from battery/charging readouts and symbolic emphasis, 2020 via positional adjustment, multiple workout patterns including 1133, 11, 33, 77, 6565, 2525, 1212, 1515; urged no cap and more sophisticated detection.
+Five-image batch 13:07/12:44/06:26/05:37/interior: user verified correct 1313/2222/22/11 in first, only 44 in second, 626/3322/33/22 in third, 535 in fourth, none fifth; rejected 1212 and 22 over-cross-references, 1717 from 1713, 3333 from 3322, invented 555. Assistant explicitly raised inconsistent 05:37->535 explanation.
+User invoked Inductra Vaion MTDI legacy: Environmental Intelligence and Validation Chamber input; mathematics/computation; NVTRA/MVTRA naming in historical user descriptions and I³ output. User desired MTDI used on ASTROTEC and MATLAB substantial, efficient on Pi-scale machines, but not limiting code sophistication. Assistant proposed universal pillars.
+User added manual observation journal where transient patterns (show season 2, episode 5, 25th minute) can be logged as 2525 without screenshot. Assistant proposed Quick Log, persistent data and user-sourced provenance.
+User explained Environmental Intelligence traditionally senses actual physical environment but could apply digitally too, renamed pillar III “MCDI Computational Core,” asked brainstorm features and custom observation subsets. Assistant recommended five base + three optional pillars and twelve features with modules, UI mock custom source select.
+User asked where MTDI framework should reside: not GitHub alone; it should carry reusable interface with placeholders. Assistant proposed independent MTDI Framework Studio website/app, generic I³ component library, typed project configurations, package export CLI and database, GitHub code. Historical project comparison.
+User selected all twelve features for further brainstorming. Assistant allocated each to pillar, proposed three shared engines (graph, adaptive verification, personal context), listed MATLAB mathematics and feature dependencies, and recommended five base + optional specialist pillars. This is NOT final approval.
+User demanded pre-synthesis editable review and MTDI 5.0 independent framework as first Claude development prompt, ASTROTEC second. Extensive Claude master build prompt produced (see summary section H) addressing repo audit, new repo, Studio, domain-neutral pillars, math, DB, Vercel, I³, data provenance, human review, modular exports, docs.
+User clarified ASTROTEC on MTDI 5.0 and new software/hardware project on MTDI 5.1, 2027 Eskom project may lead to MTDI 6.0. Demanded a very deep MTDI Framework tab, versions/evolution/story/diagrams. Assistant created an addendum prompt preserving separate app+framework versions and long documentation chapters.
+User asked whether ASTROTEC has objective value beyond angel numbers. Assistant explained core capabilities: computer vision, contextual OCR, knowledge/relationship graphs, mathematical pattern detection, human-in-loop training, contextual memory, evidence fusion; proposed applied future domains without redefining angel-number project; warned chat corrections are NOT direct gradient/model-weight updates.
+User asked for exhaustive explanation to Claude of cross-referencing and computer vision before implementation. Assistant provided long dedicated recognition specification with pipeline, source-aware tokens, graph edges, permitted transformations, positive/negative fixture examples, confidence, review, MATLAB core, tests. Warned it describes reproducible behavioral rules, not model hidden chain-of-thought.
+User now requests a complete maximal-context handoff text file for Claude containing all prompts, answers, decisions and examples. This document is that detailed handoff; it is not the raw platform context window or an exact verbatim export of every response, and hidden system/internal content isn't available.
+════════════════════════════════════════════════════════════════════
+L. CLAUDE NEXT ACTIONS — PRACTICAL HANDOFF CHECKLIST
+════════════════════════════════════════════════════════════════════
+
+Read this entire handoff and create a concise approved requirements ledger with statuses: user-confirmed, proposed, unresolved, assistant-error/overruled.
+Ask to inspect existing GitHub Inductra Vaion repository (connected service, correct permissions) and the actual user-provided screenshots/logo files. Do not invent what is in the repo or pixels from missing screenshots.
+Separate MTDI universal framework from ASTROTEC domain module. Maintain MTDI 5.0 / ASTROTEC 1.0 version separation.
+Build typed OCR observation graph, constrained cross-element relationship rules and target-number structural grammar with effective user-approved whitelist/semantics.
+Preserve strict +/-1 whole-number/clock operations; separately address positional operation and 05:37->535 contradiction through an explicit question or exception rather than silently expanding rules.
+Create regression fixtures for each confirmed positive and negative example above; store original images and coordinates before claiming visual recognition performance; add held-out tests.
+Build mandatory human edit stage before unified spiritual interpretation; accepted source derivations and repetition count should drive synthesis; don't show digits in interpretation prose.
+Build Quick Log + custom source subsets (saved/one-time), journal history and data control.
+Give MATLAB substantive, measurable mathematical roles; use production deployment suitable to native compute limitations; compare math output between reference and runtime.
+Build MTDI Framework Studio and public deep-dive docs with reusable I³ template placeholders and domain-neutral pillars; no hardcoded project labels.
+Respect user-approved ASTROTEC branding/logo and NVTRA gold/black aesthetic.
+Do not move toward an invented 5.1 domain application or 2027 Eskom project without user specifications.
+Verify every repo, deployment, test, performance and integration claim; produce honest status with blockers and remaining work.
+END OF CONTEXT HANDOFF
