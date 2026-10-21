@@ -64,6 +64,37 @@ From the Inductra Vaion (MTDI 4) ISF report, Eskom Expo 2026, KZN Central:
 | [EEG Motor Movement/Imagery Dataset v1.0.0](https://physionet.org/content/eegmmidb/1.0.0/) | PhysioNet | ODC-By 1.0 | measured | EEG Motor Movement/Imagery Dataset v1.0.0. PhysioNet. Goldberger et al., Circulation 101(23):e215-e220 (2000). https://doi.org/10.13026/C28G6P |
 | [NOAA SWPC Planetary K-index](https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json) | NOAA Space Weather Prediction Center | US Government work, public domain | measured | NOAA Space Weather Prediction Center |
 
+## Services and tools
+
+| Service | Used for | Cost |
+|---|---|---|
+| GitHub | source of truth for code, CI, releases | free (public repo) |
+| GitHub Actions | CI, compatibility lab, scheduled data collection | free (public repo) |
+| Vercel | hosts the studio, preview per PR | free (Hobby) |
+| CodeRabbit | automatic PR review | free for public repos |
+| OpenAI Codex (Astra) | second reviewer; 3D and front-end work | included in the owner's ChatGPT plan |
+| Notion | readable catalogue, research notes | free |
+| Hugging Face | bulk dataset storage (GBs), model hosting | free |
+| MathWorks MATLAB | primary maths and ML tool | licence status unknown |
+| GNU Octave | free MATLAB-compatible runtime for tests and the Pi | free |
+| Anthropic | NVTRA language model | paid API: not enabled (owner rule) |
+| OpenAI | NVTRA language model, speech | paid API: not enabled (owner rule) |
+| Google Gemini | NVTRA language model | free tier |
+| Groq | fast NVTRA chat and Whisper speech-to-text | free tier |
+| xAI | NVTRA language model | paid API: not enabled (owner rule) |
+| Ollama / llama.cpp | local NVTRA on the Pi 5 and Mac | free |
+| ElevenLabs | NVTRA voice | free tier |
+| S3-compatible storage | encrypted project storage | provider dependent: not enabled |
+| NASA Open APIs | space and earth data for Research | free |
+| NOAA SWPC | space weather (Kp index) for Research | free |
+| Zenodo | open research datasets | free |
+| NCBI (NIH) | biomedical data incl. cancer research | free |
+| PlatformIO | firmware builds for Arduino, ESP32, Pico | free |
+| KiCad | PCB design files | free |
+| 21st.dev | front-end component presets for I³ | free components only |
+| Cursor | editor the owner can use on the repo | free tier |
+| Apple Create ML | on-Mac model training (M5) | free with macOS |
+
 ## References carried from MTDI 4 (Inductra Vaion ISF report)
 
 * Anthropic. 2025a. Claude [Large language model]. Available at: https://claude.ai [Accessed: 20 September 2026].
