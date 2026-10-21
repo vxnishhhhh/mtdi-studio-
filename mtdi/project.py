@@ -25,6 +25,10 @@ KNOWN_DOMAINS = {"ultrasonic", "radio", "acoustic", "optical", "thermal", "motio
 _DOMAIN = re.compile(r"^[a-z][a-z0-9_\-]{0,31}$")
 
 
+CALIBRATION_FIELDS = {"gain", "offset", "temp_coeff", "temp_ref", "temperature_key",
+                      "residual_sd", "method", "n", "file"}   # "file": set by load(), not by hand
+
+
 class ManifestError(ValueError):
     pass
 
@@ -45,11 +49,18 @@ def load(path):
     for ch in channels if isinstance(channels, list) else []:
         cal = ch.get("calibration") if isinstance(ch, dict) else None
         if isinstance(cal, str):
-            cal_file = (file.parent / cal).resolve()
+            folder = file.parent.resolve()
+            cal_file = (folder / cal).resolve()
+            # Only files inside the project folder: a manifest must not be able to read elsewhere.
+            if not cal_file.is_relative_to(folder):
+                raise ManifestError(f"channel '{ch.get('id')}': calibration file {cal} is outside the project folder")
             try:
-                ch["calibration"] = dict(json.loads(cal_file.read_text(encoding="utf-8")), file=cal)
+                loaded = json.loads(cal_file.read_text(encoding="utf-8"))
             except (OSError, ValueError) as error:
                 raise ManifestError(f"channel '{ch.get('id')}': calibration file {cal}: {error}") from error
+            if not isinstance(loaded, dict):
+                raise ManifestError(f"channel '{ch.get('id')}': calibration file {cal} must hold a JSON object")
+            ch["calibration"] = dict(loaded, file=cal)
     project = normalise(data)
     project["_dir"] = str(file.parent.resolve())
     return project
@@ -149,10 +160,19 @@ def _channel(ch, where, default_source, source_ids):
     cal = ch.get("calibration")
     if cal is not None:
         _require(isinstance(cal, dict), f"{where}.calibration must be an object or a file path")
+        unknown = sorted(set(cal) - CALIBRATION_FIELDS)
+        _require(not unknown, f"{where}.calibration has unknown field(s) {', '.join(unknown)}; "
+                              f"allowed: {', '.join(sorted(CALIBRATION_FIELDS))}")
         _require(ch["kind"] == "scalar", f"{where}.calibration applies to scalar channels only")
         for field in ("gain", "offset", "temp_coeff", "temp_ref"):
             _require(isinstance(cal.get(field, 0), (int, float)) and not isinstance(cal.get(field, 0), bool),
                      f"{where}.calibration.{field} must be a number")
+        sd = cal.get("residual_sd")
+        _require(sd is None or (isinstance(sd, (int, float)) and not isinstance(sd, bool) and sd >= 0),
+                 f"{where}.calibration.residual_sd must be a number >= 0 or null")
+        _require(isinstance(cal.get("n", 0), int) and not isinstance(cal.get("n", 0), bool) and cal.get("n", 0) >= 0,
+                 f"{where}.calibration.n must be a whole number >= 0")
+        _require(isinstance(cal.get("method", ""), str), f"{where}.calibration.method must be text")
         tkey = cal.get("temperature_key")
         _require(tkey is None or (isinstance(tkey, str) and tkey), f"{where}.calibration.temperature_key must be a protocol key")
         _require(not cal.get("temp_coeff") or tkey, f"{where}.calibration has temp_coeff but no temperature_key")

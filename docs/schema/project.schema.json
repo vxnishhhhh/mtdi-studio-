@@ -306,7 +306,8 @@
                 "gain": {"type": "number"}, "offset": {"type": "number"},
                 "temp_coeff": {"type": "number"}, "temp_ref": {"type": "number"},
                 "temperature_key": {"type": "string"},
-                "residual_sd": {"type": ["number", "null"]}, "method": {"type": "string"}, "n": {"type": "integer"}}}
+                "residual_sd": {"type": ["number", "null"], "minimum": 0}, "method": {"type": "string"}, "n": {"type": "integer", "minimum": 0}},
+                "additionalProperties": false}
             ]
           },
           "accent": {

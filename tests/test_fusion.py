@@ -140,7 +140,9 @@ class CalibratedChannel(unittest.TestCase):
         from mtdi.project import ManifestError, load, normalise
         for cal, needle in [([1, 2], "object or a file path"), ({"gain": "2"}, "gain must be a number"),
                             ({"gain": True}, "gain must be a number"),
-                            ({"temp_coeff": 0.1}, "no temperature_key")]:
+                            ({"temp_coeff": 0.1}, "no temperature_key"),
+                            ({"gian": 2.0}, "unknown field.*gian"), ({"n": "x"}, "n must be a whole number"),
+                            ({"residual_sd": -1}, "residual_sd"), ({"method": 3}, "method must be text")]:
             with self.assertRaisesRegex(ManifestError, needle):
                 normalise(self.manifest(cal))
         vec = self.manifest({"gain": 2})
@@ -152,3 +154,11 @@ class CalibratedChannel(unittest.TestCase):
                                                          encoding="utf-8")
             with self.assertRaisesRegex(ManifestError, "missing.json"):
                 load(d)
+            for path, body, needle in [("../outside.json", None, "outside the project folder"),
+                                       ("null.json", "null", "must hold a JSON object")]:
+                if body is not None:
+                    (pathlib.Path(d) / path).write_text(body, encoding="utf-8")
+                (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(self.manifest(path)),
+                                                             encoding="utf-8")
+                with self.assertRaisesRegex(ManifestError, needle):
+                    load(d)
