@@ -32,6 +32,10 @@ CALIBRATION_FIELDS = {"gain", "offset", "temp_coeff", "temp_ref", "temperature_k
                       "residual_sd", "method", "n", "file"}   # "file": set by load(), not by hand
 
 
+FUSED_FIELDS = {"id", "label", "unit", "inputs", "method", "sd"}
+SD_RANGE = (1e-12, 1e12)   # squared, still a normal float: no zero or infinite variance reaches fuse()
+
+
 class ManifestError(ValueError):
     pass
 
@@ -98,6 +102,7 @@ def normalise(data):
         _channel(ch, f"channels[{i}]", sources[0]["id"], source_ids)
         _require(ch["id"] not in channel_ids, f"channels[{i}].id '{ch['id']}' is used twice")
         channel_ids.add(ch["id"])
+    _fused(data, {ch["id"]: ch for ch in channels})
 
     data.setdefault("hardware", [])
     data.setdefault("environment", {})
@@ -116,6 +121,40 @@ def normalise(data):
     data.setdefault("aether", {})
     data.setdefault("interface", {})
     return data
+
+
+def _fused(data, by_id):
+    """"fused": several channels measuring the same quantity -> one estimate with an uncertainty."""
+    fused = data.setdefault("fused", [])
+    _require(isinstance(fused, list), "fused must be a list")
+    seen = set(by_id)
+    for i, f in enumerate(fused):
+        where = f"fused[{i}]"
+        _require(isinstance(f, dict), f"{where} must be an object")
+        unknown = sorted(set(f) - FUSED_FIELDS)
+        _require(not unknown, f"{where} has unknown field(s) {', '.join(unknown)}; allowed: {', '.join(sorted(FUSED_FIELDS))}")
+        _require(isinstance(f.get("id"), str) and f["id"], f"{where}.id is required")
+        _require(f["id"] not in seen, f"{where}.id '{f['id']}' is already a channel or fused id")
+        seen.add(f["id"])
+        inputs = f.get("inputs")
+        _require(isinstance(inputs, list) and all(isinstance(c, str) for c in inputs), f"{where}.inputs must list channel ids")
+        _require(len(inputs) >= 2 and len(set(inputs)) == len(inputs),
+                 f"{where}.inputs must list at least two different channel ids")
+        for cid in inputs:
+            _require(cid in by_id, f"{where}.inputs names unknown channel '{cid}'")
+            _require(by_id[cid]["kind"] == "scalar", f"{where}.inputs: '{cid}' is not a scalar channel")
+        units = {by_id[cid]["unit"] for cid in inputs}
+        _require(len(units) == 1, f"{where}.inputs mix units ({', '.join(sorted(map(repr, units)))}); "
+                                  "fuse only readings of the same quantity in the same unit")
+        f.setdefault("label", f["id"])
+        f["unit"] = units.pop()
+        f.setdefault("method", "inverse-variance")
+        _require(f["method"] == "inverse-variance", f"{where}.method must be inverse-variance")
+        sd = f.setdefault("sd", {})
+        _require(isinstance(sd, dict) and all(k in inputs for k in sd), f"{where}.sd may only name its inputs")
+        for k, v in sd.items():
+            _require(_finite(v) and SD_RANGE[0] <= v <= SD_RANGE[1],
+                     f"{where}.sd.{k} must be a number from {SD_RANGE[0]:g} to {SD_RANGE[1]:g}")
 
 
 def _channel(ch, where, default_source, source_ids):
