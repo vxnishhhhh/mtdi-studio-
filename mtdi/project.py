@@ -54,7 +54,7 @@ def normalise(data):
     data.setdefault("mtdi", MTDI_VERSION)
     from .profiles import DEFAULT, PROFILES  # Intelligence Profile (ADR 0006); late import avoids a cycle
     data.setdefault("profile", DEFAULT)
-    _require(data["profile"] in PROFILES, f"profile must be one of {', '.join(PROFILES)}")
+    _require(isinstance(data["profile"], str) and data["profile"] in PROFILES, f"profile must be one of {', '.join(PROFILES)}")
 
     sources = data.get("sources") or []
     _require(isinstance(sources, list) and sources, "at least one entry in sources is required")

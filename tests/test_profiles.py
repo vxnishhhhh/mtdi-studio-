@@ -48,11 +48,23 @@ class Profiles(unittest.TestCase):
         self.assertLess(len(profiles.PROFILES["edge"]["modules"]), len(profiles.PROFILES["research"]["modules"]))
         self.assertNotIn("mtdi.llm", profiles.PROFILES["edge"]["modules"])
 
+    def test_edge_runner_never_imports_the_bot(self):
+        import subprocess
+        code = ("import sys, json; sys.path.insert(0, '.'); from mtdi.project import normalise; "
+                "from mtdi.runtime import Runner; m = json.load(open('projects/host-health/project.json')); "
+                "m['profile'] = 'edge'; p = normalise(m); p['_dir'] = 'projects/host-health'; "
+                "r = Runner(p, start=False); r.ask('status?'); print('mtdi.bot' in sys.modules)")
+        out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.stdout.strip(), "False", out.stderr)
+
     def test_manifest_field(self):
         self.assertEqual(normalise(MANIFEST)["profile"], "hybrid")
         m = copy.deepcopy(MANIFEST)
         m["profile"] = "research"
         self.assertEqual(normalise(m)["profile"], "research")
+        m["profile"] = ["research"]
+        with self.assertRaises(ManifestError):
+            normalise(m)
         m["profile"] = "telepathy"
         with self.assertRaises(ManifestError):
             normalise(m)

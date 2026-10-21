@@ -48,6 +48,8 @@ class Runner:
         packet = self.engine.snapshot()
         if self._ask:
             return self._ask(question, packet)
+        if "mtdi.bot" not in self.modules:  # e.g. the edge profile: stay inside what it loaded
+            return nvtra.answer(question, packet)
         from .bot import Bot
         return Bot(self).reply(question)["text"]
 
