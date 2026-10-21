@@ -183,6 +183,79 @@ class CalibratedChannel(unittest.TestCase):
                     load(d)
 
 
+class CalibrationDrift(unittest.TestCase):
+    def runner(self, residual_sd=0.5, clock=None):
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        m = normalise({"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
+                       "channels": [{"id": "co", "label": "CO", "unit": "ppm", "keys": ["CO"], "noise_floor": 0.1,
+                                     "calibration": {"gain": 1.0, "offset": 0.0, "residual_sd": residual_sd}},
+                                    {"id": "raw", "keys": ["R"], "noise_floor": 0.1}]})
+        r = Runner(m, start=False)
+        if clock:
+            r.engine.clock = clock
+        r.engine.ingest_values("s", {"CO": 10.0, "R": 1.0})
+        return r
+
+    def test_stale_or_simulated_readings_are_not_checked(self):
+        t = [0.0]
+        r = self.runner(clock=lambda: t[0])
+        t[0] = 100.0
+        with self.assertRaisesRegex(ValueError, "check it while it is live"):
+            r.action("check", {"channel": "co", "reference": 10})
+        r.engine.ingest_values("s", {"CO": 10.0, "R": 1.0}, data_source="SIMULATED")
+        with self.assertRaisesRegex(ValueError, "SIMULATED"):
+            r.action("check", {"channel": "co", "reference": 10})
+
+    def test_clipped_reading_and_missing_residual(self):
+        from mtdi.project import ManifestError, normalise
+        from mtdi.runtime import Runner
+        base = {"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "raw_range": [0, 1023],
+                              "calibration": {"gain": 1.0}}]}
+        r = Runner(normalise(base), start=False)
+        r.engine.ingest_values("s", {"CO": 10.0})
+        self.assertIn("cannot be judged", r.action("check", {"channel": "co", "reference": 10}))
+        r.engine.ingest_values("s", {"CO": 1023.0})
+        with self.assertRaisesRegex(ValueError, "clipping"):
+            r.action("check", {"channel": "co", "reference": 10})
+        with self.assertRaisesRegex(ValueError, "within"):
+            r.action("check", {"channel": "co", "reference": 1e300})
+        base["channels"][0]["calibration"] = {"residual_sd": 1e308}
+        with self.assertRaisesRegex(ManifestError, "residual_sd must be a number from 0 to"):
+            normalise(base)
+
+    def test_summary(self):
+        self.assertIsNone(fusion.drift_summary([], 0.5)["drift"])
+        self.assertIsNone(fusion.drift_summary([0.1, 0.2], 0.5)["drift"])        # too few checks
+        self.assertFalse(fusion.drift_summary([0.1, -0.2, 0.3], 0.5)["drift"])
+        self.assertTrue(fusion.drift_summary([2.0, 2.1, 1.9], 0.5)["drift"])
+        self.assertIsNone(fusion.drift_summary([5, 5, 5], None)["drift"])        # no promise to break
+        self.assertAlmostEqual(fusion.drift_summary([1.0, 3.0], 1.0)["bias"], 2.0)
+        self.assertTrue(fusion.drift_summary([0.1, 0.1, 0.1], 0.0)["drift"])     # exact fit: any error is drift
+        big = fusion.drift_summary([1e200, 1e200, 1e200], 0.5)
+        self.assertTrue(math.isfinite(big["rms"]) and big["drift"])
+        self.assertTrue(math.isfinite(fusion.drift_summary([1e308] * 3, 0.5)["bias"]))
+
+    def test_checks_flag_drift_into_snapshot_and_warnings(self):
+        r = self.runner()
+        msg = r.action("check", {"channel": "co", "reference": 10.2})
+        self.assertIn("need 2 more", msg)
+        r.action("check", {"channel": "co", "reference": 12.0})
+        msg = r.action("check", {"channel": "co", "reference": 12.1})
+        self.assertIn("DRIFT", msg)
+        packet = r.engine.snapshot()
+        self.assertTrue(packet["channels"]["co"]["calibration"]["checks"]["drift"])
+        self.assertTrue(any("calibration drift" in w for w in packet["fusion"]["warnings"]))
+
+    def test_bad_checks_are_refused(self):
+        r = self.runner()
+        for args, err in [({"channel": "raw", "reference": 1}, ValueError), ({"channel": "nope", "reference": 1}, KeyError),
+                          ({"channel": "co", "reference": "x"}, ValueError), ({"channel": "co", "reference": None}, ValueError), ({"channel": "co", "reference": True}, ValueError),
+                          ({"channel": "co", "reference": float("nan")}, ValueError), ({"reference": 1}, ValueError)]:
+            with self.assertRaises(err):
+                r.action("check", args)
+
 class FusedChannels(unittest.TestCase):
     def manifest(self, fused, units=("ppm", "ppm")):
         return {"project": {"id": "f"}, "sources": [{"id": "s", "adapter": "http"}],

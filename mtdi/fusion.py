@@ -142,6 +142,28 @@ class Calibration:
         return cls(**json.loads(pathlib.Path(path).read_text(encoding="utf-8")))
 
 
+# ── drift: the Environmental -> Validation link ─────────────────────────────
+DRIFT_MIN_CHECKS = 3
+DRIFT_FACTOR = 3.0
+
+
+def drift_summary(residuals, residual_sd):
+    """Spot checks against a reference (reference - calibrated reading) vs the fit's own residual.
+
+    A sensor's own readings cannot reveal its drift; only a reference can. Drift is flagged when
+    at least DRIFT_MIN_CHECKS checks have an RMS error above DRIFT_FACTOR x the fit's residual sd.
+    Without a residual sd there is no promise to break, so drift stays None (unknown)."""
+    r = [float(v) for v in residuals if math.isfinite(float(v))]
+    if not r:
+        return {"checks": 0, "rms": None, "bias": None, "limit": None, "drift": None}
+    scale = max(abs(v) for v in r)   # RMS without squaring overflow, even for references near 1e200
+    rms = scale * math.sqrt(sum((v / scale) ** 2 for v in r) / len(r)) if scale else 0.0
+    limit = DRIFT_FACTOR * residual_sd if residual_sd is not None else None   # an exact fit (sd 0) is a promise too
+    drift = None if limit is None or len(r) < DRIFT_MIN_CHECKS else rms > limit
+    bias = scale * (sum(v / scale for v in r) / len(r)) if scale else 0.0
+    return {"checks": len(r), "rms": rms, "bias": bias, "limit": limit, "drift": drift}
+
+
 def _least_squares_line(x, y):
     n = len(x)
     mx, my = sum(x) / n, sum(y) / n
