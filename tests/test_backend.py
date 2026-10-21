@@ -344,6 +344,37 @@ class Bot(unittest.TestCase):
         finally:
             fake.close()
 
+    def test_invented_number_is_replaced_by_rules(self):
+        from mtdi.bot import Bot as B
+        fake = FakeService({("POST", "/v1/messages"): lambda r: (200, {"content": [{"type": "text", "text": "Level is 42.7 units."}]},
+                                                                  "application/json")})
+        try:
+            with no_keys(ANTHROPIC_API_KEY="k", MTDI_ANTHROPIC_BASE_URL=fake.url):
+                bot = B(self.runner())
+                out = bot.reply("what is the level?")
+        finally:
+            fake.close()
+        self.assertEqual(out["engine"], "rules")
+        self.assertIn("42.7", out["note"])
+        self.assertNotIn("42.7", out["text"])
+        self.assertEqual(bot.history, [])              # a rejected answer is not remembered
+
+    def test_research_command_uses_the_researcher(self):
+        from unittest import mock
+        from mtdi import bot as botmod
+        found = {"result": [{"title": "Kalman filtering", "year": 1960, "source": "crossref", "url": "https://doi.org/x"}],
+                 "sources": ["crossref"], "errors": {"wikipedia": "HTTPError: 429"}}
+        with no_keys(), mock.patch.object(botmod.agents, "research", return_value=found) as research:
+            out = botmod.Bot(self.runner()).reply("research: sensor fusion")
+        research.assert_called_once_with("sensor fusion")
+        self.assertEqual(out["engine"], "researcher")
+        self.assertIn("Kalman filtering (1960, crossref)", out["text"])
+        self.assertIn("not measurements", out["text"])
+        self.assertIn("wikipedia did not answer", out["text"])
+        with no_keys(), mock.patch.object(botmod.agents, "research") as research:
+            botmod.Bot(self.runner()).reply("what is the research level?")
+        research.assert_not_called()
+
 
 # ── studio bridge and ingest ─────────────────────────────────────────────────
 class Bridge(unittest.TestCase):
