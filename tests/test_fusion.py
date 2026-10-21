@@ -184,7 +184,7 @@ class CalibratedChannel(unittest.TestCase):
 
 
 class CalibrationDrift(unittest.TestCase):
-    def runner(self, residual_sd=0.5):
+    def runner(self, residual_sd=0.5, clock=None):
         from mtdi.project import normalise
         from mtdi.runtime import Runner
         m = normalise({"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
@@ -192,8 +192,20 @@ class CalibrationDrift(unittest.TestCase):
                                      "calibration": {"gain": 1.0, "offset": 0.0, "residual_sd": residual_sd}},
                                     {"id": "raw", "keys": ["R"], "noise_floor": 0.1}]})
         r = Runner(m, start=False)
+        if clock:
+            r.engine.clock = clock
         r.engine.ingest_values("s", {"CO": 10.0, "R": 1.0})
         return r
+
+    def test_stale_or_simulated_readings_are_not_checked(self):
+        t = [0.0]
+        r = self.runner(clock=lambda: t[0])
+        t[0] = 100.0
+        with self.assertRaisesRegex(ValueError, "check it while it is live"):
+            r.action("check", {"channel": "co", "reference": 10})
+        r.engine.ingest_values("s", {"CO": 10.0, "R": 1.0}, data_source="SIMULATED")
+        with self.assertRaisesRegex(ValueError, "SIMULATED"):
+            r.action("check", {"channel": "co", "reference": 10})
 
     def test_summary(self):
         self.assertIsNone(fusion.drift_summary([], 0.5)["drift"])
@@ -202,6 +214,9 @@ class CalibrationDrift(unittest.TestCase):
         self.assertTrue(fusion.drift_summary([2.0, 2.1, 1.9], 0.5)["drift"])
         self.assertIsNone(fusion.drift_summary([5, 5, 5], None)["drift"])        # no promise to break
         self.assertAlmostEqual(fusion.drift_summary([1.0, 3.0], 1.0)["bias"], 2.0)
+        self.assertTrue(fusion.drift_summary([0.1, 0.1, 0.1], 0.0)["drift"])     # exact fit: any error is drift
+        big = fusion.drift_summary([1e200, 1e200, 1e200], 0.5)
+        self.assertTrue(math.isfinite(big["rms"]) and big["drift"])
 
     def test_checks_flag_drift_into_snapshot_and_warnings(self):
         r = self.runner()

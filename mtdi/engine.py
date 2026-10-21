@@ -156,6 +156,12 @@ class Engine:
                 raise ValueError(f"{channel} has no calibration to check")
             if ch.value is None:
                 raise ValueError(f"{channel} has no reading yet")
+            # A reference taken now must meet a reading taken now, from real hardware.
+            state = ch.evidence.snapshot(self.clock())["state"]
+            if state != "connected":
+                raise ValueError(f"{channel} is {state}; check it while it is live")
+            if ch.evidence.data_source == "SIMULATED":
+                raise ValueError(f"{channel} is showing SIMULATED data; a calibration check needs real readings")
             ch.cal_checks.append(reference - ch.value)
             summary = drift_summary(ch.cal_checks, ch.cal.residual_sd)
             self._event("validation", f"{ch.spec['label']}: calibration check {reference - ch.value:+.3g} "

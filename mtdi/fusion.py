@@ -153,11 +153,12 @@ def drift_summary(residuals, residual_sd):
     A sensor's own readings cannot reveal its drift; only a reference can. Drift is flagged when
     at least DRIFT_MIN_CHECKS checks have an RMS error above DRIFT_FACTOR x the fit's residual sd.
     Without a residual sd there is no promise to break, so drift stays None (unknown)."""
-    r = [float(v) for v in residuals]
+    r = [float(v) for v in residuals if math.isfinite(float(v))]
     if not r:
         return {"checks": 0, "rms": None, "bias": None, "limit": None, "drift": None}
-    rms = math.sqrt(sum(v * v for v in r) / len(r))
-    limit = DRIFT_FACTOR * residual_sd if residual_sd else None
+    scale = max(abs(v) for v in r)   # RMS without squaring overflow, even for references near 1e200
+    rms = scale * math.sqrt(sum((v / scale) ** 2 for v in r) / len(r)) if scale else 0.0
+    limit = DRIFT_FACTOR * residual_sd if residual_sd is not None else None   # an exact fit (sd 0) is a promise too
     drift = None if limit is None or len(r) < DRIFT_MIN_CHECKS else rms > limit
     return {"checks": len(r), "rms": rms, "bias": sum(r) / len(r), "limit": limit, "drift": drift}
 
