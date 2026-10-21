@@ -97,11 +97,12 @@ def graph(series, title="", y_label="", x=None):
     """A Plotly figure dict. series: {name: [values]}; x: shared x values (default: index)."""
     if not series:
         raise ValueError("graph() needs at least one series")
+    shared_x = list(x) if x is not None else None   # an iterator is read once, then reused
     traces = []
     for name, values in series.items():
         ys = [float(v) for v in values]
         traces.append({"type": "scatter", "mode": "lines", "name": str(name), "y": ys,
-                       "x": list(x) if x is not None else list(range(len(ys))),
+                       "x": shared_x if shared_x is not None else list(range(len(ys))),
                        "line": {"width": 2}})
     layout = {"title": {"text": title}, "yaxis": {"title": {"text": y_label}},
               "paper_bgcolor": "#000000", "plot_bgcolor": "#000000", "font": {"color": "#E3B945"}}
@@ -109,17 +110,37 @@ def graph(series, title="", y_label="", x=None):
 
 
 # ── validator ───────────────────────────────────────────────────────────────
-NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?:e-?\d+)?")
+NUMBER = re.compile(r"(?<![\w.])-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])-?\d+(?:\.\d+)?(?:[eE]-?\d+)?")
+COUNT_WORDS = {"channel", "channels", "sensor", "sensors", "reading", "readings", "point", "points", "step",
+               "steps", "time", "times", "minute", "minutes", "second", "seconds", "hour", "hours", "of",
+               "agent", "agents", "pillar", "pillars", "warning", "warnings", "dataset", "datasets"}
+
+
+def _measurements(obj):
+    """Numbers that are values in the data (not digits inside ids, labels or timestamps)."""
+    if isinstance(obj, bool):
+        return
+    if isinstance(obj, (int, float)):
+        yield float(obj)
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _measurements(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _measurements(v)
 
 
 def validate(text, packet, tolerance=0.01):
-    """Every number in `text` must match a number in `packet` (relative tolerance), except
-    small counting words like 1-10 used as ordinals. Returns the unsupported numbers."""
-    known = [float(n) for n in NUMBER.findall(json.dumps(packet, default=str))]
+    """Every number in `text` must match a measured value in `packet` (relative tolerance).
+    Only a small integer used as a count ("3 channels", "2 of them") is exempt."""
+    known = list(_measurements(packet))
     unsupported = []
-    for token in NUMBER.findall(text):
-        value = float(token)
-        if value.is_integer() and 0 <= value <= 10:
+    for match in NUMBER.finditer(text):
+        token = match.group(0)
+        value = float(token.replace(",", ""))
+        following = text[match.end():].split()
+        next_word = following[0].strip(".,;:!?").lower() if following else ""
+        if value.is_integer() and 0 <= value <= 10 and next_word in COUNT_WORDS:
             continue
         if not any(abs(value - k) <= tolerance * max(1.0, abs(k)) for k in known):
             unsupported.append(token)

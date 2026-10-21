@@ -53,6 +53,16 @@ class Agents(unittest.TestCase):
         self.assertFalse(bad["ok"])
         self.assertEqual(bad["unsupported"], ["37.9"])
 
+    def test_validator_edge_cases(self):
+        packet = {"project": {"id": "rig-2026"}, "channels": {"flow": {"magnitude": 1000.0}, "t": {"magnitude": 4.0}}}
+        self.assertTrue(agents.validate("Flow is 1,000 across 3 channels.", packet)["result"]["ok"])
+        self.assertFalse(agents.validate("The temperature is 7 degrees.", packet)["result"]["ok"])
+        self.assertFalse(agents.validate("Reading 2026.", packet)["result"]["ok"])  # digits in an id are not data
+
+    def test_grapher_reuses_an_iterator_x(self):
+        fig = agents.graph({"a": [1, 2], "b": [3, 4]}, x=iter([10, 20]))["result"]
+        self.assertEqual(fig["data"][1]["x"], [10, 20])
+
     def test_registered(self):
         self.assertIn("mtdi.agents", [m for mods in COMPUTATIONAL_MODULES.values() for m in mods])
         self.assertEqual(set(agents.AGENTS), {"researcher", "analyst", "grapher", "validator"})
