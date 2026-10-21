@@ -3,8 +3,8 @@
 What MTDI runs on the owner's Raspberry Pi 5 (8 GB, no AI HAT) and what goes to the M5 Mac or the cloud.
 **Status: estimates plus one cloud reference measurement. Nothing here has been measured on the Pi yet.**
 Run `python tools/pi/measure.py` on the Pi (about 2 minutes, stdlib only, sends nothing anywhere except to a
-local Ollama if one is running). It writes `docs/results/pi-budget/<host>-<date>.md`; commit that file and
-this page gets real numbers.
+local Ollama if one is running). It writes `docs/results/pi-budget/<host>-<date>.md` (the report) and `.json` (the same data for tools);
+commit both and this page gets real numbers. A second run on the same day gets its own time-stamped files.
 
 ## Placement
 
@@ -41,4 +41,4 @@ cache by sequence number, cap the pairs, or compute incrementally, without chang
 ## Hardware the owner needs to do
 1. On the Pi: `git pull`, then `python3 tools/pi/measure.py --no-llm` (no install needed).
 2. Optional, for the model row: install Ollama (free), `ollama pull llama3.2:3b`, then run it again without `--no-llm`.
-3. Commit the generated file in `docs/results/pi-budget/`, or paste it to Claude.
+3. Commit both generated files (`.md` and `.json`) in `docs/results/pi-budget/`, or paste the `.md` to Claude.

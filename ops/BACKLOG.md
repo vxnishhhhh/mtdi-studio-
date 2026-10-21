@@ -106,4 +106,5 @@ questions through the same framework code paths, with no project-specific code i
 - S1-14 (in progress: comment tags, `mtdi aether` hours counter, docs/AETHER.md and the Astra game spec done; Easter eggs next) Aether: comment conventions (guides, context, "hours wasted" counters), more Easter eggs, a 3D game spec for Astra.
 - S1-15 I³ refresh: fix imperfections, scroll animations, presets, 21st.dev components, 3D specs for Astra.
 - S1-16 (in progress: docs/PI_BUDGET.md, tools/pi/measure.py and a cloud reference run done; the Pi run is the owner's) Pi 5 budget: what runs on the device and what runs in the cloud, measured.
-- S1-16b Correlation cost: `core.correlation` is O(channels²) per snapshot (691 ms at 128 channels in the cloud reference). Cache, cap or compute incrementally without changing small-project results.
+- S1-16b (status: ready) Correlation cost: `core.correlation` is O(channels²) per snapshot (691 ms at 128 channels in the cloud reference). Cache, cap or compute incrementally without changing small-project results.
+  **Check:** `tools/pi/measure.py` shows the 128-channel snapshot well under 100 ms with a fresh packet before each snapshot, and a test compares old and new correlation on random histories with identical results for small projects.

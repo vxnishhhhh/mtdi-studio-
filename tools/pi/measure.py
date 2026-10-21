@@ -143,6 +143,8 @@ def main(argv=None):
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stem = f"{result['machine']['host'] or 'host'}-{result['date']}"
+    if (out / f"{stem}.json").exists() or (out / f"{stem}.md").exists():   # never overwrite an earlier run
+        stem += datetime.datetime.now().strftime("-%H%M%S")
     (out / f"{stem}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     (out / f"{stem}.md").write_text(report, encoding="utf-8")
     print(f"written: {out / stem}.json and .md")
