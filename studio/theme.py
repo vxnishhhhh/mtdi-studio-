@@ -410,7 +410,8 @@ html.no-anim #nav-progress{display:none!important}
 .session-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 11px 'Inter',sans-serif}
 .session-meta{font:7px 'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--c-sub)}
 .nvtra-chat-main{min-width:0;padding:24px 28px}.chat-main-head{text-align:left;padding:2px 2px 20px}
-.chat-main-brand{font:700 11px 'DM Mono',monospace;letter-spacing:.35em;color:#75efff}
+.chat-main-brand{font:700 11px 'DM Mono',monospace;letter-spacing:.35em;color:#E3B945;display:flex;align-items:center;gap:10px}
+.nvtra-mark{height:18px;width:auto;display:block;filter:drop-shadow(0 0 6px rgba(227,185,69,.35))}
 .chat-session-title{font:600 22px 'Inter',sans-serif;color:#f4f7ff;margin-top:8px}
 .nvtra-model-picker{position:relative;margin:10px 12px 4px;width:min(360px,calc(100% - 24px))}
 .nvtra-model-picker summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;
