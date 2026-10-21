@@ -1,0 +1,24 @@
+# Manual check that the HF_TOKEN secret works and can write to repos under the owner's namespace.
+# Prints only the account name and permission scopes, never the token.
+name: hf-check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "HF_TOKEN secret is missing"; exit 1; }
+          curl -sf -H "Authorization: Bearer $HF_TOKEN" https://huggingface.co/api/whoami-v2 > me.json || { echo "token rejected"; exit 1; }
+          python3 - <<'PY'
+          import json
+          me = json.load(open("me.json"))
+          tok = me.get("auth", {}).get("accessToken", {})
+          print("user:", me.get("name"), "| token:", tok.get("displayName"), "| role:", tok.get("role"))
+          scopes = [p for s in tok.get("fineGrained", {}).get("scoped", []) for p in s.get("permissions", [])]
+          print("scopes:", sorted(set(scopes)))
+          ok = tok.get("role") == "write" or "repo.write" in scopes
+          print("WRITE OK" if ok else "NO WRITE ACCESS")
+          raise SystemExit(0 if ok else 1)
+          PY
