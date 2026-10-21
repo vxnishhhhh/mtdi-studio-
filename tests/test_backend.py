@@ -445,9 +445,13 @@ class StudioIngest(unittest.TestCase):
     def tearDownClass(cls):
         # The studio's archive and CSV writers run in background threads that write into HOME.
         # Stop them (sinks are flushed and joined) before deleting HOME, or cleanup races them.
+        import threading
         from studio.system import LIFECYCLE
         LIFECYCLE.stop()
         cls.env.stop()
+        alive = [t.name for t in threading.enumerate() if t.name.startswith("studio-") and t.is_alive()]
+        if alive:   # stop() gave up at its deadline: leave HOME in place rather than race a live writer
+            raise AssertionError(f"studio workers still running after stop(): {', '.join(alive)}")
         cls.tmp.cleanup()
 
     def test_token_required(self):
