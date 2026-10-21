@@ -105,4 +105,5 @@ questions through the same framework code paths, with no project-specific code i
 - S1-13 MATLAB first: ML toolbox parity, a MATLAB Coder path to C for the Pi, and an MLX notebooks gallery.
 - S1-14 Aether: comment conventions (guides, context, "hours wasted" counters), more Easter eggs, a 3D game spec for Astra.
 - S1-15 I³ refresh: fix imperfections, scroll animations, presets, 21st.dev components, 3D specs for Astra.
-- S1-16 Pi 5 budget: what runs on the device and what runs in the cloud, measured.
+- S1-16 (in progress: docs/PI_BUDGET.md, tools/pi/measure.py and a cloud reference run done; the Pi run is the owner's) Pi 5 budget: what runs on the device and what runs in the cloud, measured.
+- S1-16b Correlation cost: `core.correlation` is O(channels²) per snapshot (691 ms at 128 channels in the cloud reference). Cache, cap or compute incrementally without changing small-project results.
