@@ -39,7 +39,7 @@ COMPUTATIONAL_MODULES = {
     "sensor fusion and calibration": ["mtdi.fusion"],
     "machine learning": ["mtdi.ml.anomaly", "mtdi.ml.classify", "mtdi.ml.cluster", "mtdi.ml.forecast",
                          "mtdi.ml.features", "mtdi.ml.monitor"],
-    "language models": ["mtdi.llm"],
+    "language models": ["mtdi.llm", "mtdi.policy"],
     "voice": ["mtdi.voice"],
     "intelligence": ["mtdi.bot"],
     "storage": ["mtdi.storage"],

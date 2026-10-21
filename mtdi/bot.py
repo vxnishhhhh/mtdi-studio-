@@ -12,11 +12,12 @@ which needs no network. Either way it never invents a reading.
 """
 import json
 
-from . import llm, voice
+from . import llm, policy, voice
 from .pillars import nvtra
 
+# The task-specific layer, under the fixed policy in mtdi.policy (which always comes first).
 PERSONA = (
-    "You are NVTRA, the intelligence of an MTDI project (Microprocessing Technological Diagnostic "
+    "Right now you are NVTRA, the intelligence of an MTDI project (Microprocessing Technological Diagnostic "
     "Intelligence). You explain what the project's channels show. Use only the numbers in the "
     "PACKET below; if something is not in it, say you do not have it. Each channel has a state "
     "(connected, stale, waiting), a deviation from its learned baseline, a signal-to-noise ratio and "
@@ -42,10 +43,12 @@ def packet_summary(packet, limit=12):
 
 
 class Bot:
-    def __init__(self, runner=None, packet_provider=None, history=8):
+    def __init__(self, runner=None, packet_provider=None, history=8, notes=None):
         if runner is None and packet_provider is None:
             raise ValueError("give a Runner or a packet_provider")
         self.packet = packet_provider or runner.engine.snapshot
+        # Project notes from the manifest's nvtra block: appended under the policy, never above it.
+        self.notes = notes if notes is not None else (((runner.project if runner else {}) or {}).get("nvtra") or {}).get("notes")
         self.history = []
         self.keep = history
 
@@ -56,7 +59,7 @@ class Bot:
             context = json.dumps(packet_summary(packet), default=str)
             messages = self.history[-self.keep:] + [{"role": "user", "content": question}]
             try:
-                out = llm.chat(messages, system=PERSONA + "\n\nPACKET: " + context)
+                out = llm.chat(messages, system=policy.compose(PERSONA + "\nPACKET: " + context, self.notes))
                 self.history += [{"role": "user", "content": question}, {"role": "assistant", "content": out["text"]}]
                 return {"text": out["text"], "engine": f"{out['provider']}:{out['model']}"}
             except llm.LLMError as error:
