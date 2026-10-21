@@ -11,3 +11,4 @@ change its decision; a new record supersedes it.
 | [0004](0004-data-library.md) | Real data: collected by GitHub Actions, stored as versioned releases, catalogued in Notion | Accepted 2026-10-18 |
 | [0005](0005-registries-as-files.md) | Registries (modules, integrations, datasets, models, experiments) are versioned files first | Accepted 2026-10-18 |
 | [0006](0006-compatibility-lab-and-profiles.md) | Compatibility Laboratory, capability advertisement and Intelligence Profiles | Accepted 2026-10-18 |
+| [0007](0007-mtdi5-owner-brief.md) | MTDI 5 direction: four cores (ML, data, MATLAB, agents), 05 Research pillar, NVTRA layers | Accepted 2026-10-21 |
