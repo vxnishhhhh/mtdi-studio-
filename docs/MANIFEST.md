@@ -57,6 +57,25 @@ Every source needs a unique `id`. `note` is free text.
 
 **Calibration drift.** A sensor cannot reveal its own drift, so MTDI checks it against a reference: `POST /mtdi/action {"action": "check", "args": {"channel": "co", "reference": 10.2}}` records one spot check (`Engine.check_calibration`). After 3 checks, an RMS error above 3 × the fit's `residual_sd` sets `calibration.checks.drift` in the snapshot and adds an NVTRA warning. Without a `residual_sd`, drift stays `null` (unknown).
 
+## fused
+
+Several scalar channels that measure the same quantity in the same unit, combined into one
+estimate with an honest uncertainty (inverse-variance weighting, `mtdi.fusion.fuse`).
+
+```json
+"fused": [{"id": "co", "label": "CO (fused)", "inputs": ["co_a", "co_b"], "sd": {"co_a": 0.8}}]
+```
+
+| field | default | meaning |
+|---|---|---|
+| `id` | required | unique across channels and fused entries |
+| `inputs` | required | two or more scalar channel ids, all in the same `unit` |
+| `sd` | `{}` | per-input standard deviation. Missing inputs use the calibration residual, then the measured noise, then `noise_floor` |
+| `method` | `inverse-variance` | the only method for now |
+
+The snapshot's `fused.<id>` holds `value`, `sd`, `unit`, and per input the `sd` used and its
+`basis`. Only connected inputs count; with none connected, `value` is `null`.
+
 ## environment
 
 | Field | Default | Meaning |

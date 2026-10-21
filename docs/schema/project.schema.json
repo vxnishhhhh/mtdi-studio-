@@ -301,13 +301,44 @@
           "calibration": {
             "description": "Scalar channels only. true = gain*value + offset + temp_coeff*(T - temp_ref), applied after scale/offset. An object, or a path (relative to the project folder) to a file saved by mtdi.fusion.Calibration.save.",
             "oneOf": [
-              {"type": "string"},
-              {"type": "object", "properties": {
-                "gain": {"type": "number"}, "offset": {"type": "number"},
-                "temp_coeff": {"type": "number"}, "temp_ref": {"type": "number"},
-                "temperature_key": {"type": "string"},
-                "residual_sd": {"type": ["number", "null"], "minimum": 0}, "method": {"type": "string"}, "n": {"type": "integer", "minimum": 0}},
-                "additionalProperties": false}
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "gain": {
+                    "type": "number"
+                  },
+                  "offset": {
+                    "type": "number"
+                  },
+                  "temp_coeff": {
+                    "type": "number"
+                  },
+                  "temp_ref": {
+                    "type": "number"
+                  },
+                  "temperature_key": {
+                    "type": "string"
+                  },
+                  "residual_sd": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              }
             ]
           },
           "accent": {
@@ -480,6 +511,49 @@
       ],
       "default": "hybrid",
       "description": "Intelligence Profile (ADR 0006): which modules load and the smallest host that may run it."
+    },
+    "fused": {
+      "description": "Several scalar channels measuring the same quantity in the same unit, combined into one inverse-variance estimate with a standard deviation (snapshot key 'fused').",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "inputs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "uniqueItems": true
+          },
+          "method": {
+            "enum": [
+              "inverse-variance"
+            ]
+          },
+          "sd": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      }
     }
   }
 }

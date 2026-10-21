@@ -100,7 +100,7 @@ questions through the same framework code paths, with no project-specific code i
 
 ## Stage 1 additions from the owner brief (ADR 0007), ordered
 - S1-10 (in progress: catalogue + credits merged; bulk copy to Hugging Face and offline pull next) Research pillar: catalogue schema, licence and credit fields, the first 25 real datasets (sensor, physics, biomedical including cancer research, space weather), offline pull. **Credits page** generated from the catalogue.
-- S1-11 (in progress: fusion + calibration done; calibration in the manifest and engine done; fused channels and the studio panel next) Environmental Intelligence 2.0: multi-sensor fusion (Kalman/complementary), calibration routines (offset, gain, temperature), and the link to Validation.
+- S1-11 (in progress: fusion + calibration done; calibration in the manifest and engine done; fused channels done; studio panel and Validation link next) Environmental Intelligence 2.0: multi-sensor fusion (Kalman/complementary), calibration routines (offset, gain, temperature), and the link to Validation.
 - S1-12 (in progress: policy, local-first LLM, agents, bot uses validator + researcher done; NVTRA brand in the studio next) NVTRA 2.0: fixed safety and engineer system policy, local models (llama.cpp/Ollama on Pi 5 and Mac), online research tool, agents (analyst, grapher, researcher, validator), NVTRA brand.
 - S1-13 MATLAB first: ML toolbox parity, a MATLAB Coder path to C for the Pi, and an MLX notebooks gallery.
 - S1-14 Aether: comment conventions (guides, context, "hours wasted" counters), more Easter eggs, a 3D game spec for Astra.
