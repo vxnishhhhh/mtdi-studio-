@@ -89,6 +89,14 @@ def cmd_check(args):
         print(f"  {c['id']:<14} {c['kind']:<7} {c['domain']:<11} keys={','.join(c['keys']):<18} "
               f"unit={c['unit'] or '-':<8} source={'|'.join(c['sources'])}  floor={c['noise_floor']}"
               + (f"  {c['transform']}({c['window']})" if c["transform"] != "none" else ""))
+    from .capabilities import detect_host, load_targets
+    from .profiles import qualifies
+    target = load_targets().get(args.target) if args.target else detect_host()
+    if target is None:
+        sys.exit(f"unknown target {args.target!r}; see python -m mtdi capabilities")
+    ok, runtime, why = qualifies(project["profile"], target)
+    print(f"profile: {project['profile']} · target {target['id']}: {runtime} "
+          f"({'qualifies' if ok else 'does not host it; streams instead'}) · {why}")
     print(f"nvtra rules: {len(project['nvtra']['rules'])}   saved environments: "
           f"{len(list((pathlib.Path(project['_dir']) / 'environments').glob('*.json')))}")
     print("OK")
@@ -428,6 +436,7 @@ def main(argv=None):
     watch.set_defaults(func=cmd_watch)
     check = sub.add_parser("check", help="validate a project manifest")
     check.add_argument("project")
+    check.add_argument("--target", help="reference target id (default: this machine)")
     check.set_defaults(func=cmd_check)
     new = sub.add_parser("new", help="create a project from the template")
     new.add_argument("id")

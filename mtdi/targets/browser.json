@@ -17,5 +17,5 @@
     "webgl"
   ],
   "notes": "runs the I3 interface, hand vision and the Pyodide Aether terminal",
-  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+  "source": "reference estimates for a typical device of this class, not a measured or owner-stated value"
 }

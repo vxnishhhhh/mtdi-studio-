@@ -14,5 +14,5 @@
   ],
   "accelerators": [],
   "notes": "60 s limit, state resets, 4.5 MB response cap",
-  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+  "source": "reference estimates for a typical device of this class, not a measured or owner-stated value"
 }
