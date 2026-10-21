@@ -15,7 +15,8 @@ from mtdi import llm, policy  # noqa: E402
 from test_backend import FakeService  # noqa: E402
 
 CLEAN = {k: "" for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "XAI_API_KEY",
-                         "OLLAMA_HOST", "MTDI_LOCAL_LLM", "MTDI_LLM_PROVIDER", "MTDI_LLM_MODEL", "MTDI_OLLAMA_BASE_URL")}
+                         "OLLAMA_HOST", "MTDI_LOCAL_LLM", "MTDI_LLM_PROVIDER", "MTDI_LLM_MODEL", "MTDI_OLLAMA_BASE_URL",
+                         "MTDI_OLLAMA_MODEL", "MTDI_GROQ_MODEL")}
 
 
 class Policy(unittest.TestCase):
@@ -68,6 +69,37 @@ class LocalFirst(unittest.TestCase):
                 out = llm.chat([{"role": "user", "content": "hi"}], timeout=3)
         finally:
             svc.close()
+        self.assertEqual(out["provider"], "groq")
+
+    def test_fallback_does_not_reuse_a_local_model_name(self):
+        seen = {}
+
+        def chat(req):
+            seen["model"] = json.loads(req["body"])["model"]
+            return 200, {"choices": [{"message": {"content": "cloud"}}]}, "application/json"
+
+        svc = FakeService({("POST", "/v1/chat/completions"): chat})
+        try:
+            env = dict(CLEAN, OLLAMA_HOST="http://127.0.0.1:9", MTDI_LLM_MODEL="qwen2.5:14b",
+                       MTDI_OLLAMA_MODEL="qwen2.5:14b", GROQ_API_KEY="gsk_x", MTDI_GROQ_BASE_URL=svc.url)
+            with mock.patch.dict(os.environ, env):
+                out = llm.chat([{"role": "user", "content": "hi"}], model="qwen2.5:14b", timeout=3)
+        finally:
+            svc.close()
+        self.assertEqual(out["provider"], "groq")
+        self.assertEqual(seen["model"], llm.PROVIDERS["groq"]["model"])
+
+    def test_non_json_reply_falls_back(self):
+        local = FakeService({("POST", "/v1/chat/completions"): lambda r: (200, b"<html>oops</html>", "text/html")})
+        cloud = FakeService({("POST", "/v1/chat/completions"):
+                             lambda r: (200, {"choices": [{"message": {"content": "cloud"}}]}, "application/json")})
+        try:
+            env = dict(CLEAN, OLLAMA_HOST=local.url, GROQ_API_KEY="gsk_x", MTDI_GROQ_BASE_URL=cloud.url)
+            with mock.patch.dict(os.environ, env):
+                out = llm.chat([{"role": "user", "content": "hi"}], timeout=3)
+        finally:
+            local.close()
+            cloud.close()
         self.assertEqual(out["provider"], "groq")
 
     def test_plain_http_only_to_local_or_lan(self):

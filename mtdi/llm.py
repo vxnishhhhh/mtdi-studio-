@@ -8,7 +8,7 @@
 Keys come from the environment only: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY,
 GROQ_API_KEY, XAI_API_KEY. A local model needs no key: set OLLAMA_HOST (or MTDI_LOCAL_LLM=1
 for http://localhost:11434) and Ollama is tried first, so NVTRA runs offline on a Pi 5 or Mac. ``MTDI_LLM_PROVIDER`` picks one, ``MTDI_LLM_MODEL`` overrides
-the model, ``MTDI_<PROVIDER>_BASE_URL`` points a provider at a proxy or a test server.
+that pinned provider's model, ``MTDI_<PROVIDER>_MODEL`` sets one provider's model, ``MTDI_<PROVIDER>_BASE_URL`` points a provider at a proxy or a test server.
 """
 import ipaddress
 import json
@@ -19,7 +19,7 @@ import urllib.request
 
 PROVIDERS = {
     # Local first (owner brief: "local AI as well"). llama3.2:3b fits a Pi 5 with 8 GB; on the
-    # M5 Mac set MTDI_LLM_MODEL to something larger. Free, private, offline.
+    # M5 Mac set MTDI_OLLAMA_MODEL to something larger. Free, private, offline.
     "ollama": {"env": "OLLAMA_HOST", "model": "llama3.2:3b", "base": "http://localhost:11434", "local": True},
     "anthropic": {"env": "ANTHROPIC_API_KEY", "model": "claude-sonnet-5-5", "base": "https://api.anthropic.com"},
     "openai": {"env": "OPENAI_API_KEY", "model": "gpt-5-mini", "base": "https://api.openai.com"},
@@ -81,25 +81,33 @@ def _post(url, body, headers, timeout):
                                      headers={"Content-Type": "application/json", **headers})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read())
+            data = json.loads(response.read())
+    except (ValueError, UnicodeDecodeError) as error:
+        raise LLMError(f"invalid JSON response: {error}") from error
     except urllib.error.HTTPError as error:
         raise LLMError(f"HTTP {error.code}: {error.read()[:300].decode('utf-8', 'replace')}") from None
     except urllib.error.URLError as error:
         raise LLMError(f"unreachable: {error.reason}") from None
+    if not isinstance(data, dict):
+        raise LLMError(f"unexpected response: {type(data).__name__}, not a JSON object")
+    return data
 
 
 def chat(messages, system=None, provider=None, model=None, max_tokens=700, temperature=0.3, timeout=40):
     """Send a conversation, return {"text", "provider", "model"}. Raises LLMError.
 
     With no provider pinned (argument or MTDI_LLM_PROVIDER), every configured provider is tried
-    in ORDER, so a sleeping Pi falls back to a free cloud tier instead of NVTRA going quiet."""
+    in ORDER, so a sleeping Pi falls back to a free cloud tier instead of NVTRA going quiet.
+    A model name (argument or MTDI_LLM_MODEL) only makes sense for one provider, so during
+    fallback each provider uses MTDI_<PROVIDER>_MODEL or its own default instead."""
     pinned = provider or os.environ.get("MTDI_LLM_PROVIDER")
     if pinned:
         return _chat_one(messages, system, pinned, model, max_tokens, temperature, timeout)
     errors = []
     for candidate in available():
         try:
-            return _chat_one(messages, system, candidate, model, max_tokens, temperature, timeout)
+            scoped = os.environ.get(f"MTDI_{candidate.upper()}_MODEL") or PROVIDERS[candidate]["model"]
+            return _chat_one(messages, system, candidate, scoped, max_tokens, temperature, timeout)
         except LLMError as error:
             errors.append(f"{candidate}: {error}")
     if errors:
