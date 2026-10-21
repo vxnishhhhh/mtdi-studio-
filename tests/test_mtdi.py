@@ -387,6 +387,9 @@ class Integrations(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bare = pathlib.Path(tmp) / "remote.git"
             subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
+            # no background gc or maintenance after the push: it races the temp-dir cleanup (seen with git 2.55)
+            for key, value in (("gc.auto", "0"), ("receive.autogc", "false"), ("maintenance.auto", "false")):
+                subprocess.run(["git", "--git-dir", str(bare), "config", key, value], check=True)
 
             def fake(method, url, token_value=None, body=None, headers=None, raw=None, timeout=60):
                 calls.append((method, url, token_value, body, raw))
