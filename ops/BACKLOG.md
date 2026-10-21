@@ -8,7 +8,7 @@ Status: `ready` · `in progress (PR #n)` · `blocked (reason)` · `done (PR #n)`
 
 ## Stage 1 · Universal foundation (gate: an old sensor project and a software-only data project run on one set of contracts, each on a runtime chosen from its target's capabilities)
 
-### S1-01 · Computational Core in the studio; Aether as the layer · ready
+### S1-01 · Computational Core in the studio; Aether as the layer · done (PR #2)
 The studio's MTDI page orbit, its sections and the Home constellation show the five pillars of
 ADR 0001 (00 Validation, 01 Environmental, 02 Computational Core, 03 NVTRA, 04 I³). Aether stays
 reachable as the soul layer with its terminal, Fieldrun, Judge Mode, rickroll and classified file.
@@ -99,7 +99,7 @@ questions through the same framework code paths, with no project-specific code i
 * Demos A, B, C pass nightly; docs; migration notes for 5.1.
 
 ## Stage 1 additions from the owner brief (ADR 0007), ordered
-- S1-10 Research pillar: catalogue schema, licence and credit fields, the first 25 real datasets (sensor, physics, biomedical including cancer research, space weather), offline pull. **Credits page** generated from the catalogue.
+- S1-10 (in progress: catalogue + credits merged; bulk copy to Hugging Face and offline pull next) Research pillar: catalogue schema, licence and credit fields, the first 25 real datasets (sensor, physics, biomedical including cancer research, space weather), offline pull. **Credits page** generated from the catalogue.
 - S1-11 (in progress: fusion + calibration done, studio wiring next) Environmental Intelligence 2.0: multi-sensor fusion (Kalman/complementary), calibration routines (offset, gain, temperature), and the link to Validation.
 - S1-12 NVTRA 2.0: fixed safety and engineer system policy, local models (llama.cpp/Ollama on Pi 5 and Mac), online research tool, agents (analyst, grapher, researcher, validator), NVTRA brand.
 - S1-13 MATLAB first: ML toolbox parity, a MATLAB Coder path to C for the Pi, and an MLX notebooks gallery.

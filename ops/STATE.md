@@ -4,12 +4,14 @@ Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 52 tests; Vercel READY)
-* **Next item:** S1-01 (then S1-10 to S1-16 from the owner brief, ADR 0007)
+* **Next item:** S1-02 (then S1-03, S1-04, S1-10 to S1-16 from the owner brief, ADR 0007)
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-21 · S1-01: MTDI page now shows six pillars (Computational Core 02 with a live module check, Research 05 with an honest empty catalogue) plus Aether as the layer; constellation gains both branches. 56 tests, tour clean.
 
 * 2026-10-18 · Owner added ADR 0006: Compatibility Laboratory, capability records and runtime
   selection, Intelligence Profiles (Edge, Scientific, Vision, Autonomous, Hybrid, Research). Backlog
