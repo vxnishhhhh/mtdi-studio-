@@ -136,13 +136,32 @@ class CalibratedChannel(unittest.TestCase):
         cal = project["channels"][0]["calibration"]
         self.assertEqual((cal["gain"], cal["method"], cal["file"]), (5.0, "two-point", "co.cal.json"))
 
+    def test_saved_temperature_fit_loads_and_compensates(self):
+        from mtdi.engine import Engine
+        from mtdi.project import load
+        rng = random.Random(3)
+        raw = [rng.uniform(0, 10) for _ in range(30)]
+        temp = [rng.uniform(15, 35) for _ in range(30)]
+        truth = [2 * r + 1 + 0.3 * (t - 25) for r, t in zip(raw, temp)]
+        cal = fusion.Calibration.fit(raw, truth, temperature=temp, temperature_key="T")
+        with tempfile.TemporaryDirectory() as d:
+            cal.save(pathlib.Path(d) / "co.cal.json")
+            (pathlib.Path(d) / "project.json").write_text(__import__("json").dumps(self.manifest("co.cal.json")),
+                                                         encoding="utf-8")
+            engine = Engine(load(d))
+        engine.ingest_values("s", {"CO": 4.0, "T": 35.0})
+        self.assertAlmostEqual(engine.snapshot()["channels"]["co"]["value"], 2 * 4 + 1 + 0.3 * 10, places=6)
+
     def test_bad_calibration_is_named(self):
         from mtdi.project import ManifestError, load, normalise
-        for cal, needle in [([1, 2], "object or a file path"), ({"gain": "2"}, "gain must be a number"),
-                            ({"gain": True}, "gain must be a number"),
+        for cal, needle in [([1, 2], "object or a file path"), ({"gain": "2"}, "gain must be a finite number"),
+                            ({"gain": True}, "gain must be a finite number"),
                             ({"temp_coeff": 0.1}, "no temperature_key"),
                             ({"gian": 2.0}, "unknown field.*gian"), ({"n": "x"}, "n must be a whole number"),
-                            ({"residual_sd": -1}, "residual_sd"), ({"method": 3}, "method must be text")]:
+                            ({"residual_sd": -1}, "residual_sd"), ({"method": 3}, "method must be text"),
+                            ({"gain": float("nan")}, "gain must be a finite number"),
+                            ({"offset": float("inf")}, "offset must be a finite number"),
+                            ({"temp_coeff": 0.1, "temperature_key": "room temp"}, "must be a protocol key")]:
             with self.assertRaisesRegex(ManifestError, needle):
                 normalise(self.manifest(cal))
         vec = self.manifest({"gain": 2})

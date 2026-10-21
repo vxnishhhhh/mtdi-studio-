@@ -10,8 +10,11 @@ Field reference: docs/MANIFEST.md. Template: projects/_template/project.json.
 """
 import copy
 import json
+import math
 import pathlib
 import re
+
+from .protocol import KEY  # a calibration's temperature_key must be one the protocol can carry
 
 MTDI_VERSION = "5.0"
 ADAPTERS = {"serial", "tcp", "http", "replay", "simulator", "python", "process", "system"}
@@ -165,17 +168,22 @@ def _channel(ch, where, default_source, source_ids):
                               f"allowed: {', '.join(sorted(CALIBRATION_FIELDS))}")
         _require(ch["kind"] == "scalar", f"{where}.calibration applies to scalar channels only")
         for field in ("gain", "offset", "temp_coeff", "temp_ref"):
-            _require(isinstance(cal.get(field, 0), (int, float)) and not isinstance(cal.get(field, 0), bool),
-                     f"{where}.calibration.{field} must be a number")
+            _require(_finite(cal.get(field, 0)), f"{where}.calibration.{field} must be a finite number")
         sd = cal.get("residual_sd")
-        _require(sd is None or (isinstance(sd, (int, float)) and not isinstance(sd, bool) and sd >= 0),
+        _require(sd is None or (_finite(sd) and sd >= 0),
                  f"{where}.calibration.residual_sd must be a number >= 0 or null")
         _require(isinstance(cal.get("n", 0), int) and not isinstance(cal.get("n", 0), bool) and cal.get("n", 0) >= 0,
                  f"{where}.calibration.n must be a whole number >= 0")
         _require(isinstance(cal.get("method", ""), str), f"{where}.calibration.method must be text")
         tkey = cal.get("temperature_key")
-        _require(tkey is None or (isinstance(tkey, str) and tkey), f"{where}.calibration.temperature_key must be a protocol key")
+        _require(tkey is None or (isinstance(tkey, str) and KEY.match(tkey)),
+                 f"{where}.calibration.temperature_key must be a protocol key (letters, digits, _ . -)")
         _require(not cal.get("temp_coeff") or tkey, f"{where}.calibration has temp_coeff but no temperature_key")
+
+
+def _finite(value):
+    # json.loads accepts NaN and Infinity; a calibration built from them turns every reading into NaN.
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def _require(ok, message):
