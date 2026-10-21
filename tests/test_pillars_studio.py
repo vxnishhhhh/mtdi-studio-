@@ -56,7 +56,7 @@ class MtdiPagePillars(unittest.TestCase):
 
     def test_research_has_honest_empty_state(self):
         catalogue = ROOT / "registry" / "datasets.json"
-        if catalogue.exists() and json.loads(catalogue.read_text()).get("datasets"):
+        if catalogue.exists() and json.loads(catalogue.read_text(encoding="utf-8")).get("datasets"):
             self.skipTest("datasets catalogued; empty state not shown")
         self.assertTrue(any("No datasets catalogued yet" in w for w in self.words))
 

@@ -2096,12 +2096,15 @@ def research_section():
     import json, pathlib
     catalogue = pathlib.Path(__file__).resolve().parents[1] / "registry" / "datasets.json"
     try:
-        datasets = json.loads(catalogue.read_text()).get("datasets", [])
+        payload = json.loads(catalogue.read_text(encoding="utf-8"))
+        datasets = payload.get("datasets", []) if isinstance(payload, dict) else []
+        if not isinstance(datasets, list) or not all(isinstance(d, dict) for d in datasets):
+            datasets = []  # a malformed catalogue must not take the MTDI page down
     except (OSError, ValueError):
         datasets = []
     if datasets:
         body = [html.Div([html.Span(d.get("name", d.get("id", "?")), className="cc-mod-name"),
-                          html.Span(d.get("source", ""), className="cc-mod-state ok")],
+                          html.Span(d.get("licence") or d.get("provider", ""), className="cc-mod-state ok")],
                          className="pillar-chip cc-mod") for d in datasets]
     else:  # honest empty state: no dataset is shown until one is really catalogued
         body = [html.Div("No datasets catalogued yet. Each one appears here with its source, licence and credit.",
