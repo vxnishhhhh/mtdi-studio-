@@ -189,7 +189,9 @@ class Engine:
                     sd, basis = (ch.get("calibration") or {}).get("residual_sd"), "calibration"
                 if not sd:
                     sd, basis = noise, "measured noise"
-                if not sd or not math.isfinite(sd):
+                # Measured noise or a calibration residual can be 0, tiny or huge; squaring must stay a
+                # usable variance or fuse() would raise and take the whole snapshot down with it.
+                if not sd or not math.isfinite(sd) or not 1e-150 < float(sd) < 1e150:
                     sd, basis = spec["noise_floor"], "noise floor"
                 readings.append((float(ch["value"]), float(sd) ** 2))
                 used.append({"id": cid, "value": ch["value"], "sd": sd, "basis": basis})

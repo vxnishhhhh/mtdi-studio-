@@ -209,6 +209,17 @@ class FusedChannels(unittest.TestCase):
         stale = engine.snapshot()["fused"]["co"]
         self.assertEqual((stale["value"], stale["inputs"], stale["of"]), (None, [], 2))
 
+    def test_extreme_residual_falls_back_instead_of_breaking_the_snapshot(self):
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        m = self.manifest([{"id": "co", "inputs": ["a", "b"]}])
+        m["channels"][0]["calibration"] = {"residual_sd": 1e-200}
+        engine = Engine(normalise(m))
+        engine.ingest_values("s", {"A": 10.0, "B": 20.0, "X": 0, "Y": 0})
+        f = engine.snapshot()["fused"]["co"]
+        self.assertEqual(f["inputs"][0]["basis"], "noise floor")
+        self.assertTrue(math.isfinite(f["value"]))
+
     def test_bad_fused_entries_are_named(self):
         from mtdi.project import ManifestError, normalise
         for fused, needle, units in [
@@ -217,7 +228,11 @@ class FusedChannels(unittest.TestCase):
                 ([{"id": "co", "inputs": ["a", "v"]}], "not a scalar", ("ppm", "ppm")),
                 ([{"id": "co", "inputs": ["a", "b"]}], "mix units", ("ppm", "mg/m3")),
                 ([{"id": "a", "inputs": ["a", "b"]}], "already a channel", ("ppm", "ppm")),
-                ([{"id": "co", "inputs": ["a", "b"], "sd": {"a": 0}}], "sd.a must be a number > 0", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "sd": {"a": 0}}], "sd.a must be a number from", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "sd": {"a": 1e-200}}], "sd.a must be a number from", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "sd": {"a": float("inf")}}], "sd.a must be", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "sds": {"a": 1}}], "unknown field.*sds", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", []]}], "must list channel ids", ("ppm", "ppm")),
                 ([{"id": "co", "inputs": ["a", "b"], "method": "kalman"}], "inverse-variance", ("ppm", "ppm"))]:
             with self.assertRaisesRegex(ManifestError, needle):
                 normalise(self.manifest(fused, units))
