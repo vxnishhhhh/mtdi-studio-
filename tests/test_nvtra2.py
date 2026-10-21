@@ -89,6 +89,19 @@ class LocalFirst(unittest.TestCase):
         self.assertEqual(out["provider"], "groq")
         self.assertEqual(seen["model"], llm.PROVIDERS["groq"]["model"])
 
+    def test_malformed_choices_fall_back(self):
+        local = FakeService({("POST", "/v1/chat/completions"): lambda r: (200, {"choices": [None]}, "application/json")})
+        cloud = FakeService({("POST", "/v1/chat/completions"):
+                             lambda r: (200, {"choices": [{"message": {"content": "cloud"}}]}, "application/json")})
+        try:
+            env = dict(CLEAN, OLLAMA_HOST=local.url, GROQ_API_KEY="gsk_x", MTDI_GROQ_BASE_URL=cloud.url)
+            with mock.patch.dict(os.environ, env):
+                out = llm.chat([{"role": "user", "content": "hi"}], timeout=3)
+        finally:
+            local.close()
+            cloud.close()
+        self.assertEqual(out["provider"], "groq")
+
     def test_non_json_reply_falls_back(self):
         local = FakeService({("POST", "/v1/chat/completions"): lambda r: (200, b"<html>oops</html>", "text/html")})
         cloud = FakeService({("POST", "/v1/chat/completions"):

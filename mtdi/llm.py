@@ -131,7 +131,7 @@ def _chat_one(messages, system, provider, model, max_tokens, temperature, timeou
             body["system"] = system
         data = _post(base + "/v1/messages", body,
                      {"x-api-key": key, "anthropic-version": "2023-06-01"}, timeout)
-        text = "".join(part.get("text", "") for part in data.get("content", []) if part.get("type") == "text")
+        extract = lambda d: "".join(part.get("text", "") for part in d.get("content", []) if part.get("type") == "text")
     elif provider == "gemini":
         contents = [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
                     for m in msgs]
@@ -139,8 +139,8 @@ def _chat_one(messages, system, provider, model, max_tokens, temperature, timeou
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
         data = _post(f"{base}/v1beta/models/{model}:generateContent?key={key}", body, {}, timeout)
-        parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
-        text = "".join(p.get("text", "") for p in parts)
+        extract = lambda d: "".join(p.get("text", "") for p in
+                                    ((d.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
     else:   # OpenAI-compatible: openai, groq, xai, and ollama (local)
         body = {"model": model, "messages": ([{"role": "system", "content": system}] if system else []) + msgs,
                 "max_completion_tokens" if provider == "openai" else "max_tokens": max_tokens}
@@ -148,7 +148,13 @@ def _chat_one(messages, system, provider, model, max_tokens, temperature, timeou
             body["temperature"] = temperature
         headers = {} if PROVIDERS[provider].get("local") else {"Authorization": "Bearer " + key}
         data = _post(base + "/v1/chat/completions", body, headers, timeout)
-        text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+        extract = lambda d: ((d.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+    try:
+        text = extract(data)
+        if not isinstance(text, str):
+            raise TypeError(type(text).__name__)
+    except (AttributeError, TypeError, IndexError, KeyError) as error:
+        raise LLMError(f"{provider} returned a malformed reply: {error!r}") from error
     if not text.strip():
         raise LLMError(f"{provider} returned an empty reply")
     return {"text": text.strip(), "provider": provider, "model": model}
