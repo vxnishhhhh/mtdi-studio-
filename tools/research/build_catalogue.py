@@ -44,12 +44,14 @@ def uci(entry):
     page = meta["repository_url"]
     lic = licence_from(get(page))
     doi = meta.get("dataset_doi") or ""
-    creators = meta.get("creators") or []
+    creators = [c.strip() for c in (meta.get("creators") or []) if isinstance(c, str) and c.strip()]
+    if not creators:
+        print(f"warning: uci-{entry['id']} lists no creators; credited as 'creator not listed'", file=sys.stderr)
     return {"id": f"uci-{entry['id']}", "name": meta["name"].strip(), "provider": "UCI Machine Learning Repository",
             "url": page, "doi": doi, "licence": lic, "instances": meta.get("num_instances"),
             "tasks": meta.get("tasks") or [], "year": meta.get("year_of_dataset_creation"),
             "creators": creators,
-            "credit": f"{', '.join(creators) or 'the creators'} ({meta.get('year_of_dataset_creation') or 'n.d.'}). "
+            "credit": f"{', '.join(creators) or 'Creator not listed'} ({meta.get('year_of_dataset_creation') or 'n.d.'}). "
                       f"{meta['name'].strip()}. UCI Machine Learning Repository. {('https://doi.org/' + doi) if doi and not doi.startswith('http') else doi}".strip()}
 
 
@@ -57,12 +59,17 @@ def physionet(entry):
     page = f"https://physionet.org/content/{entry['slug']}/"
     html = get(page)
     title = re.search(r"<title>([^<]+)</title>", html).group(1).strip()
-    doi = re.search(r"https://doi\.org/(10\.13026/[A-Za-z0-9.\-]+)", html)
+    meta = dict(re.findall(r'<meta name="citation_(title|doi|publication_date)" content="([^"]*)"', html))
+    authors = re.findall(r'<meta name="citation_author" content="([^"]*)"', html)
+    doi = meta.get("doi", "")
+    year = (meta.get("publication_date") or "")[:4] or None
+    name = meta.get("title") or title
+    credit = (f"{'; '.join(authors) or 'Creator not listed'} ({year or 'n.d.'}). {name}. PhysioNet."
+              + (f" https://doi.org/{doi}." if doi else "")
+              + " Platform: Goldberger et al., Circulation 101(23):e215-e220 (2000).")
     return {"id": "physionet-" + entry["slug"].split("/")[0], "name": title, "provider": "PhysioNet",
-            "url": page, "doi": doi.group(1) if doi else "", "licence": licence_from(html), "instances": None,
-            "tasks": [], "year": None, "creators": [],
-            "credit": f"{title}. PhysioNet. Goldberger et al., Circulation 101(23):e215-e220 (2000)."
-                      + (f" https://doi.org/{doi.group(1)}" if doi else "")}
+            "url": page, "doi": doi, "licence": licence_from(html), "instances": None,
+            "tasks": [], "year": int(year) if year else None, "creators": authors, "credit": credit}
 
 
 def feed(entry):
@@ -73,7 +80,7 @@ def feed(entry):
 
 
 def build():
-    src = json.loads(SOURCES.read_text())
+    src = json.loads(SOURCES.read_text(encoding="utf-8"))
     out, failed = [], []
     for kind, fetch in (("uci", uci), ("physionet", physionet), ("feeds", feed)):
         for entry in src.get(kind, []):
@@ -99,9 +106,11 @@ def main():
            "generated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "datasets": datasets}
     if "--check" in sys.argv:
-        print(f"{len(datasets)} datasets fetched, {len(failed)} skipped")
-        return
-    OUT.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+        print(f"{len(datasets)} datasets fetched, {len(failed)} skipped, {len(unlicensed)} unlicensed")
+        sys.exit(1 if failed or unlicensed else 0)
+    if failed:  # a partial fetch must never silently shrink the catalogue
+        sys.exit(f"not writing {OUT.relative_to(ROOT)}: {len(failed)} source(s) failed; fix or remove them and rerun")
+    OUT.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT)}: {len(datasets)} datasets, {len(failed)} skipped")
 
 

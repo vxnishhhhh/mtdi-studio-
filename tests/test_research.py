@@ -9,8 +9,8 @@ FIELDS = ("id", "name", "provider", "url", "licence", "credit", "use", "origin",
 
 class Research(unittest.TestCase):
     def setUp(self):
-        self.data = json.loads((ROOT / "registry" / "datasets.json").read_text())["datasets"]
-        self.sources = json.loads((ROOT / "registry" / "research" / "sources.json").read_text())
+        self.data = json.loads((ROOT / "registry" / "datasets.json").read_text(encoding="utf-8"))["datasets"]
+        self.sources = json.loads((ROOT / "registry" / "research" / "sources.json").read_text(encoding="utf-8"))
 
     def test_at_least_25_datasets_with_every_field(self):
         self.assertGreaterEqual(len(self.data), 25)
