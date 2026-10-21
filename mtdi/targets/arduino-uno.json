@@ -1,0 +1,16 @@
+{
+  "id": "arduino-uno",
+  "name": "Arduino Uno (ATmega328P)",
+  "class": "microcontroller",
+  "memory_mb": 0.002,
+  "storage_mb": 0.032,
+  "float": "software",
+  "network": [],
+  "os": null,
+  "languages": [
+    "cpp"
+  ],
+  "accelerators": [],
+  "notes": "2 KB SRAM, 32 KB flash: prints protocol lines only",
+  "source": "manufacturer datasheet values"
+}

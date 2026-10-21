@@ -1,0 +1,261 @@
+{
+  "_about": "What the Research pillar catalogues (S1-10). tools/research/build_catalogue.py reads this, fetches each entry's metadata and licence from the source itself, and writes registry/datasets.json. Add an entry here, never in datasets.json by hand. 'origin' says whether the data was measured or simulated; ML must know the difference.",
+  "uci": [
+    {
+      "id": 240,
+      "use": "activity recognition from phone accelerometer and gyroscope",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "computational"
+      ]
+    },
+    {
+      "id": 507,
+      "use": "activity and biometrics from phone and watch IMUs",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "computational"
+      ]
+    },
+    {
+      "id": 364,
+      "use": "activity recognition, ambient assisted living",
+      "origin": "measured",
+      "pillars": [
+        "environment"
+      ]
+    },
+    {
+      "id": 846,
+      "use": "vibration from an accelerometer on a fan (balanced and unbalanced)",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "validation"
+      ]
+    },
+    {
+      "id": 224,
+      "use": "gas sensor drift over 36 months: baseline and drift correction",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "validation"
+      ]
+    },
+    {
+      "id": 322,
+      "use": "gas sensor array under dynamic mixtures",
+      "origin": "measured",
+      "pillars": [
+        "environment"
+      ]
+    },
+    {
+      "id": 362,
+      "use": "gas sensors for home activity monitoring",
+      "origin": "measured",
+      "pillars": [
+        "environment"
+      ]
+    },
+    {
+      "id": 360,
+      "use": "metal-oxide air-quality sensors against a reference analyser: calibration",
+      "origin": "measured",
+      "pillars": [
+        "validation",
+        "environment"
+      ]
+    },
+    {
+      "id": 381,
+      "use": "PM2.5 with weather: environmental forecasting",
+      "origin": "measured",
+      "pillars": [
+        "environment"
+      ]
+    },
+    {
+      "id": 357,
+      "use": "room occupancy from light, temperature, humidity and CO2",
+      "origin": "measured",
+      "pillars": [
+        "environment"
+      ]
+    },
+    {
+      "id": 374,
+      "use": "appliance energy with room temperature and humidity sensors",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "computational"
+      ]
+    },
+    {
+      "id": 235,
+      "use": "household electric power at one-minute resolution",
+      "origin": "measured",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 849,
+      "use": "city power consumption with weather",
+      "origin": "measured",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 294,
+      "use": "power plant output from ambient conditions",
+      "origin": "measured",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 551,
+      "use": "gas turbine sensors and emissions",
+      "origin": "measured",
+      "pillars": [
+        "computational",
+        "validation"
+      ]
+    },
+    {
+      "id": 447,
+      "use": "hydraulic rig condition monitoring: pressure, flow, temperature, vibration",
+      "origin": "measured",
+      "pillars": [
+        "validation",
+        "computational"
+      ]
+    },
+    {
+      "id": 791,
+      "use": "train compressor sensors with failure records (MetroPT-3)",
+      "origin": "measured",
+      "pillars": [
+        "validation",
+        "computational"
+      ]
+    },
+    {
+      "id": 316,
+      "use": "naval propulsion plant degradation",
+      "origin": "simulated",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 601,
+      "use": "predictive maintenance benchmark",
+      "origin": "simulated",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 471,
+      "use": "electrical grid stability benchmark",
+      "origin": "simulated",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 198,
+      "use": "steel plate surface faults",
+      "origin": "measured",
+      "pillars": [
+        "validation"
+      ]
+    },
+    {
+      "id": 442,
+      "use": "IoT device network traffic, benign and attacked",
+      "origin": "measured",
+      "pillars": [
+        "validation"
+      ],
+      "creators_override": [
+        "Yair Meidan",
+        "Michael Bohadana",
+        "Yael Mathov",
+        "Yisroel Mirsky",
+        "Dominik Breitenbacher",
+        "Asaf Shabtai",
+        "Yuval Elovici"
+      ],
+      "override_reason": "UCI's record lists a truncated duplicate ('Asaf ') and omits Yuval Elovici; names follow the N-BaIoT paper (Meidan et al., IEEE Pervasive Computing, 2018)"
+    },
+    {
+      "id": 264,
+      "use": "EEG with eye state: brain-signal classification",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "computational"
+      ]
+    },
+    {
+      "id": 17,
+      "use": "breast cancer diagnosis from cell-nucleus features",
+      "origin": "measured",
+      "pillars": [
+        "computational"
+      ]
+    },
+    {
+      "id": 401,
+      "use": "cancer RNA-Seq gene expression (five tumour types)",
+      "origin": "measured",
+      "pillars": [
+        "computational"
+      ]
+    }
+  ],
+  "physionet": [
+    {
+      "slug": "mitdb/1.0.0",
+      "use": "ECG arrhythmia, the standard heart-signal benchmark",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "validation"
+      ]
+    },
+    {
+      "slug": "eegmmidb/1.0.0",
+      "use": "EEG motor movement and imagery (robotic hand control)",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "computational"
+      ]
+    }
+  ],
+  "feeds": [
+    {
+      "id": "noaa-kp",
+      "name": "NOAA SWPC Planetary K-index",
+      "url": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
+      "provider": "NOAA Space Weather Prediction Center",
+      "licence": "US Government work, public domain",
+      "credit": "NOAA Space Weather Prediction Center",
+      "use": "live geomagnetic activity; reference project S1-08",
+      "origin": "measured",
+      "pillars": [
+        "environment",
+        "research"
+      ]
+    }
+  ]
+}

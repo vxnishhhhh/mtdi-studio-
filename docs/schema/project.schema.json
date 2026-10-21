@@ -455,6 +455,19 @@
         }
       },
       "additionalProperties": false
+    },
+    "profile": {
+      "type": "string",
+      "enum": [
+        "edge",
+        "scientific",
+        "vision",
+        "autonomous",
+        "hybrid",
+        "research"
+      ],
+      "default": "hybrid",
+      "description": "Intelligence Profile (ADR 0006): which modules load and the smallest host that may run it."
     }
   }
 }

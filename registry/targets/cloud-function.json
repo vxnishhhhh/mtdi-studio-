@@ -1,0 +1,18 @@
+{
+  "id": "cloud-function",
+  "name": "Serverless function (Vercel Python)",
+  "class": "cloud",
+  "memory_mb": 1024,
+  "storage_mb": 500,
+  "float": "double",
+  "network": [
+    "https"
+  ],
+  "os": "linux-x86_64",
+  "languages": [
+    "python"
+  ],
+  "accelerators": [],
+  "notes": "60 s limit, state resets, 4.5 MB response cap",
+  "source": "datasheet values; owner hardware as stated by the owner on 2026-10-21"
+}

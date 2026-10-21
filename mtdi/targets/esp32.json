@@ -1,0 +1,20 @@
+{
+  "id": "esp32",
+  "name": "ESP32-WROOM-32",
+  "class": "edge-board",
+  "memory_mb": 0.32,
+  "storage_mb": 4,
+  "float": "single",
+  "network": [
+    "wifi",
+    "bluetooth"
+  ],
+  "os": "freertos",
+  "languages": [
+    "cpp",
+    "micropython"
+  ],
+  "accelerators": [],
+  "notes": "520 KB SRAM: C++ SDK detectors fit",
+  "source": "manufacturer datasheet values"
+}

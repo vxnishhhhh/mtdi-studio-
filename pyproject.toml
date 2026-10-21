@@ -36,3 +36,6 @@ Repository = "https://github.com/vxnishhhhh/mtdi-studio-"
 [tool.setuptools.packages.find]
 include = ["mtdi*"]
 
+
+[tool.setuptools.package-data]
+mtdi = ["targets/*.json"]

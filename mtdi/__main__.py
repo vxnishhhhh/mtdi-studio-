@@ -89,6 +89,14 @@ def cmd_check(args):
         print(f"  {c['id']:<14} {c['kind']:<7} {c['domain']:<11} keys={','.join(c['keys']):<18} "
               f"unit={c['unit'] or '-':<8} source={'|'.join(c['sources'])}  floor={c['noise_floor']}"
               + (f"  {c['transform']}({c['window']})" if c["transform"] != "none" else ""))
+    from .capabilities import detect_host, load_targets
+    from .profiles import qualifies
+    target = load_targets().get(args.target) if args.target else detect_host()
+    if target is None:
+        sys.exit(f"unknown target {args.target!r}; see python -m mtdi capabilities")
+    ok, runtime, why = qualifies(project["profile"], target)
+    print(f"profile: {project['profile']} · target {target['id']}: {runtime} "
+          f"({'qualifies' if ok else 'does not host it; streams instead'}) · {why}")
     print(f"nvtra rules: {len(project['nvtra']['rules'])}   saved environments: "
           f"{len(list((pathlib.Path(project['_dir']) / 'environments').glob('*.json')))}")
     print("OK")
@@ -315,6 +323,20 @@ def cmd_adopt(args):
     print(f"next: cd {args.target} && python -m mtdi check mtdi-project && python -m mtdi run mtdi-project")
 
 
+def cmd_capabilities(args):
+    from . import capabilities as cap
+    targets = cap.load_targets()
+    host = cap.detect_host()
+    if args.json:
+        print(json.dumps({"host": host, "targets": targets,
+                          "selection": {t: {p: list(r) for p, r in row.items()}
+                                        for t, row in cap.matrix(targets={**targets, "host": host}).items()}}, indent=2))
+        return
+    print(f"this machine: {host['name']} · {host['memory_mb']} MB RAM · {', '.join(host['languages'])}")
+    for tid, row in cap.matrix(targets={**targets, "host": host}).items():
+        print(f"\n{tid}")
+        for prof, (runtime, why) in row.items():
+            print(f"  {prof:<11} {runtime:<14} {why}")
 def cmd_registry(args):
     from . import registry
     snap = registry.snapshot()
@@ -350,9 +372,12 @@ def cmd_describe(args):
         "sdks": {"python": "mtdi/", "cpp": "sdk/cpp/mtdi.hpp", "java": "sdk/java", "javascript": "sdk/js/mtdi.mjs",
                  "matlab": "matlab/+mtdi", "arduino": "firmware/mtdi_template_arduino",
                  "micropython": "firmware/mtdi_template_micropython"},
+        "capabilities": {"targets": sorted(__import__("mtdi.capabilities", fromlist=["x"]).load_targets()),
+                         "runtimes": ["line-protocol", "edge", "full", "remote"],
+                         "command": "python -m mtdi capabilities"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
                      **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
-        "commands": ["registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "commands": ["capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -411,6 +436,7 @@ def main(argv=None):
     watch.set_defaults(func=cmd_watch)
     check = sub.add_parser("check", help="validate a project manifest")
     check.add_argument("project")
+    check.add_argument("--target", help="reference target id (default: this machine)")
     check.set_defaults(func=cmd_check)
     new = sub.add_parser("new", help="create a project from the template")
     new.add_argument("id")
@@ -458,6 +484,9 @@ def main(argv=None):
     mat.add_argument("--local", action="store_true")
     mat.add_argument("--dry-run", action="store_true")
     mat.set_defaults(func=cmd_matlab)
+    caps = sub.add_parser("capabilities", help="show what each target can run and the runtime MTDI picks")
+    caps.add_argument("--json", action="store_true")
+    caps.set_defaults(func=cmd_capabilities)
     reg = sub.add_parser("registry", help="list integrations and Computational Core modules with status")
     reg.add_argument("--json", action="store_true")
     reg.set_defaults(func=cmd_registry)

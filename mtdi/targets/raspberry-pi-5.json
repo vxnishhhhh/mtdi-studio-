@@ -1,0 +1,23 @@
+{
+  "id": "raspberry-pi-5",
+  "name": "Raspberry Pi 5 (8 GB, owner's board, no AI HAT)",
+  "class": "single-board",
+  "memory_mb": 8192,
+  "storage_mb": 64000,
+  "float": "double",
+  "network": [
+    "ethernet",
+    "wifi",
+    "bluetooth"
+  ],
+  "os": "linux-arm64",
+  "languages": [
+    "python",
+    "cpp",
+    "octave",
+    "node"
+  ],
+  "accelerators": [],
+  "notes": "owner hardware; storage depends on the SD card/NVMe fitted",
+  "source": "owner hardware as stated by the owner on 2026-10-21; remaining fields from the manufacturer's published specifications"
+}

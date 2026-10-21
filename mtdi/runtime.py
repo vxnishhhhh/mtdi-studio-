@@ -28,6 +28,10 @@ class Runner:
         self.project = load(project) if isinstance(project, (str, pathlib.Path)) else project
         self.simulate_all = simulate
         self.simulate = simulate or any(s["adapter"] == "simulator" for s in self.project["sources"])
+        # Load exactly the Intelligence Profile's modules (ADR 0006). The host check is
+        # reported by `mtdi check`, not enforced here, so a laptop can still run a big profile.
+        from .profiles import activate
+        self.modules = activate(self.project["profile"])
         self.engine = Engine(self.project)
         if record:
             self.engine.recorders.append(Recorder(record))
@@ -44,6 +48,8 @@ class Runner:
         packet = self.engine.snapshot()
         if self._ask:
             return self._ask(question, packet)
+        if "mtdi.bot" not in self.modules:  # e.g. the edge profile: stay inside what it loaded
+            return nvtra.answer(question, packet)
         from .bot import Bot
         return Bot(self).reply(question)["text"]
 

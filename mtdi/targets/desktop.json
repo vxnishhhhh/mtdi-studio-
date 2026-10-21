@@ -1,0 +1,22 @@
+{
+  "id": "desktop",
+  "name": "Generic desktop (Linux/Windows/macOS)",
+  "class": "desktop",
+  "memory_mb": 8192,
+  "storage_mb": 256000,
+  "float": "double",
+  "network": [
+    "ethernet",
+    "wifi"
+  ],
+  "os": "any",
+  "languages": [
+    "python",
+    "cpp",
+    "node",
+    "java"
+  ],
+  "accelerators": [],
+  "notes": "",
+  "source": "reference estimates for a typical device of this class, not a measured or owner-stated value"
+}
