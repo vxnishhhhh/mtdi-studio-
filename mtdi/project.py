@@ -39,6 +39,17 @@ def load(path):
         data = json.loads(file.read_text(encoding="utf-8"))
     except ValueError as error:
         raise ManifestError(f"{file}: invalid JSON ({error})") from error
+    # A channel's "calibration" may name a file saved by mtdi.fusion.Calibration.save,
+    # relative to the project folder; it is read here so normalise() only sees dicts.
+    channels = data.get("channels") if isinstance(data, dict) else None
+    for ch in channels if isinstance(channels, list) else []:
+        cal = ch.get("calibration") if isinstance(ch, dict) else None
+        if isinstance(cal, str):
+            cal_file = (file.parent / cal).resolve()
+            try:
+                ch["calibration"] = dict(json.loads(cal_file.read_text(encoding="utf-8")), file=cal)
+            except (OSError, ValueError) as error:
+                raise ManifestError(f"channel '{ch.get('id')}': calibration file {cal}: {error}") from error
     project = normalise(data)
     project["_dir"] = str(file.parent.resolve())
     return project
@@ -135,6 +146,16 @@ def _channel(ch, where, default_source, source_ids):
     ch.setdefault("stale_after", max(2.0, 5.0 / rate) if rate else 4.0)
     ch.setdefault("alert_change", floor * 20)
     ch.setdefault("optional", False)
+    cal = ch.get("calibration")
+    if cal is not None:
+        _require(isinstance(cal, dict), f"{where}.calibration must be an object or a file path")
+        _require(ch["kind"] == "scalar", f"{where}.calibration applies to scalar channels only")
+        for field in ("gain", "offset", "temp_coeff", "temp_ref"):
+            _require(isinstance(cal.get(field, 0), (int, float)) and not isinstance(cal.get(field, 0), bool),
+                     f"{where}.calibration.{field} must be a number")
+        tkey = cal.get("temperature_key")
+        _require(tkey is None or (isinstance(tkey, str) and tkey), f"{where}.calibration.temperature_key must be a protocol key")
+        _require(not cal.get("temp_coeff") or tkey, f"{where}.calibration has temp_coeff but no temperature_key")
 
 
 def _require(ok, message):

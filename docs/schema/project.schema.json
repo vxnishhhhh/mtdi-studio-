@@ -298,6 +298,17 @@
           "optional": {
             "type": "boolean"
           },
+          "calibration": {
+            "description": "Scalar channels only. true = gain*value + offset + temp_coeff*(T - temp_ref), applied after scale/offset. An object, or a path (relative to the project folder) to a file saved by mtdi.fusion.Calibration.save.",
+            "oneOf": [
+              {"type": "string"},
+              {"type": "object", "properties": {
+                "gain": {"type": "number"}, "offset": {"type": "number"},
+                "temp_coeff": {"type": "number"}, "temp_ref": {"type": "number"},
+                "temperature_key": {"type": "string"},
+                "residual_sd": {"type": ["number", "null"]}, "method": {"type": "string"}, "n": {"type": "integer"}}}
+            ]
+          },
           "accent": {
             "type": "string"
           },

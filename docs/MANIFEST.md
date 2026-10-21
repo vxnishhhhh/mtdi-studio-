@@ -52,6 +52,7 @@ Every source needs a unique `id`. `note` is free text.
 | `stale_after` | from rate, else 4 s | seconds without a sample before the channel is stale |
 | `alert_change` | 20 × floor | smallest change a person would call an event |
 | `optional` | false | if true and offline, it is left out of the score instead of scoring 0 |
+| `calibration` | none | scalar only: `{gain, offset, temp_coeff, temp_ref, temperature_key}` or a path to a file saved by `mtdi.fusion.Calibration.save`; applied after `scale`/`offset`, raw stays in `raw`. `temperature_key` is a protocol key in the same packet; without it in a packet, no temperature term is added |
 | `simulate` | quiet | `{"mean": n or [..], "noise": n, "wave": {"amp", "hz"}, "events": true}` in `unit` |
 
 ## environment
