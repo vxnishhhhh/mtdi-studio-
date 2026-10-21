@@ -54,7 +54,7 @@ def load(path):
         if isinstance(cal, str):
             folder = file.parent.resolve()
             cal_file = (folder / cal).resolve()
-            # Only files inside the project folder: a manifest must not be able to read elsewhere.
+            # CONTEXT: only files inside the project folder. A manifest must not be able to read elsewhere.
             if not cal_file.is_relative_to(folder):
                 raise ManifestError(f"channel '{ch.get('id')}': calibration file {cal} is outside the project folder")
             try:

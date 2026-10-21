@@ -55,6 +55,8 @@ def _private_or_local(host):
     return ip.is_loopback or ip.is_private or ip.is_link_local
 
 
+# CONTEXT: plain HTTP is allowed to LAN addresses on purpose, so a Pi 5 can serve the Mac's model (or the reverse).
+# GUIDE: a new provider needs an entry in PROVIDERS and ORDER; OpenAI-compatible ones need nothing else.
 def _check_transport(provider, url):
     """Prompts carry project data: plain HTTP is allowed only to this machine or the home LAN."""
     parts = urllib.parse.urlparse(url)
@@ -106,6 +108,7 @@ def chat(messages, system=None, provider=None, model=None, max_tokens=700, tempe
     errors = []
     for candidate in available():
         try:
+            # HOURS-WASTED: 0.5 - an Ollama model name was being sent to Groq. A reviewer caught it.
             scoped = os.environ.get(f"MTDI_{candidate.upper()}_MODEL") or PROVIDERS[candidate]["model"]
             return _chat_one(messages, system, candidate, scoped, max_tokens, temperature, timeout)
         except LLMError as error:
