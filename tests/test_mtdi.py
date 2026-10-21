@@ -489,7 +489,9 @@ class CorrelationCache(unittest.TestCase):
         e = Engine(m)
         e.ingest_values("s", {"A": 1, "B": 2})
         with mock.patch.object(core, "correlation", wraps=core.correlation) as corr:
-            e.snapshot(); e.snapshot()
+            first = e.snapshot()
+            first["fusion"]["correlation"].append({"tampered": True})
+            self.assertNotIn({"tampered": True}, e.snapshot()["fusion"]["correlation"])
             self.assertEqual(corr.call_count, 1)
             e.ingest_values("s", {"A": 2, "B": 3})
             e.snapshot()

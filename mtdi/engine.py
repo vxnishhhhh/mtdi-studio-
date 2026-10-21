@@ -250,7 +250,7 @@ class Engine:
             if self._corr_cache[0] != self.sequence:
                 histories = {cid: list(ch.history) for cid, ch in self.channels.items()}
                 self._corr_cache = (self.sequence, core.correlation(histories))
-            corr = self._corr_cache[1]
+            corr = [dict(m, channels=list(m["channels"])) for m in self._corr_cache[1]]  # callers may mutate their copy
             positive = max([max(0.0, m["coefficient"]) for m in corr] or [0.0])
             channels = {}
             for cid, ch in self.channels.items():
