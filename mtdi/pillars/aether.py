@@ -52,9 +52,9 @@ def _python_comments(text):
 def _line_comments(text, marker):
     """Line comments outside '...', "..." and (for //) /* ... */ blocks, which may span lines.
     Block comments are deliberately not tag carriers."""
-    block = False
+    block, template = False, None   # a JS `template literal` can span lines, like a block comment
     for n, line in enumerate(text.splitlines(), 1):
-        quote, i = None, 0
+        quote, i = template, 0
         while i < len(line):
             c = line[i]
             if block:
@@ -65,7 +65,7 @@ def _line_comments(text, marker):
                     i += 1
                 elif c == quote:
                     quote = None
-            elif c in "'\"":
+            elif c in "'\"" or (c == "`" and marker == "//"):
                 quote = c
             elif marker == "//" and line.startswith("/*", i):
                 block, i = True, i + 1
@@ -73,6 +73,7 @@ def _line_comments(text, marker):
                 yield n, line[i + len(marker):]
                 break
             i += 1
+        template = quote if quote == "`" else None
 
 
 def _files(root):
