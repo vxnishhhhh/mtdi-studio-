@@ -65,6 +65,7 @@ class Engine:
         self.events = deque(maxlen=50)
         self.recorders = []
         self.sequence = 0
+        self._corr_cache = (None, [])
 
     # ── input ────────────────────────────────────────────────────────────────
     def ingest_line(self, source_id, line, data_source="HARDWARE"):
@@ -244,8 +245,12 @@ class Engine:
         now = self.clock()
         relock = self.project["environment"].get("auto_relock_after")
         with self.lock:
-            histories = {cid: list(ch.history) for cid, ch in self.channels.items()}
-            corr = core.correlation(histories)
+            # Histories only change on ingest, which bumps the sequence: a UI polling faster than
+            # data arrives gets the same correlation without recomputing every pair.
+            if self._corr_cache[0] != self.sequence:
+                histories = {cid: list(ch.history) for cid, ch in self.channels.items()}
+                self._corr_cache = (self.sequence, core.correlation(histories))
+            corr = self._corr_cache[1]
             positive = max([max(0.0, m["coefficient"]) for m in corr] or [0.0])
             channels = {}
             for cid, ch in self.channels.items():
