@@ -58,7 +58,8 @@ def main():
         lines.append(f"| [{d['name']}]({d['url']}) | {d['provider']} | {d['licence'] or 'not stated'} | {d['origin']} | {cite} |")
     if services:
         lines += ["", "## Services and tools", "", "| Service | Used for | Cost |", "|---|---|---|"]
-        lines += [f"| {s['provider']} | {s['purpose']} | {s['cost']} |" for s in services]
+        cell = lambda v: str(v).replace("|", "/")  # a pipe would add a table column
+        lines += [f"| {cell(s['provider'])} | {cell(s['purpose'])} | {cell(s['cost'])} |" for s in services]
     lines += ["", "## References carried from MTDI 4 (Inductra Vaion ISF report)", ""]
     lines += [f"* {r}" for r in refs]
     lines += ["", "## Generative AI", "",

@@ -45,6 +45,8 @@ def uci(entry):
     lic = licence_from(get(page))
     doi = meta.get("dataset_doi") or ""
     creators = [c.strip() for c in (meta.get("creators") or []) if isinstance(c, str) and c.strip()]
+    if entry.get("creators_override"):  # an upstream record is wrong; sources.json says why
+        creators = list(entry["creators_override"])
     if not creators:
         print(f"warning: uci-{entry['id']} lists no creators; credited as 'creator not listed'", file=sys.stderr)
     return {"id": f"uci-{entry['id']}", "name": meta["name"].strip(), "provider": "UCI Machine Learning Repository",
