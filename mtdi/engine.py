@@ -18,6 +18,7 @@ import threading
 import time
 
 from . import core
+from .fusion import Calibration, fuse
 from .pillars import aether, nvtra
 from .pillars.environment import ChannelEnvironment, EnvironmentLibrary
 from .pillars.validation import ChannelEvidence, clipped as is_clipped
@@ -36,7 +37,6 @@ class _Channel:
         cal = spec.get("calibration")
         self.cal = None
         if cal:
-            from .fusion import Calibration   # only projects that calibrate pay for the import
             self.cal = Calibration(**{k: cal[k] for k in ("gain", "offset", "temp_coeff", "temp_ref",
                                                           "residual_sd", "method", "n") if k in cal})
             self.cal_temp_key = cal.get("temperature_key")
@@ -169,6 +169,38 @@ class Engine:
                         + (f" (not in it: {', '.join(missing)})" if missing else ""))
             return record
 
+    def _fused(self, channels):
+        """Inverse-variance estimate from the inputs that are connected right now.
+
+        Each input's standard deviation, in order of trust: the manifest's fused[].sd, the
+        calibration's residual, the live noise the environment measured, the noise floor."""
+        out = {}
+        for f in self.project.get("fused") or []:
+            readings, used = [], []
+            for cid in f["inputs"]:
+                ch, spec = channels[cid], self.channels[cid].spec
+                if ch["evidence"]["state"] != "connected" or ch["value"] is None \
+                        or not math.isfinite(float(ch["value"])):
+                    continue
+                noise = ch["environment"].get("noise")
+                noise = noise[0] if isinstance(noise, list) else noise
+                sd, basis = f["sd"].get(cid), "manifest"
+                if not sd:
+                    sd, basis = (ch.get("calibration") or {}).get("residual_sd"), "calibration"
+                if not sd:
+                    sd, basis = noise, "measured noise"
+                if not sd or not math.isfinite(sd):
+                    sd, basis = spec["noise_floor"], "noise floor"
+                readings.append((float(ch["value"]), float(sd) ** 2))
+                used.append({"id": cid, "value": ch["value"], "sd": sd, "basis": basis})
+            entry = {"id": f["id"], "label": f["label"], "unit": f["unit"], "method": f["method"],
+                     "inputs": used, "of": len(f["inputs"]), "value": None, "sd": None}
+            if readings:
+                value, variance = fuse(readings)
+                entry.update(value=value, sd=math.sqrt(variance))
+            out[f["id"]] = entry
+        return out
+
     def _event(self, kind, message):
         self.events.append({"t": time.time(), "kind": kind, "message": message})
 
@@ -216,6 +248,7 @@ class Engine:
             return {
                 "mtdi": self.project.get("mtdi", "5.0"), "sequence": self.sequence, "timestamp": time.time(),
                 "project": self.project["project"], "channels": channels, "fusion": fusion,
+                "fused": self._fused(channels),
                 "sources": {k: dict(v, age=(now - v["last_rx"]) if v.get("last_rx") else None)
                             for k, v in self.sources.items()},
                 "environments": self.environments.names(), "events": list(self.events),

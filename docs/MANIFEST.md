@@ -55,6 +55,25 @@ Every source needs a unique `id`. `note` is free text.
 | `calibration` | none | scalar only: `{gain, offset, temp_coeff, temp_ref, temperature_key}` or a path to a file saved by `mtdi.fusion.Calibration.save`; applied after `scale`/`offset`, raw stays in `raw`. `temperature_key` is a protocol key in the same packet; without it in a packet, no temperature term is added |
 | `simulate` | quiet | `{"mean": n or [..], "noise": n, "wave": {"amp", "hz"}, "events": true}` in `unit` |
 
+## fused
+
+Several scalar channels that measure the same quantity in the same unit, combined into one
+estimate with an honest uncertainty (inverse-variance weighting, `mtdi.fusion.fuse`).
+
+```json
+"fused": [{"id": "co", "label": "CO (fused)", "inputs": ["co_a", "co_b"], "sd": {"co_a": 0.8}}]
+```
+
+| field | default | meaning |
+|---|---|---|
+| `id` | required | unique across channels and fused entries |
+| `inputs` | required | two or more scalar channel ids, all in the same `unit` |
+| `sd` | `{}` | per-input standard deviation. Missing inputs use the calibration residual, then the measured noise, then `noise_floor` |
+| `method` | `inverse-variance` | the only method for now |
+
+The snapshot's `fused.<id>` holds `value`, `sd`, `unit`, and per input the `sd` used and its
+`basis`. Only connected inputs count; with none connected, `value` is `null`.
+
 ## environment
 
 | Field | Default | Meaning |

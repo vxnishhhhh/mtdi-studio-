@@ -162,3 +162,43 @@ class CalibratedChannel(unittest.TestCase):
                                                              encoding="utf-8")
                 with self.assertRaisesRegex(ManifestError, needle):
                     load(d)
+
+
+class FusedChannels(unittest.TestCase):
+    def manifest(self, fused, units=("ppm", "ppm")):
+        return {"project": {"id": "f"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "a", "keys": ["A"], "unit": units[0], "noise_floor": 0.1},
+                             {"id": "b", "keys": ["B"], "unit": units[1], "noise_floor": 0.1},
+                             {"id": "v", "keys": ["X", "Y"], "noise_floor": 0.1}],
+                "fused": fused}
+
+    def test_snapshot_fuses_connected_inputs_by_inverse_variance(self):
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        clock = [0.0]
+        engine = Engine(normalise(self.manifest([{"id": "co", "inputs": ["a", "b"], "sd": {"a": 1.0, "b": 2.0}}])),
+                        clock=lambda: clock[0])
+        engine.ingest_values("s", {"A": 10.0, "B": 20.0, "X": 0, "Y": 0})
+        f = engine.snapshot()["fused"]["co"]
+        value, variance = fusion.fuse([(10.0, 1.0), (20.0, 4.0)])
+        self.assertAlmostEqual(f["value"], value)
+        self.assertAlmostEqual(f["sd"], math.sqrt(variance))
+        self.assertLess(f["sd"], 1.0)                          # better than the best single sensor
+        self.assertEqual(f["unit"], "ppm")
+        self.assertEqual([i["basis"] for i in f["inputs"]], ["manifest", "manifest"])
+        clock[0] = 100.0                                       # every input goes stale
+        stale = engine.snapshot()["fused"]["co"]
+        self.assertEqual((stale["value"], stale["inputs"], stale["of"]), (None, [], 2))
+
+    def test_bad_fused_entries_are_named(self):
+        from mtdi.project import ManifestError, normalise
+        for fused, needle, units in [
+                ([{"id": "co", "inputs": ["a"]}], "at least two", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "zz"]}], "unknown channel 'zz'", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "v"]}], "not a scalar", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"]}], "mix units", ("ppm", "mg/m3")),
+                ([{"id": "a", "inputs": ["a", "b"]}], "already a channel", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "sd": {"a": 0}}], "sd.a must be a number > 0", ("ppm", "ppm")),
+                ([{"id": "co", "inputs": ["a", "b"], "method": "kalman"}], "inverse-variance", ("ppm", "ppm"))]:
+            with self.assertRaisesRegex(ManifestError, needle):
+                normalise(self.manifest(fused, units))
