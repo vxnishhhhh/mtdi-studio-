@@ -475,3 +475,24 @@ class AetherTags(unittest.TestCase):
         self.assertIn("unreadable", aether.render(result))
         with self.assertRaises(FileNotFoundError):
             aether.scan(pathlib.Path(d) / "typo")
+
+
+class CorrelationCache(unittest.TestCase):
+    def test_snapshot_reuses_correlation_until_new_data(self):
+        from unittest import mock
+        from mtdi import core
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        m = normalise({"project": {"id": "c"}, "sources": [{"id": "s", "adapter": "http"}],
+                       "channels": [{"id": "a", "keys": ["A"], "noise_floor": 0.1},
+                                    {"id": "b", "keys": ["B"], "noise_floor": 0.1}]})
+        e = Engine(m)
+        e.ingest_values("s", {"A": 1, "B": 2})
+        with mock.patch.object(core, "correlation", wraps=core.correlation) as corr:
+            first = e.snapshot()
+            first["fusion"]["correlation"].append({"tampered": True})
+            self.assertNotIn({"tampered": True}, e.snapshot()["fusion"]["correlation"])
+            self.assertEqual(corr.call_count, 1)
+            e.ingest_values("s", {"A": 2, "B": 3})
+            e.snapshot()
+            self.assertEqual(corr.call_count, 2)
