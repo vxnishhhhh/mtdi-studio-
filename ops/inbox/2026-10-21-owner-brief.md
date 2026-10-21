@@ -60,3 +60,7 @@ been done, and **hardware the owner needs to do**.
 - MATLAB licence is unknown. Name of the event: Eskom Expo **ISF** (not ISEF).
 - NVTRA: website https://nvtra-xxxx.vercel.app; logo `brand/nvtra-logo.webp`; gold #E3B945 on black.
 - NVTRA personality: think exactly like an engineer, talk like a person, with personality and Aether.
+- NVTRA vs Computational Core: NVTRA is its own pillar. It takes the Computational Core's processed output and processes it further with AI.
+- Aether voice: Gen Z, like a 17-18 year old, jokes, the owner's humour, "2 a.m. coding" energy that changes with the time of day. **No brain rot.**
+- Storage: anything online that holds a lot of data; **not local** unless the owner sets something up.
+- The owner reports a MATLAB link (files edited from the MATLAB app). No MATLAB tool is visible in these sessions yet; find out which path it uses (MATLAB Drive or GitHub sync).
