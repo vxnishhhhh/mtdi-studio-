@@ -251,7 +251,7 @@ class CalibrationDrift(unittest.TestCase):
     def test_bad_checks_are_refused(self):
         r = self.runner()
         for args, err in [({"channel": "raw", "reference": 1}, ValueError), ({"channel": "nope", "reference": 1}, KeyError),
-                          ({"channel": "co", "reference": "x"}, ValueError), ({"channel": "co", "reference": None}, ValueError),
+                          ({"channel": "co", "reference": "x"}, ValueError), ({"channel": "co", "reference": None}, ValueError), ({"channel": "co", "reference": True}, ValueError),
                           ({"channel": "co", "reference": float("nan")}, ValueError), ({"reference": 1}, ValueError)]:
             with self.assertRaises(err):
                 r.action("check", args)

@@ -141,6 +141,8 @@ class Engine:
 
     def check_calibration(self, channel, reference):
         """Record one spot check of a calibrated channel against a reference instrument."""
+        if isinstance(reference, bool):   # JSON true/false would otherwise become 1.0/0.0
+            raise ValueError("reference must be a number")
         try:
             reference = float(reference)
         except (TypeError, ValueError):
