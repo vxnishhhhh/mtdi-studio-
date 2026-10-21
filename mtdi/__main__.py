@@ -351,7 +351,7 @@ def cmd_describe(args):
                  "matlab": "matlab/+mtdi", "arduino": "firmware/mtdi_template_arduino",
                  "micropython": "firmware/mtdi_template_micropython"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
-                     "integrations": [r["id"] for r in __import__("mtdi.registry", fromlist=["x"]).load_integrations()]},
+                     **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
         "commands": ["registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",

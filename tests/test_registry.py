@@ -35,6 +35,20 @@ class Registry(unittest.TestCase):
         self.assertEqual(registry.status(rec, {}), "not set up")
         self.assertEqual(registry.status(rec, {"SOME_KEY": "x"}), "configured")
         self.assertEqual(registry.status({"env": []}, {}), "available")
+        both = {"env": ["A", "B"]}
+        self.assertEqual(registry.status(both, {"A": "1"}), "not set up")
+        self.assertEqual(registry.status(both, {"A": "1", "B": "2"}), "configured")
+
+    def test_wrong_types_are_rejected(self):
+        import tempfile
+        rec = dict(registry.load_integrations()[0], env="GITHUB_TOKEN")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"integrations": [rec]}, f)
+        with self.assertRaises(ValueError):
+            registry.load_integrations(f.name)
+
+    def test_missing_file_is_empty(self):
+        self.assertEqual(registry.load_integrations(ROOT / "no-such-file.json"), [])
 
     def test_every_module_imports(self):
         bad = [r for r in registry.check_modules() if not r[2]]
@@ -53,7 +67,9 @@ class Registry(unittest.TestCase):
         self.assertIn("huggingface", {r["id"] for r in json.loads(out.stdout)["integrations"]})
         desc = subprocess.run([sys.executable, "-m", "mtdi", "describe"], cwd=ROOT,
                               capture_output=True, text=True, timeout=120)
-        self.assertIn("registry", json.loads(desc.stdout))
+        reg = json.loads(desc.stdout)["registry"]
+        self.assertIn("modules", reg)
+        self.assertTrue(all("status" in r and "paid" in r for r in reg["integrations"]))
 
 
 if __name__ == "__main__":

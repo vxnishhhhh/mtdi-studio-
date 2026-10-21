@@ -8,9 +8,10 @@ Two lists, both files first:
 
 Status is derived, never typed in by hand, so it cannot go stale:
 
-    configured   one of the record's env vars is set in this environment
-    not set up   it needs env vars and none is set
-    available    it needs no env var (an app, a local tool or a public feed)
+    configured   every variable in `env` is set in this environment
+    not set up   at least one variable in `env` is missing
+    available    `env` is empty (an app, a local tool, a public feed); `optional_env`
+                 only changes behaviour (e.g. NASA's DEMO_KEY works without a key)
 
 `verified` is the only hand-written fact and must say when and how it was checked.
 Owner rule (ops/inbox): anything whose cost says "paid" stays off unless the owner says so.
@@ -30,14 +31,26 @@ REQUIRED = ("id", "provider", "purpose", "area", "auth", "env", "permissions", "
             "cost", "risks", "fallback", "verified")
 
 
+TYPES = {"env": list, "optional_env": list, "permissions": list, "capabilities": list, "risks": list,
+         "cost": str, "purpose": str, "provider": str, "area": str, "fallback": str}
+
+
 def load_integrations(path=INTEGRATIONS):
-    data = json.loads(pathlib.Path(path).read_text())
+    path = pathlib.Path(path)
+    if not path.exists():  # an adopted copy carries mtdi/ only; the registry is optional there
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
     records = data["integrations"]
     seen = set()
     for rec in records:
         missing = [k for k in REQUIRED if k not in rec]
         if missing:
             raise ValueError(f"integration {rec.get('id', '?')}: missing {', '.join(missing)}")
+        rec.setdefault("optional_env", [])
+        for key, kind in TYPES.items():
+            if not isinstance(rec[key], kind) or (kind is list and key.endswith("env")
+                                                  and not all(isinstance(v, str) for v in rec[key])):
+                raise ValueError(f"integration {rec['id']}: {key} must be a {kind.__name__}")
         if rec["id"] in seen:
             raise ValueError(f"integration {rec['id']}: duplicate id")
         seen.add(rec["id"])
@@ -48,7 +61,7 @@ def status(rec, environ=None):
     environ = os.environ if environ is None else environ
     if not rec["env"]:
         return "available"
-    return "configured" if any(environ.get(k) for k in rec["env"]) else "not set up"
+    return "configured" if all(environ.get(k) for k in rec["env"]) else "not set up"
 
 
 def paid(rec):

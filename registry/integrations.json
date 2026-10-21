@@ -1,65 +1,557 @@
 {
-  "_about": "Every service MTDI 5 is built with (Computational Core, ADR 0007). Owner rule: free tiers only; anything that costs money stays 'not set up' until the owner says otherwise. 'verified' is a dated fact someone checked, never a guess. Read by mtdi/registry.py.",
+  "_about": "Every service MTDI 5 is built with (Computational Core, ADR 0007). Owner rule: free tiers only; anything that costs money stays 'not set up' until the owner says otherwise. 'verified' is a dated fact someone checked, never a guess. Read by mtdi/registry.py. 'env' lists settings that must ALL be present; 'optional_env' lists settings that only change behaviour.",
   "integrations": [
-    {"id": "github", "provider": "GitHub", "purpose": "source of truth for code, CI, releases", "area": "build",
-     "auth": "GITHUB_TOKEN or gh CLI", "env": ["GITHUB_TOKEN"], "permissions": ["repo"], "capabilities": ["repos", "actions", "releases", "pull requests"],
-     "cost": "free (public repo)", "risks": ["token scope too wide"], "fallback": "local git", "verified": "2026-10-21 push and PR #1 merged"},
-    {"id": "github-actions", "provider": "GitHub Actions", "purpose": "CI, compatibility lab, scheduled data collection", "area": "build",
-     "auth": "repository", "env": [], "permissions": ["workflows"], "capabilities": ["tests", "builds", "cron"],
-     "cost": "free (public repo)", "risks": ["runner minutes on private repos"], "fallback": "local runs", "verified": "2026-10-21 CI green on PR #1"},
-    {"id": "vercel", "provider": "Vercel", "purpose": "hosts the studio, preview per PR", "area": "deploy",
-     "auth": "VERCEL_TOKEN or GitHub app", "env": ["VERCEL_TOKEN"], "permissions": ["deployments"], "capabilities": ["deploy", "previews", "env vars"],
-     "cost": "free (Hobby)", "risks": ["4.5 MB function response limit", "serverless state resets"], "fallback": "python run.py locally", "verified": "2026-10-21 preview READY on PR #1; connector lacks team scope (owner to-do)"},
-    {"id": "coderabbit", "provider": "CodeRabbit", "purpose": "automatic PR review", "area": "review",
-     "auth": "GitHub app", "env": [], "permissions": ["pull requests"], "capabilities": ["review", "summaries"],
-     "cost": "free for public repos", "risks": ["noisy findings"], "fallback": "human review", "verified": "2026-10-21 reviewed PR #1"},
-    {"id": "codex", "provider": "OpenAI Codex (Astra)", "purpose": "second reviewer; 3D and front-end work", "area": "review",
-     "auth": "ChatGPT account + GitHub app", "env": [], "permissions": ["pull requests"], "capabilities": ["review", "code tasks"],
-     "cost": "included in the owner's ChatGPT plan", "risks": ["auto-review trigger not set (owner to-do)"], "fallback": "CodeRabbit", "verified": null},
-    {"id": "notion", "provider": "Notion", "purpose": "readable catalogue, research notes", "area": "knowledge",
-     "auth": "NOTION_TOKEN or Claude connector", "env": ["NOTION_TOKEN", "NOTION_PARENT_PAGE_ID"], "permissions": ["pages"], "capabilities": ["pages", "databases"],
-     "cost": "free", "risks": ["not a bulk data store"], "fallback": "registry files in the repo", "verified": "2026-10-21 MTDI Data Library page reachable"},
-    {"id": "huggingface", "provider": "Hugging Face", "purpose": "bulk dataset storage (GBs), model hosting", "area": "data",
-     "auth": "HF_TOKEN", "env": ["HF_TOKEN"], "permissions": ["repo.write"], "capabilities": ["datasets", "models", "versioning"],
-     "cost": "free", "risks": ["public by default"], "fallback": "GitHub Releases", "verified": "2026-10-21 hf-check: user vxnish, WRITE OK"},
-    {"id": "matlab", "provider": "MathWorks MATLAB", "purpose": "primary maths and ML tool", "area": "compute",
-     "auth": "owner licence (unknown)", "env": [], "permissions": [], "capabilities": ["toolboxes", "Coder to C"],
-     "cost": "licence status unknown", "risks": ["toolboxes may be missing"], "fallback": "GNU Octave (CI) for core maths", "verified": "Octave conformance in CI"},
-    {"id": "octave", "provider": "GNU Octave", "purpose": "free MATLAB-compatible runtime for tests and the Pi", "area": "compute",
-     "auth": "none", "env": [], "permissions": [], "capabilities": ["matlab/+mtdi"], "cost": "free", "risks": ["no MATLAB toolboxes"], "fallback": "Python", "verified": "CI"},
-    {"id": "anthropic", "provider": "Anthropic", "purpose": "NVTRA language model", "area": "ai",
-     "auth": "ANTHROPIC_API_KEY", "env": ["ANTHROPIC_API_KEY"], "permissions": [], "capabilities": ["chat"], "cost": "paid API: not enabled (owner rule)", "risks": ["cost"], "fallback": "groq, local", "verified": null},
-    {"id": "openai", "provider": "OpenAI", "purpose": "NVTRA language model, speech", "area": "ai",
-     "auth": "OPENAI_API_KEY", "env": ["OPENAI_API_KEY"], "permissions": [], "capabilities": ["chat", "stt", "tts"], "cost": "paid API: not enabled (owner rule)", "risks": ["cost"], "fallback": "groq, local", "verified": null},
-    {"id": "gemini", "provider": "Google Gemini", "purpose": "NVTRA language model", "area": "ai",
-     "auth": "GEMINI_API_KEY", "env": ["GEMINI_API_KEY"], "permissions": [], "capabilities": ["chat"], "cost": "free tier", "risks": ["rate limits"], "fallback": "groq, local", "verified": null},
-    {"id": "groq", "provider": "Groq", "purpose": "fast NVTRA chat and Whisper speech-to-text", "area": "ai",
-     "auth": "GROQ_API_KEY", "env": ["GROQ_API_KEY"], "permissions": [], "capabilities": ["chat", "stt"], "cost": "free tier", "risks": ["rate limits"], "fallback": "local", "verified": null},
-    {"id": "xai", "provider": "xAI", "purpose": "NVTRA language model", "area": "ai",
-     "auth": "XAI_API_KEY", "env": ["XAI_API_KEY"], "permissions": [], "capabilities": ["chat"], "cost": "paid API: not enabled (owner rule)", "risks": ["cost"], "fallback": "groq, local", "verified": null},
-    {"id": "ollama", "provider": "Ollama / llama.cpp", "purpose": "local NVTRA on the Pi 5 and Mac", "area": "ai",
-     "auth": "none (local)", "env": ["OLLAMA_HOST"], "permissions": [], "capabilities": ["chat offline"], "cost": "free", "risks": ["Pi 5 8 GB fits small models only"], "fallback": "rule-based NVTRA", "verified": null},
-    {"id": "elevenlabs", "provider": "ElevenLabs", "purpose": "NVTRA voice", "area": "ai",
-     "auth": "ELEVENLABS_API_KEY", "env": ["ELEVENLABS_API_KEY"], "permissions": [], "capabilities": ["tts"], "cost": "free tier", "risks": ["character quota"], "fallback": "browser speech", "verified": null},
-    {"id": "s3", "provider": "S3-compatible storage", "purpose": "encrypted project storage", "area": "data",
-     "auth": "MTDI_S3_*", "env": ["MTDI_S3_BUCKET"], "permissions": ["bucket"], "capabilities": ["put", "get", "backup"], "cost": "provider dependent: not enabled", "risks": ["cost"], "fallback": "Hugging Face, local", "verified": "SigV4 tested against AWS published example"},
-    {"id": "nasa", "provider": "NASA Open APIs", "purpose": "space and earth data for Research", "area": "data",
-     "auth": "NASA_API_KEY (DEMO_KEY works, rate limited)", "env": ["NASA_API_KEY"], "permissions": [], "capabilities": ["datasets"], "cost": "free", "risks": ["rate limits"], "fallback": "DEMO_KEY", "verified": "2026-10-21 api.nasa.gov reachable"},
-    {"id": "noaa-swpc", "provider": "NOAA SWPC", "purpose": "space weather (Kp index) for Research", "area": "data",
-     "auth": "none", "env": [], "permissions": [], "capabilities": ["json feeds"], "cost": "free", "risks": ["feed format changes"], "fallback": "recorded replay", "verified": "2026-10-21 reachable"},
-    {"id": "zenodo", "provider": "Zenodo", "purpose": "open research datasets", "area": "data",
-     "auth": "none for reading", "env": [], "permissions": [], "capabilities": ["datasets"], "cost": "free", "risks": ["licences vary per record"], "fallback": "none", "verified": "2026-10-21 reachable"},
-    {"id": "ncbi", "provider": "NCBI (NIH)", "purpose": "biomedical data incl. cancer research", "area": "data",
-     "auth": "none for reading", "env": [], "permissions": [], "capabilities": ["datasets"], "cost": "free", "risks": ["licences vary"], "fallback": "none", "verified": "2026-10-21 reachable"},
-    {"id": "platformio", "provider": "PlatformIO", "purpose": "firmware builds for Arduino, ESP32, Pico", "area": "firmware",
-     "auth": "none", "env": [], "permissions": [], "capabilities": ["compile"], "cost": "free", "risks": [], "fallback": "arduino-cli", "verified": null},
-    {"id": "kicad", "provider": "KiCad", "purpose": "PCB design files", "area": "hardware",
-     "auth": "none", "env": [], "permissions": [], "capabilities": ["schematics", "boards"], "cost": "free", "risks": [], "fallback": "EasyEDA", "verified": null},
-    {"id": "21st-dev", "provider": "21st.dev", "purpose": "front-end component presets for I³", "area": "interface",
-     "auth": "none for free components", "env": [], "permissions": [], "capabilities": ["components"], "cost": "free components only", "risks": ["React-based; needs porting to Dash"], "fallback": "hand-built", "verified": null},
-    {"id": "cursor", "provider": "Cursor", "purpose": "editor the owner can use on the repo", "area": "build",
-     "auth": "owner account", "env": [], "permissions": [], "capabilities": ["editing"], "cost": "free tier", "risks": [], "fallback": "any editor", "verified": null},
-    {"id": "create-ml", "provider": "Apple Create ML", "purpose": "on-Mac model training (M5)", "area": "compute",
-     "auth": "none (macOS)", "env": [], "permissions": [], "capabilities": ["image, sound, tabular models"], "cost": "free with macOS", "risks": ["Mac only"], "fallback": "Python ML", "verified": null}
+    {
+      "id": "github",
+      "provider": "GitHub",
+      "purpose": "source of truth for code, CI, releases",
+      "area": "build",
+      "auth": "GITHUB_TOKEN or gh CLI",
+      "env": [
+        "GITHUB_TOKEN"
+      ],
+      "permissions": [
+        "repo"
+      ],
+      "capabilities": [
+        "repos",
+        "actions",
+        "releases",
+        "pull requests"
+      ],
+      "cost": "free (public repo)",
+      "risks": [
+        "token scope too wide"
+      ],
+      "fallback": "local git",
+      "verified": "2026-10-21 push and PR #1 merged",
+      "optional_env": []
+    },
+    {
+      "id": "github-actions",
+      "provider": "GitHub Actions",
+      "purpose": "CI, compatibility lab, scheduled data collection",
+      "area": "build",
+      "auth": "repository",
+      "env": [],
+      "permissions": [
+        "workflows"
+      ],
+      "capabilities": [
+        "tests",
+        "builds",
+        "cron"
+      ],
+      "cost": "free (public repo)",
+      "risks": [
+        "runner minutes on private repos"
+      ],
+      "fallback": "local runs",
+      "verified": "2026-10-21 CI green on PR #1",
+      "optional_env": []
+    },
+    {
+      "id": "vercel",
+      "provider": "Vercel",
+      "purpose": "hosts the studio, preview per PR",
+      "area": "deploy",
+      "auth": "VERCEL_TOKEN or GitHub app",
+      "env": [
+        "VERCEL_TOKEN"
+      ],
+      "permissions": [
+        "deployments"
+      ],
+      "capabilities": [
+        "deploy",
+        "previews",
+        "env vars"
+      ],
+      "cost": "free (Hobby)",
+      "risks": [
+        "4.5 MB function response limit",
+        "serverless state resets"
+      ],
+      "fallback": "python run.py locally",
+      "verified": "2026-10-21 preview READY on PR #1; connector lacks team scope (owner to-do)",
+      "optional_env": []
+    },
+    {
+      "id": "coderabbit",
+      "provider": "CodeRabbit",
+      "purpose": "automatic PR review",
+      "area": "review",
+      "auth": "GitHub app",
+      "env": [],
+      "permissions": [
+        "pull requests"
+      ],
+      "capabilities": [
+        "review",
+        "summaries"
+      ],
+      "cost": "free for public repos",
+      "risks": [
+        "noisy findings"
+      ],
+      "fallback": "human review",
+      "verified": "2026-10-21 reviewed PR #1",
+      "optional_env": []
+    },
+    {
+      "id": "codex",
+      "provider": "OpenAI Codex (Astra)",
+      "purpose": "second reviewer; 3D and front-end work",
+      "area": "review",
+      "auth": "ChatGPT account + GitHub app",
+      "env": [],
+      "permissions": [
+        "pull requests"
+      ],
+      "capabilities": [
+        "review",
+        "code tasks"
+      ],
+      "cost": "included in the owner's ChatGPT plan",
+      "risks": [
+        "auto-review trigger not set (owner to-do)"
+      ],
+      "fallback": "CodeRabbit",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "notion",
+      "provider": "Notion",
+      "purpose": "readable catalogue, research notes",
+      "area": "knowledge",
+      "auth": "NOTION_TOKEN or Claude connector",
+      "env": [
+        "NOTION_TOKEN"
+      ],
+      "permissions": [
+        "pages"
+      ],
+      "capabilities": [
+        "pages",
+        "databases"
+      ],
+      "cost": "free",
+      "risks": [
+        "not a bulk data store"
+      ],
+      "fallback": "registry files in the repo",
+      "verified": "2026-10-21 MTDI Data Library page reachable",
+      "optional_env": [
+        "NOTION_PARENT_PAGE_ID"
+      ]
+    },
+    {
+      "id": "huggingface",
+      "provider": "Hugging Face",
+      "purpose": "bulk dataset storage (GBs), model hosting",
+      "area": "data",
+      "auth": "HF_TOKEN",
+      "env": [
+        "HF_TOKEN"
+      ],
+      "permissions": [
+        "repo.write"
+      ],
+      "capabilities": [
+        "datasets",
+        "models",
+        "versioning"
+      ],
+      "cost": "free",
+      "risks": [
+        "public by default"
+      ],
+      "fallback": "GitHub Releases",
+      "verified": "2026-10-21 hf-check: user vxnish, WRITE OK",
+      "optional_env": []
+    },
+    {
+      "id": "matlab",
+      "provider": "MathWorks MATLAB",
+      "purpose": "primary maths and ML tool",
+      "area": "compute",
+      "auth": "owner licence (unknown)",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "toolboxes",
+        "Coder to C"
+      ],
+      "cost": "licence status unknown",
+      "risks": [
+        "toolboxes may be missing"
+      ],
+      "fallback": "GNU Octave (CI) for core maths",
+      "verified": "2026-10-18 CI: matlab/+mtdi matches Python to 1e-9 in GNU Octave (MATLAB itself not run)",
+      "optional_env": []
+    },
+    {
+      "id": "octave",
+      "provider": "GNU Octave",
+      "purpose": "free MATLAB-compatible runtime for tests and the Pi",
+      "area": "compute",
+      "auth": "none",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "matlab/+mtdi"
+      ],
+      "cost": "free",
+      "risks": [
+        "no MATLAB toolboxes"
+      ],
+      "fallback": "Python",
+      "verified": "2026-10-18 CI: conformance test green",
+      "optional_env": []
+    },
+    {
+      "id": "anthropic",
+      "provider": "Anthropic",
+      "purpose": "NVTRA language model",
+      "area": "ai",
+      "auth": "ANTHROPIC_API_KEY",
+      "env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "chat"
+      ],
+      "cost": "paid API: not enabled (owner rule)",
+      "risks": [
+        "cost"
+      ],
+      "fallback": "groq, local",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "openai",
+      "provider": "OpenAI",
+      "purpose": "NVTRA language model, speech",
+      "area": "ai",
+      "auth": "OPENAI_API_KEY",
+      "env": [
+        "OPENAI_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "chat",
+        "stt",
+        "tts"
+      ],
+      "cost": "paid API: not enabled (owner rule)",
+      "risks": [
+        "cost"
+      ],
+      "fallback": "groq, local",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "gemini",
+      "provider": "Google Gemini",
+      "purpose": "NVTRA language model",
+      "area": "ai",
+      "auth": "GEMINI_API_KEY",
+      "env": [
+        "GEMINI_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "chat"
+      ],
+      "cost": "free tier",
+      "risks": [
+        "rate limits"
+      ],
+      "fallback": "groq, local",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "groq",
+      "provider": "Groq",
+      "purpose": "fast NVTRA chat and Whisper speech-to-text",
+      "area": "ai",
+      "auth": "GROQ_API_KEY",
+      "env": [
+        "GROQ_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "chat",
+        "stt"
+      ],
+      "cost": "free tier",
+      "risks": [
+        "rate limits"
+      ],
+      "fallback": "local",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "xai",
+      "provider": "xAI",
+      "purpose": "NVTRA language model",
+      "area": "ai",
+      "auth": "XAI_API_KEY",
+      "env": [
+        "XAI_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "chat"
+      ],
+      "cost": "paid API: not enabled (owner rule)",
+      "risks": [
+        "cost"
+      ],
+      "fallback": "groq, local",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "ollama",
+      "provider": "Ollama / llama.cpp",
+      "purpose": "local NVTRA on the Pi 5 and Mac",
+      "area": "ai",
+      "auth": "none (local)",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "chat offline"
+      ],
+      "cost": "free",
+      "risks": [
+        "Pi 5 8 GB fits small models only"
+      ],
+      "fallback": "rule-based NVTRA",
+      "verified": null,
+      "optional_env": [
+        "OLLAMA_HOST"
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "provider": "ElevenLabs",
+      "purpose": "NVTRA voice",
+      "area": "ai",
+      "auth": "ELEVENLABS_API_KEY",
+      "env": [
+        "ELEVENLABS_API_KEY"
+      ],
+      "permissions": [],
+      "capabilities": [
+        "tts"
+      ],
+      "cost": "free tier",
+      "risks": [
+        "character quota"
+      ],
+      "fallback": "browser speech",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "s3",
+      "provider": "S3-compatible storage",
+      "purpose": "encrypted project storage",
+      "area": "data",
+      "auth": "MTDI_S3_*",
+      "env": [
+        "MTDI_S3_BUCKET"
+      ],
+      "permissions": [
+        "bucket"
+      ],
+      "capabilities": [
+        "put",
+        "get",
+        "backup"
+      ],
+      "cost": "provider dependent: not enabled",
+      "risks": [
+        "cost"
+      ],
+      "fallback": "Hugging Face, local",
+      "verified": "2026-10-18 tests: SigV4 matches AWS's published example (no live bucket)",
+      "optional_env": []
+    },
+    {
+      "id": "nasa",
+      "provider": "NASA Open APIs",
+      "purpose": "space and earth data for Research",
+      "area": "data",
+      "auth": "NASA_API_KEY (DEMO_KEY works, rate limited)",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "datasets"
+      ],
+      "cost": "free",
+      "risks": [
+        "rate limits"
+      ],
+      "fallback": "DEMO_KEY",
+      "verified": "2026-10-21 api.nasa.gov reachable",
+      "optional_env": [
+        "NASA_API_KEY"
+      ]
+    },
+    {
+      "id": "noaa-swpc",
+      "provider": "NOAA SWPC",
+      "purpose": "space weather (Kp index) for Research",
+      "area": "data",
+      "auth": "none",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "json feeds"
+      ],
+      "cost": "free",
+      "risks": [
+        "feed format changes"
+      ],
+      "fallback": "recorded replay",
+      "verified": "2026-10-21 reachable",
+      "optional_env": []
+    },
+    {
+      "id": "zenodo",
+      "provider": "Zenodo",
+      "purpose": "open research datasets",
+      "area": "data",
+      "auth": "none for reading",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "datasets"
+      ],
+      "cost": "free",
+      "risks": [
+        "licences vary per record"
+      ],
+      "fallback": "none",
+      "verified": "2026-10-21 reachable",
+      "optional_env": []
+    },
+    {
+      "id": "ncbi",
+      "provider": "NCBI (NIH)",
+      "purpose": "biomedical data incl. cancer research",
+      "area": "data",
+      "auth": "none for reading",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "datasets"
+      ],
+      "cost": "free",
+      "risks": [
+        "licences vary"
+      ],
+      "fallback": "none",
+      "verified": "2026-10-21 reachable",
+      "optional_env": []
+    },
+    {
+      "id": "platformio",
+      "provider": "PlatformIO",
+      "purpose": "firmware builds for Arduino, ESP32, Pico",
+      "area": "firmware",
+      "auth": "none",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "compile"
+      ],
+      "cost": "free",
+      "risks": [],
+      "fallback": "arduino-cli",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "kicad",
+      "provider": "KiCad",
+      "purpose": "PCB design files",
+      "area": "hardware",
+      "auth": "none",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "schematics",
+        "boards"
+      ],
+      "cost": "free",
+      "risks": [],
+      "fallback": "EasyEDA",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "21st-dev",
+      "provider": "21st.dev",
+      "purpose": "front-end component presets for I³",
+      "area": "interface",
+      "auth": "none for free components",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "components"
+      ],
+      "cost": "free components only",
+      "risks": [
+        "React-based; needs porting to Dash"
+      ],
+      "fallback": "hand-built",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "cursor",
+      "provider": "Cursor",
+      "purpose": "editor the owner can use on the repo",
+      "area": "build",
+      "auth": "owner account",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "editing"
+      ],
+      "cost": "free tier",
+      "risks": [],
+      "fallback": "any editor",
+      "verified": null,
+      "optional_env": []
+    },
+    {
+      "id": "create-ml",
+      "provider": "Apple Create ML",
+      "purpose": "on-Mac model training (M5)",
+      "area": "compute",
+      "auth": "none (macOS)",
+      "env": [],
+      "permissions": [],
+      "capabilities": [
+        "image, sound, tabular models"
+      ],
+      "cost": "free with macOS",
+      "risks": [
+        "Mac only"
+      ],
+      "fallback": "Python ML",
+      "verified": null,
+      "optional_env": []
+    }
   ]
 }
