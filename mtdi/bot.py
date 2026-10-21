@@ -8,11 +8,17 @@
 
 With a language-model key NVTRA answers in its own words, but only from the live
 packet it is given; without one it answers from the rule engine (``pillars.nvtra``),
-which needs no network. Either way it never invents a reading.
+which needs no network. Either way it never invents a reading: every model answer goes
+through the validator agent, and one quoting a number the packet does not hold is
+replaced by the rules answer.
+
+"research <topic>" (or "look up" / "find papers on") calls the researcher agent instead:
+free scholarly sources, returned as references to read, not as measurements.
 """
 import json
+import re
 
-from . import llm, policy, voice
+from . import agents, llm, policy, voice
 from .pillars import nvtra
 
 # The task-specific layer, under the fixed policy in mtdi.policy (which always comes first).
@@ -42,6 +48,21 @@ def packet_summary(packet, limit=12):
             "channels": channels}
 
 
+RESEARCH = re.compile(r"^\s*(?:research|look up|find papers on)\s*[:\-]?\s+(.+)$", re.I | re.S)
+
+
+def format_references(found, limit=5):
+    hits = found["result"][:limit]
+    if not hits:
+        if not found.get("errors"):
+            return "No references found on that."
+        return f"No references found. Sources that did not answer: {', '.join(found['errors'])}."
+    lines = [f"{i}. {h.get('title') or 'Untitled'} ({h.get('year') or 'n.d.'}, {h['source']}) {h.get('url') or ''}".rstrip()
+             for i, h in enumerate(hits, 1)]
+    tail = f" ({', '.join(found['errors'])} did not answer)" if found.get("errors") else ""
+    return "References to read, not measurements" + tail + ":\n" + "\n".join(lines)
+
+
 class Bot:
     def __init__(self, runner=None, packet_provider=None, history=8, notes=None):
         if runner is None and packet_provider is None:
@@ -55,11 +76,19 @@ class Bot:
     def reply(self, question):
         packet = self.packet()
         question = str(question).strip()[:2000]
+        topic = RESEARCH.match(question)
+        if topic:
+            return {"text": format_references(agents.research(topic.group(1))), "engine": "researcher"}
         if llm.available():
-            context = json.dumps(packet_summary(packet), default=str)
+            summary = packet_summary(packet)
+            context = json.dumps(summary, default=str)
             messages = self.history[-self.keep:] + [{"role": "user", "content": question}]
             try:
                 out = llm.chat(messages, system=policy.compose(PERSONA + "\nPACKET: " + context, self.notes))
+                check = agents.validate(out["text"], summary)["result"]
+                if not check["ok"]:
+                    return {"text": nvtra.answer(question, packet), "engine": "rules",
+                            "note": f"model quoted numbers not in the packet: {', '.join(check['unsupported'])}"}
                 self.history += [{"role": "user", "content": question}, {"role": "assistant", "content": out["text"]}]
                 return {"text": out["text"], "engine": f"{out['provider']}:{out['model']}"}
             except llm.LLMError as error:
