@@ -180,6 +180,15 @@ class SDKs(unittest.TestCase):
         for g, w in zip(got, want):
             self.assertAlmostEqual(g, w, delta=1e-9 * max(1.0, abs(w)))
 
+    def test_matlab_examples_run(self):
+        if not shutil.which("octave"):
+            self.skipTest("octave not installed")
+        examples = sorted((ROOT / "matlab" / "examples").glob("*.m"))
+        self.assertGreaterEqual(len(examples), 3)
+        for ex in examples:
+            out = self.run_tool(["octave", "--no-gui", "--quiet", str(ex)], cwd=ROOT)
+            self.assertIn(f"OK {ex.stem}", out, ex.name)
+
 
 if __name__ == "__main__":
     unittest.main()
