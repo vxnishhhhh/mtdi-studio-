@@ -371,3 +371,25 @@ class CalibrateCommand(unittest.TestCase):
             (d / "inf.csv").write_text("raw,reference\n1,2\n2,inf\n3,6\n", encoding="utf-8")
             self.assertNotEqual(self.run_cli("inf.csv", cwd=d).returncode, 0)
             self.assertFalse((d / "inf.cal.json").exists())
+
+
+class WatchFrame(unittest.TestCase):
+    def test_shows_calibrated_marker_and_fused_estimate(self):
+        from mtdi.__main__ import watch_frame
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        m = normalise({"project": {"id": "w", "name": "Watch"}, "sources": [{"id": "s", "adapter": "http"}],
+                       "channels": [{"id": "a", "label": "CO A", "keys": ["A"], "unit": "ppm", "noise_floor": 0.1,
+                                     "calibration": {"gain": 2.0}},
+                                    {"id": "b", "label": "CO B", "keys": ["B"], "unit": "ppm", "noise_floor": 0.1}],
+                       "fused": [{"id": "co", "label": "CO fused", "inputs": ["a", "b"], "sd": {"a": 1, "b": 2}}]})
+        e = Engine(m)
+        e.ingest_values("s", {"A": 5.0, "B": 12.0})
+        frame = watch_frame(e.snapshot())
+        a_line = next(l for l in frame.splitlines() if l.startswith("CO A"))
+        b_line = next(l for l in frame.splitlines() if l.startswith("CO B"))
+        self.assertIn(" cal ", a_line)
+        self.assertNotIn(" cal ", b_line)
+        self.assertIn("CO fused", frame)
+        self.assertIn("2/2 live", frame)
+        self.assertIn("10.4 ± 0.89", frame)        # (10/1 + 12/4) / (1/1 + 1/4) = 10.4, sd sqrt(0.8)

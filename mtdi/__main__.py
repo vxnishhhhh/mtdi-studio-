@@ -132,25 +132,36 @@ def cmd_packet(args):
     print(json.dumps(runner.engine.snapshot(), indent=2, default=str))
 
 
+def watch_frame(p):
+    """One screen of `mtdi watch` for a packet (pure, so it can be tested)."""
+    bar = lambda v: "█" * int(v / 10) + "·" * (10 - int(v / 10))  # noqa: E731
+    f = p["fusion"]
+    out = [f"MTDI {p['mtdi']} · {p['project']['name']}" + ("   SIMULATED" if f["simulated"] else ""),
+           f"score {f['score']:5.1f} % {bar(f['score'])}   live {f['completeness']:.0f} %",
+           f"{f['condition']}: {f['interpretation']}", ""]
+    for c in p["channels"].values():
+        ev, env = c["evidence"], c["environment"]
+        mag = "—" if c["magnitude"] is None else f"{c['magnitude']:.4g}"
+        cal = " cal" if c.get("calibration") else "    "
+        out.append(f"{c['label'][:22]:<22} {ev['state']:<9} {mag:>10} {c['unit'][:8]:<8}{cal} "
+                   f"dev {env.get('deviation', 0):>9.3g}  snr {env.get('snr', 0):>6.1f}  {c['score']:5.1f} %")
+    fused = p.get("fused") or {}
+    if fused:
+        out += ["", "fused"]
+        for e in fused.values():
+            val = "—" if e["value"] is None else f"{e['value']:.4g} ± {e['sd']:.2g}"
+            out.append(f"{e['label'][:22]:<22} {len(e['inputs'])}/{e['of']} live {val:>18} {e['unit'][:8]}")
+    out += [""] + [f"! {w}" for w in f["warnings"][:5]]
+    return "\n".join(out)
+
+
 def cmd_watch(args):
     """Redraw a compact view of the packet once a second. Ctrl-C to stop."""
     from .runtime import Runner
     studio = Runner(args.project, simulate=args.simulate)
-    bar = lambda v: "█" * int(v / 10) + "·" * (10 - int(v / 10))
     try:
         while True:
-            p = studio.engine.snapshot()
-            f = p["fusion"]
-            out = [f"\033[2J\033[HMTDI {p['mtdi']} · {p['project']['name']}" + ("   SIMULATED" if f["simulated"] else ""),
-                   f"score {f['score']:5.1f} % {bar(f['score'])}   live {f['completeness']:.0f} %",
-                   f"{f['condition']}: {f['interpretation']}", ""]
-            for c in p["channels"].values():
-                ev, env = c["evidence"], c["environment"]
-                mag = "—" if c["magnitude"] is None else f"{c['magnitude']:.4g}"
-                out.append(f"{c['label'][:22]:<22} {ev['state']:<9} {mag:>10} {c['unit'][:8]:<8} "
-                           f"dev {env.get('deviation', 0):>9.3g}  snr {env.get('snr', 0):>6.1f}  {c['score']:5.1f} %")
-            out += [""] + [f"! {w}" for w in f["warnings"][:5]]
-            print("\n".join(out), flush=True)
+            print("\033[2J\033[H" + watch_frame(studio.engine.snapshot()), flush=True)
             time.sleep(1)
     except KeyboardInterrupt:
         studio.stop()
