@@ -24,6 +24,13 @@ class Fusion(unittest.TestCase):
         self.assertAlmostEqual(var, 0.8, places=12)
         self.assertLess(var, 1.0)
 
+    def test_fuse_survives_tiny_and_huge_variances(self):
+        v, var = fusion.fuse([(10.0, 1e-320), (20.0, 1e-320)])
+        self.assertEqual((v, var), (15.0, 5e-321))
+        v, var = fusion.fuse([(10.0, 1e300), (20.0, 1e-300)])
+        self.assertAlmostEqual(v, 20.0)
+        self.assertGreater(var, 0)
+
     def test_fuse_rejects_bad_input(self):
         with self.assertRaises(ValueError):
             fusion.fuse([])

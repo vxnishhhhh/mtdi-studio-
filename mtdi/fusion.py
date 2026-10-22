@@ -36,8 +36,11 @@ def fuse(readings):
     if any(not (math.isfinite(v) and math.isfinite(var)) or var <= 0 for v, var in pts):
         raise ValueError("readings must be finite and every variance finite and > 0 "
                          "(use the sensor's measured noise, sigma squared)")
-    weight = sum(1.0 / var for _, var in pts)
-    return sum(v / var for v, var in pts) / weight, 1.0 / weight
+    # Weights relative to the smallest variance: 1/var would overflow for a tiny (but valid) variance.
+    scale = min(var for _, var in pts)
+    w = [scale / var for _, var in pts]
+    total = math.fsum(w)
+    return math.fsum((v / total) * wi for (v, _), wi in zip(pts, w)), scale / total
 
 
 class Kalman1D:

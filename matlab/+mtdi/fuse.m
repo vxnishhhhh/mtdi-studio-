@@ -10,7 +10,9 @@ end
 if any(~isfinite(values)) || any(~isfinite(variances)) || any(variances <= 0)
     error('mtdi:fuse', 'readings must be finite and every variance finite and > 0');
 end
-w = 1 ./ variances;
-value = sum(values .* w) / sum(w);
-variance = 1 / sum(w);
+scale = min(variances);                % relative weights: 1/variance overflows for tiny variances
+w = scale ./ variances;
+total = sum(w);
+value = sum((values ./ total) .* w);
+variance = scale / total;
 end
