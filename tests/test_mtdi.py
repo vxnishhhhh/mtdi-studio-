@@ -496,3 +496,70 @@ class CorrelationCache(unittest.TestCase):
             e.ingest_values("s", {"A": 2, "B": 3})
             e.snapshot()
             self.assertEqual(corr.call_count, 2)
+
+
+class CorrelationEquivalence(unittest.TestCase):
+    """core.correlation's fast paths must give exactly what the plain pairwise definition gives."""
+
+    @staticmethod
+    def reference(histories, span=8.0, align=0.3):
+        import bisect
+        import math
+        out = []
+        keys = [k for k in histories if len(histories[k]) >= 6]
+        for i, left in enumerate(keys):
+            for right in keys[i + 1:]:
+                lhs, rhs = histories[left], histories[right]
+                times = [p[0] for p in rhs]
+                end = min(lhs[-1][0], rhs[-1][0])
+                pairs = []
+                for t, value in lhs:
+                    if end - span <= t <= end:
+                        pos = bisect.bisect_left(times, t)
+                        sample = min(rhs[max(0, pos - 1):pos + 1], key=lambda e: abs(e[0] - t))
+                        if abs(sample[0] - t) <= align:
+                            pairs.append((value, sample[1]))
+                if len(pairs) < 6:
+                    continue
+                mx = math.fsum(a for a, _ in pairs) / len(pairs)
+                my = math.fsum(b for _, b in pairs) / len(pairs)
+                cov = sum((a - mx) * (b - my) for a, b in pairs)
+                den = math.sqrt(sum((a - mx) ** 2 for a, _ in pairs) * sum((b - my) ** 2 for _, b in pairs))
+                if den > 1e-12:
+                    out.append({"channels": [left, right], "coefficient": cov / den, "pairs": len(pairs)})
+        return out
+
+    def test_identical_on_shared_and_separate_clocks(self):
+        import random
+        from mtdi import core
+        rng = random.Random(11)
+        for _ in range(150):
+            h, shared = {}, None
+            for c in range(rng.randint(2, 7)):
+                if shared and rng.random() < 0.6:
+                    ts = shared
+                else:
+                    t, ts = rng.uniform(0, 3), []
+                    for _ in range(rng.randint(3, 70)):
+                        t += rng.choice([0.0, 0.1, 0.2, 0.31, rng.uniform(0, 0.6)])
+                        ts.append(t)
+                    ts = sorted(ts)
+                    shared = shared or ts
+                h[f"c{c}"] = [(t, rng.gauss(0, 1)) for t in ts]
+            self.assertEqual(core.correlation(h), self.reference(h))
+
+    def test_environment_variance_matches_statistics(self):
+        import random
+        import statistics
+        from mtdi.pillars.environment import TransientWatch
+        rng = random.Random(5)
+        env = TransientWatch()
+        for i in range(300):
+            env.update(i * 0.1, rng.gauss(0, 3), 0.5)
+        got = env.snapshot()["variance"]
+        want = statistics.pvariance([v for _, v, _ in env.history])
+        self.assertAlmostEqual(got, want, delta=abs(want) * 1e-12)
+        env = TransientWatch()
+        for i, v in enumerate([1e16, 1e16 + 2, 1e16 + 2]):
+            env.update(i * 0.1, v, 0.5)
+        self.assertAlmostEqual(env.snapshot()["variance"], 8 / 9, places=12)   # not 4/3

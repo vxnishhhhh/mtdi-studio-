@@ -136,7 +136,13 @@ class TransientWatch:
             return {"state": "Unavailable", "variance": None, "threshold": None}
         deviations = [v for _, v, _ in values]
         noise = max(values[-1][2], 1e-12)
-        variance = statistics.pvariance(deviations) if len(deviations) > 1 else 0.0
+        # Two-pass float variance with fsum: matches statistics.pvariance to ~1e-15 relative, without its
+        # exact-fraction arithmetic, which cost ~2 ms per channel on every snapshot (tools/pi/measure.py).
+        # Shifted by the first sample, so a large common offset cannot swallow the spread when the mean is rounded.
+        n, ref = len(deviations), deviations[0]
+        shifted = [d - ref for d in deviations]
+        mean = math.fsum(shifted) / n
+        variance = math.fsum((d - mean) ** 2 for d in shifted) / n if n > 1 else 0.0
         threshold = (3.0 * noise) ** 2
         active = [abs(value) > 3 * local for _, value, local in values]
         duration = max(0.0, values[-1][0] - values[0][0])

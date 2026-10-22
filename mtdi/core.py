@@ -10,6 +10,7 @@ says so wherever it is shown.
 """
 import bisect
 import math
+import operator
 
 DEFAULT_WEIGHTS = {"availability": 0.20, "baseline": 0.15, "signal_to_noise": 0.20,
                    "clipping": 0.15, "timing": 0.10, "transient": 0.10,
@@ -61,34 +62,58 @@ def score(terms, weights, active):
 def correlation(histories, span=8.0, align=0.3):
     """Pearson correlation of deviation between every pair of channels, time aligned.
 
-    Every pair is still compared (O(channels²)), but each channel's times are split out once
-    and the pair loop does only bisects and arithmetic: same results, far less work per pair."""
+    Channels fed by the same source share their timestamps exactly; for them alignment is the
+    identity, so each channel's window is centred once and a pair costs one dot product. Pairs
+    on different clocks use the general nearest-sample alignment. Results are identical either way.
+    Each history must be in ascending time order (the engine's always is)."""
     # HOURS-WASTED: 0.5 - 691 ms per snapshot at 128 channels, found by tools/pi/measure.py
-    matches = []
     keys = [k for k in histories if len(histories[k]) >= 6]
     series = {k: ([p[0] for p in histories[k]], [p[1] for p in histories[k]]) for k in keys}
+    # Only strictly increasing timestamps align one-to-one with themselves (duplicates would not).
+    strict = {k: all(a < b for a, b in zip(t, t[1:])) for k, (t, _) in series.items()}
+    centred = {}   # (channel, window start, window end) -> (values, deviations from mean, sum of squares)
+
+    def window(k, lo, hi):
+        got = centred.get((k, lo, hi))
+        if got is None:
+            vals = series[k][1][lo:hi]
+            m = math.fsum(vals) / len(vals)
+            dev = [v - m for v in vals]
+            got = centred[(k, lo, hi)] = (vals, dev, sum(d ** 2 for d in dev))
+        return got
+
+    matches = []
     for i, left in enumerate(keys):
         lt, lv = series[left]
         for right in keys[i + 1:]:
             rt, rv = series[right]
             end = min(lt[-1], rt[-1])
             lo, hi = bisect.bisect_left(lt, end - span), bisect.bisect_right(lt, end)
-            xs, ys = [], []
-            last = len(rt) - 1
-            for j in range(lo, hi):
-                t = lt[j]
-                pos = bisect.bisect_left(rt, t)
-                # nearest of rt[pos-1] and rt[pos]; on a tie the earlier one, as before
-                k = pos - 1 if pos > last or (pos > 0 and abs(rt[pos - 1] - t) <= abs(rt[pos] - t)) else pos
-                if abs(rt[k] - t) <= align:
-                    xs.append(lv[j])
-                    ys.append(rv[k])
-            n = len(xs)
-            if n < 6:
-                continue
-            mx, my = math.fsum(xs) / n, math.fsum(ys) / n
-            cov = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
-            den = math.sqrt(sum((a - mx) ** 2 for a in xs) * sum((b - my) ** 2 for b in ys))
+            if strict[left] and len(lt) == len(rt) and lt[0] == rt[0] and lt[-1] == rt[-1] and lt == rt:
+                n = hi - lo                                    # shared clock: every sample aligns with itself
+                if n < 6:
+                    continue
+                _, dx, sxx = window(left, lo, hi)
+                _, dy, syy = window(right, lo, hi)
+                cov = sum(map(operator.mul, dx, dy))
+                den = math.sqrt(sxx * syy)
+            else:
+                xs, ys = [], []
+                last = len(rt) - 1
+                for j in range(lo, hi):
+                    t = lt[j]
+                    pos = bisect.bisect_left(rt, t)
+                    # nearest of rt[pos-1] and rt[pos]; on a tie the earlier one
+                    k = pos - 1 if pos > last or (pos > 0 and abs(rt[pos - 1] - t) <= abs(rt[pos] - t)) else pos
+                    if abs(rt[k] - t) <= align:
+                        xs.append(lv[j])
+                        ys.append(rv[k])
+                n = len(xs)
+                if n < 6:
+                    continue
+                mx, my = math.fsum(xs) / n, math.fsum(ys) / n
+                cov = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
+                den = math.sqrt(sum((a - mx) ** 2 for a in xs) * sum((b - my) ** 2 for b in ys))
             if den > 1e-12:
                 matches.append({"channels": [left, right], "coefficient": cov / den, "pairs": n})
     return matches
