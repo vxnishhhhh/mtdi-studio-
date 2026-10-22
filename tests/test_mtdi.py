@@ -557,9 +557,96 @@ class CorrelationEquivalence(unittest.TestCase):
         for i in range(300):
             env.update(i * 0.1, rng.gauss(0, 3), 0.5)
         got = env.snapshot()["variance"]
-        want = statistics.pvariance([v for _, v, _ in env.history])
+        want = statistics.pvariance([h[1] for h in env.history])
         self.assertAlmostEqual(got, want, delta=abs(want) * 1e-12)
         env = TransientWatch()
         for i, v in enumerate([1e16, 1e16 + 2, 1e16 + 2]):
             env.update(i * 0.1, v, 0.5)
         self.assertAlmostEqual(env.snapshot()["variance"], 8 / 9, places=12)   # not 4/3
+
+
+
+class TransientIncremental(unittest.TestCase):
+    """TransientWatch's running totals must match a full rescan, through both kinds of eviction."""
+
+    class _ReferenceTransientWatch:
+        """Classify a bounded time history against measured baseline variation."""
+
+        def __init__(self, span=12.0):
+            self.span = span
+            self.history = __import__("collections").deque(maxlen=1200)
+
+        def update(self, timestamp, deviation, noise):
+            self.history.append((timestamp, deviation, noise))
+            while self.history and self.history[0][0] < timestamp - self.span:
+                self.history.popleft()
+
+        def snapshot(self):
+            values = list(self.history)
+            if not values:
+                return {"state": "Unavailable", "variance": None, "threshold": None}
+            deviations = [v for _, v, _ in values]
+            noise = max(values[-1][2], 1e-12)
+            # Two-pass float variance with fsum: matches statistics.pvariance to ~1e-15 relative, without its
+            # exact-fraction arithmetic, which cost ~2 ms per channel on every snapshot (tools/pi/measure.py).
+            # Shifted by the first sample, so a large common offset cannot swallow the spread when the mean is rounded.
+            n, ref = len(deviations), deviations[0]
+            shifted = [d - ref for d in deviations]
+            mean = __import__("math").fsum(shifted) / n
+            variance = __import__("math").fsum((d - mean) ** 2 for d in shifted) / n if n > 1 else 0.0
+            threshold = (3.0 * noise) ** 2
+            active = [abs(value) > 3 * local for _, value, local in values]
+            duration = max(0.0, values[-1][0] - values[0][0])
+            # Duration weights make the classification independent of sample rate.
+            segments = [(values[i + 1][0] - values[i][0], active[i]) for i in range(len(values) - 1)]
+            duty = sum(dt for dt, high in segments if high) / max(duration, 1e-12)
+            transitions = sum(a != b for a, b in zip(active, active[1:]))
+            if len(values) < 4 or duration < 1.0:
+                state = "Settling"
+            elif not any(active):
+                state = "Stable / ambient"
+            elif duty > 0.8 and transitions <= 2:
+                state = "Continuous"
+            elif variance > threshold and duty < 0.35:
+                state = "Bursty / transient"
+            else:
+                state = "Intermittent"
+            return {"state": state, "variance": variance, "threshold": threshold,
+                    "duty": duty, "transitions": transitions, "duration": duration,
+                    "method": "Variance and duration above three times ambient noise"}
+
+
+
+    def test_matches_full_rescan(self):
+        import random
+        from mtdi.pillars.environment import TransientWatch
+        rng = random.Random(3)
+        for case in range(40):
+            new, old = TransientWatch(span=rng.choice([2.0, 12.0])), self._ReferenceTransientWatch(span=0)
+            old.span = new.span
+            t = 0.0
+            for i in range(rng.randint(5, 3000)):
+                t += rng.choice([0.0, 0.005, 0.01, 0.05, 0.3, 1.5])   # also bursts, duplicates and gaps
+                burst = rng.random() < 0.2
+                new.update(t, rng.gauss(0, 5 if burst else 0.5), 0.5)
+                old.update(*new.history[-1][:3])
+                if i % 97 == 0 or i < 10:
+                    a, b = new.snapshot(), old.snapshot()
+                    self.assertEqual([h[:3] for h in new.history], list(old.history))
+                    self.assertEqual((a["state"], a["transitions"]), (b["state"], b["transitions"]))
+                    for k in ("variance", "duty", "duration"):
+                        self.assertAlmostEqual(a[k], b[k], delta=1e-9 * max(1.0, abs(b[k])))
+
+
+class FastStats(unittest.TestCase):
+    def test_agrees_with_statistics_and_keeps_offsets(self):
+        import random
+        import statistics
+        from mtdi import stats
+        rng = random.Random(9)
+        for _ in range(200):
+            xs = [rng.gauss(rng.uniform(-1e6, 1e6), rng.uniform(1e-3, 1e3)) for _ in range(rng.randint(2, 400))]
+            self.assertAlmostEqual(stats.pvariance(xs), statistics.pvariance(xs),
+                                   delta=1e-12 * statistics.pvariance(xs) + 1e-300)
+        self.assertAlmostEqual(stats.pvariance([1e16, 1e16 + 2, 1e16 + 2]), 8 / 9, places=12)
+        self.assertEqual((stats.pvariance([5.0]), stats.pstdev([3.0, 3.0])), (0.0, 0.0))

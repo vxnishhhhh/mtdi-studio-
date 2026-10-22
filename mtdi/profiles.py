@@ -20,7 +20,7 @@ import importlib
 
 from .capabilities import PROFILE_MIN_MB, select_runtime
 
-CORE = ["mtdi.protocol", "mtdi.project", "mtdi.engine", "mtdi.adapters", "mtdi.core",
+CORE = ["mtdi.protocol", "mtdi.project", "mtdi.engine", "mtdi.adapters", "mtdi.core", "mtdi.stats",
         "mtdi.pillars.validation", "mtdi.pillars.environment", "mtdi.pillars.nvtra", "mtdi.pillars.aether"]
 ML = ["mtdi.ml.anomaly", "mtdi.ml.features", "mtdi.ml.monitor", "mtdi.ml.forecast",
       "mtdi.ml.classify", "mtdi.ml.cluster"]

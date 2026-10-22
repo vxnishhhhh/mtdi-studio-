@@ -11,6 +11,8 @@ measured noise, LOD = 3σ and LOQ = 10σ. Never typed in.
 from collections import deque
 import statistics
 
+from .. import stats
+
 DATA_SOURCES = ("HARDWARE", "REPLAY", "SIMULATED", "SOFTWARE")
 
 
@@ -53,7 +55,7 @@ class ChannelEvidence:
         timing = 1.0
         if len(intervals) >= 4:
             mean = statistics.fmean(intervals)
-            timing = 1.0 / (1 + statistics.pstdev(intervals) / max(mean, 1e-12))
+            timing = 1.0 / (1 + stats.pstdev(intervals) / max(mean, 1e-12))
         expected = spec.get("expected_rate")
         rate_ratio = (rate / expected) if expected and rate else None
         clip_share = (sum(self.clips) / len(self.clips)) if self.clips else 0.0
