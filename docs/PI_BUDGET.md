@@ -31,6 +31,10 @@ From `docs/results/pi-budget/cloud-reference-2026-10-21.md`. Expect the Pi to be
 
 Every profile cold-starts in under 0.1 s with about 21 MB of peak memory.
 
+**After the speed work (#19, #22, #23)**, from `docs/results/pi-budget/cloud-reference-2026-10-22.md`:
+128 channels take **116 ms** with a new packet before every snapshot (the worst case, now measured by
+`measure.py` too) and 68 ms when snapshots repeat without new data. 32 channels take 19 ms and 13 ms.
+
 ## Finding: snapshot cost grows with channels squared
 
 `mtdi.core.correlation` compares every pair of channels on every snapshot. At 128 channels that is 8,128
