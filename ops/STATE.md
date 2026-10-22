@@ -3,14 +3,16 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 94 tests)
-* **Open PRs:** #8 (S1-12a NVTRA policy + local LLM), #9 (S1-12b agents)
-* **Next item:** S1-12 part 3 (bot uses agents, NVTRA brand), then S1-11 part 2, S1-10 HF copy, S1-13 to S1-16
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 136 tests, MATLAB parity in GNU Octave)
+* **Open PRs:** none
+* **Next item:** studio panel for fused/calibrated channels (S1-11), S1-10 Hugging Face copy (needs a workflow: owner review per ADR 0002), S1-15 I³ refresh, S1-12 NVTRA brand beyond the chat header. Re-check S1-16b against real Pi numbers before more speed work.
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-22 night · Merged #11-#30: NVTRA bot uses agents + brand mark; calibration, fused channels and drift checks in manifest/engine; Aether tags + hours counter + game spec + late-night CLI note; Pi budget doc + measure.py; snapshot 11x faster at 128 channels (1245 -> 116 ms); flaky test fixed; MATLAB fuse/calibrate/drift + examples (Octave parity); `mtdi calibrate`. Report: ops/reports/2026-10-21-night.md.
 
 * 2026-10-21 evening · Merged S1-02 registry, S1-03 capabilities, S1-04 profiles, S1-10 research catalogue + credits, S1-11 fusion + calibration. #8 and #9 under review. Report: ops/reports/2026-10-21-evening.md.
 
