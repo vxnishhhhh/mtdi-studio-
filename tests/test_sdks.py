@@ -141,6 +141,34 @@ class SDKs(unittest.TestCase):
             self.assertAlmostEqual(mine[3], ref[3], delta=1e-9)
         self.assertEqual(len(rows), 400)
 
+    def test_matlab_fusion_calibration_drift_match_python(self):
+        if not shutil.which("octave"):
+            self.skipTest("octave not installed")
+        from mtdi import fusion
+        rng = __import__("random").Random(4)
+        raw = [rng.uniform(0, 50) for _ in range(40)]
+        temp = [rng.uniform(10, 40) for _ in range(40)]
+        ref = [1.7 * r - 2.3 + 0.04 * (t - 25) + rng.gauss(0, 0.2) for r, t in zip(raw, temp)]
+        res = [0.4, -0.9, 1.3, 2.2]
+        vec = lambda xs: "[" + " ".join(repr(x) for x in xs) + "]"  # noqa: E731
+        script = (f"addpath('{ROOT / 'matlab'}');"
+                  f"[v,var]=mtdi.fuse([10.5 9.8 10.1],[0.04 0.25 0.09]);"
+                  f"a=mtdi.calibrate({vec(raw)},{vec(ref)});"
+                  f"b=mtdi.calibrate({vec(raw)},{vec(ref)},{vec(temp)},25);"
+                  f"d=mtdi.drift({vec(res)},0.5);"
+                  "printf('%.17g\\n',[v var a.gain a.offset a.residual_sd b.gain b.offset b.temp_coeff b.residual_sd "
+                  "mtdi.applyCalibration(b,12.5,31) d.rms d.bias d.limit double(d.drift)]);")
+        got = [float(x) for x in self.run_tool(["octave", "--no-gui", "--quiet", "--eval", script]).split()]
+        v, var = fusion.fuse([(10.5, 0.04), (9.8, 0.25), (10.1, 0.09)])
+        a = fusion.Calibration.fit(raw, ref)
+        b = fusion.Calibration.fit(raw, ref, temperature=temp, temp_ref=25)
+        d = fusion.drift_summary(res, 0.5)
+        want = [v, var, a.gain, a.offset, a.residual_sd, b.gain, b.offset, b.temp_coeff, b.residual_sd,
+                b.apply(12.5, 31), d["rms"], d["bias"], d["limit"], float(d["drift"])]
+        self.assertEqual(len(got), len(want))
+        for g, w in zip(got, want):
+            self.assertAlmostEqual(g, w, delta=1e-9 * max(1.0, abs(w)))
+
 
 if __name__ == "__main__":
     unittest.main()
