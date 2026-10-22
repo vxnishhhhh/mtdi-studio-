@@ -55,6 +55,8 @@ Every source needs a unique `id`. `note` is free text.
 | `calibration` | none | scalar only: `{gain, offset, temp_coeff, temp_ref, temperature_key}` or a path to a file saved by `mtdi.fusion.Calibration.save`; applied after `scale`/`offset`, raw stays in `raw`. `temperature_key` is a protocol key in the same packet; without it in a packet, no temperature term is added |
 | `simulate` | quiet | `{"mean": n or [..], "noise": n, "wave": {"amp", "hz"}, "events": true}` in `unit` |
 
+**Making a calibration file.** Log the sensor next to a reference into a CSV with the header `raw,reference` (add `temperature` for a temperature fit), then run `python -m mtdi calibrate readings.csv --temperature-key TEMP`. It prints the fit and writes `readings.cal.json` for a channel's `calibration`. In MATLAB, `mtdi.calibrate` does the same.
+
 **Calibration drift.** A sensor cannot reveal its own drift, so MTDI checks it against a reference: `POST /mtdi/action {"action": "check", "args": {"channel": "co", "reference": 10.2}}` records one spot check (`Engine.check_calibration`). After 3 checks, an RMS error above 3 × the fit's `residual_sd` sets `calibration.checks.drift` in the snapshot and adds an NVTRA warning. Without a `residual_sd`, drift stays `null` (unknown).
 
 ## fused

@@ -319,3 +319,46 @@ class FusedChannels(unittest.TestCase):
                 ([{"id": "co", "inputs": ["a", "b"], "method": "kalman"}], "inverse-variance", ("ppm", "ppm"))]:
             with self.assertRaisesRegex(ManifestError, needle):
                 normalise(self.manifest(fused, units))
+
+
+class CalibrateCommand(unittest.TestCase):
+    def run_cli(self, *args, cwd):
+        import subprocess
+        return subprocess.run([sys.executable, "-m", "mtdi", "calibrate", *args], cwd=cwd, capture_output=True,
+                              text=True, env={**__import__("os").environ, "PYTHONPATH": str(ROOT)})
+
+    def test_fit_save_and_load_in_a_manifest(self):
+        import json
+        from mtdi.engine import Engine
+        from mtdi.project import load
+        rng = random.Random(8)
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            rows = ["raw,reference,temperature"]
+            for _ in range(30):
+                r, t = rng.uniform(0, 10), rng.uniform(15, 35)
+                rows.append(f"{r},{2 * r + 1 + 0.1 * (t - 25)},{t}")
+            (d / "co.csv").write_text("\n".join(rows), encoding="utf-8")
+            res = self.run_cli("co.csv", "--temperature-key", "T", cwd=d)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn('"calibration": "co.cal.json"', res.stdout)
+            (d / "project.json").write_text(json.dumps({
+                "project": {"id": "c"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "calibration": "co.cal.json"}]}))
+            engine = Engine(load(d))
+        engine.ingest_values("s", {"CO": 4.0, "T": 35.0})
+        self.assertAlmostEqual(engine.snapshot()["channels"]["co"]["value"], 2 * 4 + 1 + 0.1 * 10, places=6)
+
+    def test_refuses_unclear_input(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "t.csv").write_text("raw,reference,temperature\n1,2,20\n2,4,21\n3,6,25\n", encoding="utf-8")
+            self.assertIn("--temperature-key", self.run_cli("t.csv", cwd=d).stderr)
+            self.assertEqual(self.run_cli("t.csv", "--no-temperature", cwd=d).returncode, 0)
+            (d / "bad.csv").write_text("x,y\n1,2\n", encoding="utf-8")
+            self.assertIn("raw,reference", self.run_cli("bad.csv", cwd=d).stderr)
+            (d / "few.csv").write_text("raw,reference\n1,2\n2,4\n", encoding="utf-8")
+            self.assertIn("at least 3", self.run_cli("few.csv", cwd=d).stderr)
+            (d / "nan.csv").write_text("raw,reference\n1,2\nx,4\n3,6\n", encoding="utf-8")
+            self.assertNotEqual(self.run_cli("nan.csv", cwd=d).returncode, 0)
+            self.assertIn("No such file", self.run_cli("missing.csv", cwd=d).stderr)
