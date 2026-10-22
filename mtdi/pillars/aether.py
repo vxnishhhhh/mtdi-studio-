@@ -116,7 +116,16 @@ def scan(root="."):
     return {"tags": found, "hours": hours, "malformed": malformed}
 
 
-def render(result, top=10):
+def late_note(now, hours):
+    """The CLI's one Easter egg: past 23:00 and before 05:00 (the same "late" band NVTRA uses),
+    suggest a save point. Any other time, say nothing."""
+    if not (now.hour >= 23 or now.hour < 5):
+        return None
+    tail = f" The repo already confesses {hours:g} h; no need to add to it tonight." if hours else ""
+    return f"{now:%H:%M}. Commit what works, write the bug down, sleep. It will still be there tomorrow.{tail}"
+
+
+def render(result, top=10, now=None):
     t = result["tags"]
     out = [f"Aether · {len(t['GUIDE'])} guides · {len(t['CONTEXT'])} context notes · {len(t['AETHER'])} aether notes",
            f"Hours wasted, as confessed in comments: {result['hours']:g}"]
@@ -124,4 +133,7 @@ def render(result, top=10):
         out.append(f"  {e['hours']:>5g} h  {e['text']}  ({e['where']})")
     for e in result["malformed"]:
         out.append(f"  ?  unreadable HOURS-WASTED at {e['where']}: write it as HOURS-WASTED, colon, '2 - what happened'")
+    note = late_note(now, result["hours"]) if now else None
+    if note:
+        out += ["", note]
     return "\n".join(out)

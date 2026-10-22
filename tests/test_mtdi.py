@@ -475,6 +475,13 @@ class AetherTags(unittest.TestCase):
         self.assertIn("unreadable", aether.render(result))
         with self.assertRaises(FileNotFoundError):
             aether.scan(pathlib.Path(d) / "typo")
+        import datetime
+        at = lambda h, m=0: datetime.datetime(2026, 10, 22, h, m)  # noqa: E731
+        self.assertIn("02:30. Commit what works", aether.render(result, now=at(2, 30)))
+        self.assertIn("confesses 3.5 h", aether.render(result, now=at(23, 5)))
+        for quiet in (at(5), at(14), at(22, 59)):
+            self.assertNotIn("Commit what works", aether.render(result, now=quiet))
+        self.assertNotIn("confesses", aether.late_note(at(1), 0))
 
 
 class CorrelationCache(unittest.TestCase):
