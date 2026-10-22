@@ -23,6 +23,8 @@ import re
 import statistics
 import time
 
+from .. import stats
+
 
 class BaselineLock:
     """A time-window median learns quiet values and rejects temporary excursions."""
@@ -119,40 +121,70 @@ class BaselineLock:
 
 
 class TransientWatch:
-    """Classify a bounded time history against measured baseline variation."""
+    """Classify a bounded time history against measured baseline variation.
 
-    def __init__(self, span=12.0):
+    Each sample's "active" flag (|deviation| > 3 x its local noise) is fixed when it arrives, so the
+    transition count and the active duration are kept as running totals instead of rescanning the
+    whole window on every snapshot. The float total is rebuilt exactly every `maxlen` updates so
+    rounding cannot drift. Variance stays an exact two-pass sum."""
+
+    def __init__(self, span=12.0, maxlen=1200):
         self.span = span
-        self.history = deque(maxlen=1200)
+        self.history = deque()          # (timestamp, deviation, noise, active)
+        self.maxlen = maxlen
+        self._transitions = 0           # adjacent pairs whose active flag differs
+        self._active_time = 0.0         # sum of segment lengths that start on an active sample
+        self._any_active = 0            # active samples in the window
+        self._since_rebuild = 0
+
+    def _drop_oldest(self):
+        t0, _, _, a0 = self.history.popleft()
+        self._any_active -= a0
+        if self.history:
+            t1, _, _, a1 = self.history[0]
+            self._transitions -= a0 != a1
+            if a0:
+                self._active_time -= t1 - t0
+
+    def _rebuild(self):
+        h = self.history
+        self._transitions = sum(h[i][3] != h[i + 1][3] for i in range(len(h) - 1))
+        self._active_time = math.fsum(h[i + 1][0] - h[i][0] for i in range(len(h) - 1) if h[i][3])
+        self._any_active = sum(x[3] for x in h)
+        self._since_rebuild = 0
 
     def update(self, timestamp, deviation, noise):
-        self.history.append((timestamp, deviation, noise))
+        active = abs(deviation) > 3 * noise
+        if self.history:
+            tl, _, _, al = self.history[-1]
+            self._transitions += al != active
+            if al:
+                self._active_time += timestamp - tl
+        self.history.append((timestamp, deviation, noise, active))
+        self._any_active += active
+        if len(self.history) > self.maxlen:
+            self._drop_oldest()
         while self.history and self.history[0][0] < timestamp - self.span:
-            self.history.popleft()
+            self._drop_oldest()
+        self._since_rebuild += 1
+        if self._since_rebuild >= self.maxlen:
+            self._rebuild()
 
     def snapshot(self):
-        values = list(self.history)
+        values = self.history
         if not values:
             return {"state": "Unavailable", "variance": None, "threshold": None}
-        deviations = [v for _, v, _ in values]
         noise = max(values[-1][2], 1e-12)
-        # Two-pass float variance with fsum: matches statistics.pvariance to ~1e-15 relative, without its
-        # exact-fraction arithmetic, which cost ~2 ms per channel on every snapshot (tools/pi/measure.py).
-        # Shifted by the first sample, so a large common offset cannot swallow the spread when the mean is rounded.
-        n, ref = len(deviations), deviations[0]
-        shifted = [d - ref for d in deviations]
-        mean = math.fsum(shifted) / n
-        variance = math.fsum((d - mean) ** 2 for d in shifted) / n if n > 1 else 0.0
+        n = len(values)
+        variance = stats.pvariance([v[1] for v in values])
         threshold = (3.0 * noise) ** 2
-        active = [abs(value) > 3 * local for _, value, local in values]
         duration = max(0.0, values[-1][0] - values[0][0])
         # Duration weights make the classification independent of sample rate.
-        segments = [(values[i + 1][0] - values[i][0], active[i]) for i in range(len(values) - 1)]
-        duty = sum(dt for dt, high in segments if high) / max(duration, 1e-12)
-        transitions = sum(a != b for a, b in zip(active, active[1:]))
-        if len(values) < 4 or duration < 1.0:
+        duty = max(0.0, self._active_time) / max(duration, 1e-12)
+        transitions = self._transitions
+        if n < 4 or duration < 1.0:
             state = "Settling"
-        elif not any(active):
+        elif not self._any_active:
             state = "Stable / ambient"
         elif duty > 0.8 and transitions <= 2:
             state = "Continuous"
