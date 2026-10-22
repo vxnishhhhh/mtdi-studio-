@@ -1,4 +1,5 @@
-// Browser tour of every studio page: fails on any page error, failed callback or broken asset.
+// Browser tour of every studio page: fails on any page error, failed callback or broken asset,
+// and (phone pass, 390x844) on any nav button that is covered, off screen or cannot be tapped.
 //
 //   python tools/serve.py 8062 &          then:   node tools/tour.mjs http://127.0.0.1:8062 [outdir]
 //
@@ -52,6 +53,34 @@ for (const [name, nav, path] of pages) {
     fs.writeFileSync(`${out}/${name}.txt`, await page.evaluate(() => document.body.innerText));
   }
 }
+
+// Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an
+// overlay. A phone user taps a point, so check that each nav button's centre is really the button
+// (nothing on top of it), then make one real tap. This is the bug class fixed in #33.
+const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })).newPage();
+phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("phone pageerror: " + e.message); });
+await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
+await phone.waitForTimeout(5000);
+const covered = await phone.evaluate((ids) => ids.map((id) => {
+  const el = document.getElementById(id);
+  if (!el) return `${id}: missing`;
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return `${id}: not visible`;
+  if (r.bottom > innerHeight || r.top < 0) return `${id}: off screen`;
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
+}).filter(Boolean), pages.map((p) => p[1]));
+for (const c of covered) problems.push("phone nav " + c);
+try {
+  await phone.tap("#nav-mtdi", { timeout: 5000 });
+  await phone.waitForTimeout(3000);
+  const where = await phone.evaluate(() => location.pathname);
+  if (where !== "/mtdi") problems.push(`phone: tapping MTDI landed on ${where}`);
+  visited.push({ name: "phone-tap-mtdi", path: where });
+} catch (e) {
+  problems.push("phone: could not tap MTDI: " + e.message.split("\n")[0]);
+}
+
 await browser.close();
 console.log(JSON.stringify({ ok: problems.length === 0, visited, problems: [...new Set(problems)] }, null, 2));
 process.exit(problems.length ? 1 : 0);
