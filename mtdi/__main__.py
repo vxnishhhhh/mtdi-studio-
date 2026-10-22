@@ -343,7 +343,8 @@ def cmd_aether(args):
         result = aether.scan(args.root)
     except FileNotFoundError as error:
         sys.exit(f"mtdi aether: {error}")
-    print(json.dumps(result, indent=2) if args.json else aether.render(result))
+    import datetime
+    print(json.dumps(result, indent=2) if args.json else aether.render(result, now=datetime.datetime.now()))
 
 
 def cmd_registry(args):
