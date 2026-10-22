@@ -559,3 +559,7 @@ class CorrelationEquivalence(unittest.TestCase):
         got = env.snapshot()["variance"]
         want = statistics.pvariance([v for _, v, _ in env.history])
         self.assertAlmostEqual(got, want, delta=abs(want) * 1e-12)
+        env = TransientWatch()
+        for i, v in enumerate([1e16, 1e16 + 2, 1e16 + 2]):
+            env.update(i * 0.1, v, 0.5)
+        self.assertAlmostEqual(env.snapshot()["variance"], 8 / 9, places=12)   # not 4/3
