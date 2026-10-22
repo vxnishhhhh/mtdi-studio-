@@ -514,9 +514,10 @@ html.i3-cursor #i3-finger-cursor {opacity:1;}
 @media(max-width:760px){.i3-channels.four {grid-template-columns:1fr;}}
 @media(max-width:760px) {
  html.phone-desktop,html.phone-desktop body {min-width:0!important;width:100%!important;}
- .site-header {display:flex!important;flex-wrap:wrap!important;gap:8px!important;position:relative!important;padding:14px!important;}
- .nav-glass-wrap {width:100%;order:3;overflow-x:auto;}
- .nav-glass {width:max-content;min-width:100%;}
+ #i3-orb {bottom:calc(76px + env(safe-area-inset-bottom));}  /* sit above the bottom tab bar, not on it */
+ /* The phone header is the fixed bottom tab bar defined in studio/theme.py (max-width:760px).
+    An older rule here forced it back to the top as a relative, wrapping block, so it overlapped
+    the page, which reserves space at the bottom, not the top. */
  .header-pills {min-height:28px;}
  .i3-toolbar {padding:8px 16px;}
  .i3-grid,.i3-channels {grid-template-columns:1fr;}
