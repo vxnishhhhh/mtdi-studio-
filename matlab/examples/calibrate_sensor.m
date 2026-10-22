@@ -4,7 +4,7 @@
 addpath(fullfile(fileparts(mfilename('fullpath')), '..'));
 rand('seed', 1); randn('seed', 1);               % same numbers every run (Octave and MATLAB)
 
-% A cheap sensor reads 1.7x the truth, 2.3 low, and drifts 0.04 per degree away from 25 C.
+% Simulated sensor whose calibration should come out as: true = 1.7*raw - 2.3 + 0.04*(T - 25).
 truth = linspace(0, 50, 40)';
 temp  = 15 + 20 * rand(40, 1);
 raw   = (truth + 2.3 - 0.04 * (temp - 25)) / 1.7 + 0.1 * randn(40, 1);
