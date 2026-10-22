@@ -337,6 +337,49 @@ def cmd_capabilities(args):
         print(f"\n{tid}")
         for prof, (runtime, why) in row.items():
             print(f"  {prof:<11} {runtime:<14} {why}")
+def cmd_calibrate(args):
+    """Fit a calibration from a CSV (columns raw, reference, optional temperature) and save it."""
+    import csv
+    from .fusion import Calibration
+    path = pathlib.Path(args.csv)
+    try:
+        with path.open(newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+    except OSError as error:
+        sys.exit(f"mtdi calibrate: {error}")
+    cols = set(rows[0]) if rows else set()
+    if not {"raw", "reference"} <= cols:
+        sys.exit(f"mtdi calibrate: {path} needs header columns raw,reference (and optionally temperature)")
+    use_t = "temperature" in cols and not args.no_temperature
+    if use_t and not args.temperature_key:
+        sys.exit("mtdi calibrate: a temperature fit needs --temperature-key (the protocol key carrying "
+                 "temperature), or pass --no-temperature")
+    try:
+        raw = [float(r["raw"]) for r in rows]
+        ref = [float(r["reference"]) for r in rows]
+        temp = [float(r["temperature"]) for r in rows] if use_t else None
+        cal = Calibration.fit(raw, ref, temperature=temp, temp_ref=args.temp_ref,
+                              temperature_key=args.temperature_key if use_t else None)
+    except (TypeError, ValueError) as error:
+        sys.exit(f"mtdi calibrate: {error}")
+    # Validate with the manifest's own rules before writing, so a file this command saves always loads
+    # (protocol-valid temperature key, finite numbers, a finite reference temperature).
+    from .project import ManifestError, normalise
+    try:
+        normalise({"project": {"id": "check"}, "sources": [{"id": "s", "adapter": "http"}],
+                   "channels": [{"id": "c", "keys": ["X"], "calibration": cal.to_dict()}]})
+    except ManifestError as error:
+        sys.exit(f"mtdi calibrate: not saved, a manifest would reject it: {error}")
+    out = pathlib.Path(args.out or path.with_suffix(".cal.json"))
+    cal.save(out)
+    d = cal.to_dict()
+    print(f"{d['method']} on {d['n']} readings: gain {d['gain']:.6g}, offset {d['offset']:+.6g}"
+          + (f", {d['temp_coeff']:+.6g} per degree from {d['temp_ref']:g}" if use_t else "")
+          + f", residual sd {d['residual_sd']:.4g}")
+    print(f"saved {out}\nput it in the project folder (next to project.json) and set "
+          f"\"calibration\": \"{out.name}\" on the channel")
+
+
 def cmd_aether(args):
     from .pillars import aether
     try:
@@ -387,7 +430,7 @@ def cmd_describe(args):
                          "command": "python -m mtdi capabilities"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
                      **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
-        "commands": ["aether", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "commands": ["aether", "calibrate", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -444,6 +487,13 @@ def main(argv=None):
     watch.add_argument("project")
     watch.add_argument("--simulate", action="store_true")
     watch.set_defaults(func=cmd_watch)
+    calib = sub.add_parser("calibrate", help="fit a sensor calibration from a CSV and save it for a manifest")
+    calib.add_argument("csv", help="CSV with header raw,reference[,temperature]")
+    calib.add_argument("--out", help="output file (default: <csv>.cal.json)")
+    calib.add_argument("--temperature-key", help="protocol key that carries temperature in live packets")
+    calib.add_argument("--temp-ref", type=float, default=25.0, help="reference temperature (default 25)")
+    calib.add_argument("--no-temperature", action="store_true", help="ignore a temperature column")
+    calib.set_defaults(func=cmd_calibrate)
     aeth = sub.add_parser("aether", help="guides, context notes and the hours-wasted counter from code comments")
     aeth.add_argument("root", nargs="?", default=".")
     aeth.add_argument("--json", action="store_true")
