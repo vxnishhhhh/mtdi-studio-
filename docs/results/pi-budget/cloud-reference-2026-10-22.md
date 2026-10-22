@@ -1,6 +1,6 @@
 # MTDI budget · cloud container (x86_64, NOT a Pi) · 2026-10-22, after #19, #22 and #23
 
-Measured with `tools/pi/measure.py` on vm: 4 CPUs, 16093 MB RAM, Python 3.13.16.
+Measured with `tools/pi/measure.py` on vm: 4 CPUs, 16093 MB RAM, Python 3.13.16. Command: `python tools/pi/measure.py --no-llm` (default: 3,000 packets per channel count, so the history windows are full; measured before the cache warm-up fix, so its "no new data" column includes one uncached snapshot in 50).
 
 ## Cold start per profile
 

@@ -81,6 +81,7 @@ def engine_throughput(channels, packets):
         clock[0] = n * 0.01
         engine.ingest_values("s", {f"K{i}": (n * 7 + i) % 100 / 10 for i in range(channels)})
     ingest = time.perf_counter() - t
+    engine.snapshot()                              # warm: the first one after ingest recomputes the correlation
     t = time.perf_counter()
     for _ in range(50):
         engine.snapshot()
@@ -92,7 +93,7 @@ def engine_throughput(channels, packets):
         t = time.perf_counter()
         engine.snapshot()
         fresh += time.perf_counter() - t
-    return {"channels": channels, "packets_per_s": round(packets / ingest), "snapshot_ms": round(snap * 1000, 2),
+    return {"channels": channels, "packets": packets, "packets_per_s": round(packets / ingest), "snapshot_ms": round(snap * 1000, 2),
             "snapshot_fresh_ms": round(fresh / 20 * 1000, 2)}
 
 
@@ -120,6 +121,9 @@ def render(r):
     out = [f"# MTDI budget · {m['model']} · {r['date']}", "",
            f"Measured with `tools/pi/measure.py` on {m['host']}: {m['cpus']} CPUs, {m['memory_mb']} MB RAM, "
            f"Python {m['python']}" + (f", CPU {m['cpu_temp_c']:.0f} °C at start" if m["cpu_temp_c"] else "") + ".", "",
+           f"Engine runs ingest {r['engine'][0]['packets']} packets per channel count before timing"
+           + (" (`--quick`: history windows are not full, so snapshots read low)." if r['engine'][0]['packets'] < 3000 else ".")
+           if r.get("engine") else "", "",
            "## Cold start per profile", "", "| profile | import (s) | peak memory (MB) |", "|---|---|---|"]
     for name, p in r["profiles"].items():
         out.append(f"| {name} | {p['import_s']:.2f} | {p['peak_mb']} |" if "error" not in p else f"| {name} | error: {p['error']} | |")
