@@ -362,13 +362,22 @@ def cmd_calibrate(args):
                               temperature_key=args.temperature_key if use_t else None)
     except (TypeError, ValueError) as error:
         sys.exit(f"mtdi calibrate: {error}")
+    # Validate with the manifest's own rules before writing, so a file this command saves always loads
+    # (protocol-valid temperature key, finite numbers, a finite reference temperature).
+    from .project import ManifestError, normalise
+    try:
+        normalise({"project": {"id": "check"}, "sources": [{"id": "s", "adapter": "http"}],
+                   "channels": [{"id": "c", "keys": ["X"], "calibration": cal.to_dict()}]})
+    except ManifestError as error:
+        sys.exit(f"mtdi calibrate: not saved, a manifest would reject it: {error}")
     out = pathlib.Path(args.out or path.with_suffix(".cal.json"))
     cal.save(out)
     d = cal.to_dict()
     print(f"{d['method']} on {d['n']} readings: gain {d['gain']:.6g}, offset {d['offset']:+.6g}"
           + (f", {d['temp_coeff']:+.6g} per degree from {d['temp_ref']:g}" if use_t else "")
           + f", residual sd {d['residual_sd']:.4g}")
-    print(f"saved {out}  ->  in project.json: \"calibration\": \"{out.name}\"")
+    print(f"saved {out}\nput it in the project folder (next to project.json) and set "
+          f"\"calibration\": \"{out.name}\" on the channel")
 
 
 def cmd_aether(args):

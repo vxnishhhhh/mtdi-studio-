@@ -342,6 +342,7 @@ class CalibrateCommand(unittest.TestCase):
             res = self.run_cli("co.csv", "--temperature-key", "T", cwd=d)
             self.assertEqual(res.returncode, 0, res.stderr)
             self.assertIn('"calibration": "co.cal.json"', res.stdout)
+            self.assertIn("project folder", res.stdout)
             (d / "project.json").write_text(json.dumps({
                 "project": {"id": "c"}, "sources": [{"id": "s", "adapter": "http"}],
                 "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "calibration": "co.cal.json"}]}))
@@ -362,3 +363,11 @@ class CalibrateCommand(unittest.TestCase):
             (d / "nan.csv").write_text("raw,reference\n1,2\nx,4\n3,6\n", encoding="utf-8")
             self.assertNotEqual(self.run_cli("nan.csv", cwd=d).returncode, 0)
             self.assertIn("No such file", self.run_cli("missing.csv", cwd=d).stderr)
+            (d / "t.cal.json").unlink()                  # written by the --no-temperature run above
+            for bad in (["--temperature-key", "TEMP C"], ["--temperature-key", "T", "--temp-ref", "nan"]):
+                res = self.run_cli("t.csv", *bad, cwd=d)
+                self.assertIn("a manifest would reject it", res.stderr)
+                self.assertFalse((d / "t.cal.json").exists())
+            (d / "inf.csv").write_text("raw,reference\n1,2\n2,inf\n3,6\n", encoding="utf-8")
+            self.assertNotEqual(self.run_cli("inf.csv", cwd=d).returncode, 0)
+            self.assertFalse((d / "inf.cal.json").exists())
