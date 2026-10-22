@@ -3,7 +3,7 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 136 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 137 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
 * **Next item:** studio panel for fused/calibrated channels (S1-11), S1-10 Hugging Face copy (needs a workflow: owner review per ADR 0002), S1-15 I³ refresh, S1-12 NVTRA brand beyond the chat header. Re-check S1-16b against real Pi numbers before more speed work.
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
@@ -11,6 +11,8 @@ Updated by every session. Newest first.
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-22 midday · Main green, no open PRs. Paused for the owner's studio data-path decision (S1-11) and the Pi measurement. Merged since the night summary: #32 (`mtdi watch` fused/calibrated), #33 (phone nav fix), #34 (morning report).
 
 * 2026-10-22 night · Merged #11-#30: NVTRA bot uses agents + brand mark; calibration, fused channels and drift checks in manifest/engine; Aether tags + hours counter + game spec + late-night CLI note; Pi budget doc + measure.py; snapshot 11x faster at 128 channels (1245 -> 116 ms); flaky test fixed; MATLAB fuse/calibrate/drift + examples (Octave parity); `mtdi calibrate`. Report: ops/reports/2026-10-21-night.md.
 
