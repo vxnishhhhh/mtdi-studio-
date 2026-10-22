@@ -448,10 +448,15 @@ class StudioIngest(unittest.TestCase):
         import threading
         from studio.system import LIFECYCLE
         LIFECYCLE.stop()
-        cls.env.stop()
+        # stop() does not join every thread (e.g. a deferred online restore can sit in a 30 s request):
+        # give the rest a bounded wait before deciding.
+        for t in [t for t in threading.enumerate() if t.name.startswith("studio-")]:
+            t.join(35)
         alive = [t.name for t in threading.enumerate() if t.name.startswith("studio-") and t.is_alive()]
         if alive:   # stop() gave up at its deadline: leave HOME in place rather than race a live writer
+            cls.env.stop()
             raise AssertionError(f"studio workers still running after stop(): {', '.join(alive)}")
+        cls.env.stop()   # only now: a late worker must still see the temporary HOME, not the real one
         cls.tmp.cleanup()
 
     def test_token_required(self):
