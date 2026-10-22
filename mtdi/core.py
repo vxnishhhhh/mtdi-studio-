@@ -10,7 +10,6 @@ says so wherever it is shown.
 """
 import bisect
 import math
-import statistics
 
 DEFAULT_WEIGHTS = {"availability": 0.20, "baseline": 0.15, "signal_to_noise": 0.20,
                    "clipping": 0.15, "timing": 0.10, "transient": 0.10,
@@ -60,29 +59,36 @@ def score(terms, weights, active):
 
 
 def correlation(histories, span=8.0, align=0.3):
-    """Pearson correlation of deviation between every pair of channels, time aligned."""
+    """Pearson correlation of deviation between every pair of channels, time aligned.
+
+    Every pair is still compared (O(channels²)), but each channel's times are split out once
+    and the pair loop does only bisects and arithmetic: same results, far less work per pair."""
+    # HOURS-WASTED: 0.5 - 691 ms per snapshot at 128 channels, found by tools/pi/measure.py
     matches = []
     keys = [k for k in histories if len(histories[k]) >= 6]
+    series = {k: ([p[0] for p in histories[k]], [p[1] for p in histories[k]]) for k in keys}
     for i, left in enumerate(keys):
+        lt, lv = series[left]
         for right in keys[i + 1:]:
-            lhs, rhs = histories[left], histories[right]
-            times = [p[0] for p in rhs]
-            end = min(lhs[-1][0], rhs[-1][0])
-            pairs = []
-            for t, value in lhs:
-                if t < end - span or t > end:
-                    continue
-                pos = bisect.bisect_left(times, t)
-                near = rhs[max(0, pos - 1):min(len(rhs), pos + 1)]
-                sample = min(near, key=lambda e: abs(e[0] - t))
-                if abs(sample[0] - t) <= align:
-                    pairs.append((value, sample[1]))
-            if len(pairs) < 6:
+            rt, rv = series[right]
+            end = min(lt[-1], rt[-1])
+            lo, hi = bisect.bisect_left(lt, end - span), bisect.bisect_right(lt, end)
+            xs, ys = [], []
+            last = len(rt) - 1
+            for j in range(lo, hi):
+                t = lt[j]
+                pos = bisect.bisect_left(rt, t)
+                # nearest of rt[pos-1] and rt[pos]; on a tie the earlier one, as before
+                k = pos - 1 if pos > last or (pos > 0 and abs(rt[pos - 1] - t) <= abs(rt[pos] - t)) else pos
+                if abs(rt[k] - t) <= align:
+                    xs.append(lv[j])
+                    ys.append(rv[k])
+            n = len(xs)
+            if n < 6:
                 continue
-            mx = statistics.fmean(a for a, _ in pairs)
-            my = statistics.fmean(b for _, b in pairs)
-            cov = sum((a - mx) * (b - my) for a, b in pairs)
-            den = math.sqrt(sum((a - mx) ** 2 for a, _ in pairs) * sum((b - my) ** 2 for _, b in pairs))
+            mx, my = math.fsum(xs) / n, math.fsum(ys) / n
+            cov = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
+            den = math.sqrt(sum((a - mx) ** 2 for a in xs) * sum((b - my) ** 2 for b in ys))
             if den > 1e-12:
-                matches.append({"channels": [left, right], "coefficient": cov / den, "pairs": len(pairs)})
+                matches.append({"channels": [left, right], "coefficient": cov / den, "pairs": n})
     return matches
