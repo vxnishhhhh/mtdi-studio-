@@ -40,7 +40,8 @@ def fuse(readings):
     scale = min(var for _, var in pts)
     w = [scale / var for _, var in pts]
     total = math.fsum(w)
-    return math.fsum((v / total) * wi for (v, _), wi in zip(pts, w)), scale / total
+    # The smallest positive float is the floor: a valid result must stay a valid input to fuse().
+    return math.fsum((v / total) * wi for (v, _), wi in zip(pts, w, strict=True)), max(scale / total, 5e-324)
 
 
 class Kalman1D:

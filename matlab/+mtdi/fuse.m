@@ -14,5 +14,5 @@ scale = min(variances);                % relative weights: 1/variance overflows 
 w = scale ./ variances;
 total = sum(w);
 value = sum((values ./ total) .* w);
-variance = scale / total;
+variance = max(scale / total, realmin * eps);   % never 0: the result must stay a valid input
 end
