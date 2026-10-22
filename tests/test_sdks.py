@@ -154,11 +154,22 @@ class SDKs(unittest.TestCase):
         script = (f"addpath('{ROOT / 'matlab'}');"
                   f"[v,var]=mtdi.fuse([10.5 9.8 10.1],[0.04 0.25 0.09]);"
                   f"a=mtdi.calibrate({vec(raw)},{vec(ref)});"
-                  f"b=mtdi.calibrate({vec(raw)},{vec(ref)},{vec(temp)},25);"
+                  f"b=mtdi.calibrate({vec(raw)},{vec(ref)},{vec(temp)},25,'T');"
+                  f"fid=fopen('{{out}}','w'); fprintf(fid,'%s',jsonencode(b)); fclose(fid);"
                   f"d=mtdi.drift({vec(res)},0.5);"
                   "printf('%.17g\\n',[v var a.gain a.offset a.residual_sd b.gain b.offset b.temp_coeff b.residual_sd "
                   "mtdi.applyCalibration(b,12.5,31) d.rms d.bias d.limit double(d.drift)]);")
-        got = [float(x) for x in self.run_tool(["octave", "--no-gui", "--quiet", "--eval", script]).split()]
+        with tempfile.TemporaryDirectory() as d:
+            out = pathlib.Path(d) / "cal.json"
+            got = [float(x) for x in self.run_tool(["octave", "--no-gui", "--quiet", "--eval",
+                                                     script.replace("{out}", str(out))]).split()]
+            saved = json.loads(out.read_text())
+            project = {"project": {"id": "m"}, "sources": [{"id": "s", "adapter": "http"}],
+                       "channels": [{"id": "co", "keys": ["CO"], "noise_floor": 0.1, "calibration": "cal.json"}]}
+            (pathlib.Path(d) / "project.json").write_text(json.dumps(project))
+            from mtdi.project import load
+            self.assertEqual(load(d)["channels"][0]["calibration"]["temperature_key"], "T")   # MATLAB file loads
+        self.assertEqual(saved["method"], "least-squares+temperature")
         v, var = fusion.fuse([(10.5, 0.04), (9.8, 0.25), (10.1, 0.09)])
         a = fusion.Calibration.fit(raw, ref)
         b = fusion.Calibration.fit(raw, ref, temperature=temp, temp_ref=25)

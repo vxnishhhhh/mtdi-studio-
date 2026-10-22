@@ -1,10 +1,12 @@
-function cal = calibrate(raw, reference, temperature, tempRef)
+function cal = calibrate(raw, reference, temperature, tempRef, temperatureKey)
 %MTDI.CALIBRATE Fit true = gain*raw + offset (+ tempCoeff*(T - tempRef)) by least squares.
 %   cal = mtdi.calibrate(raw, reference)                 offset and gain
 %   cal = mtdi.calibrate(raw, reference, T)              plus temperature, tempRef 25
 %   cal = mtdi.calibrate(raw, reference, T, tempRef)
+%   cal = mtdi.calibrate(raw, reference, T, tempRef, 'TEMP')   protocol key carrying T
 %   Returns a struct with the same fields as mtdi.fusion.Calibration.to_dict (Python), so
-%   jsonencode(cal) is a calibration file a project manifest can point at. Apply it with
+%   jsonencode(cal) is a calibration file a project manifest can point at (a temperature fit
+%   needs temperatureKey for that, the same as in Python). Apply it with
 %   mtdi.applyCalibration. Centring first keeps the fit well conditioned at any scale.
 if nargin < 4, tempRef = 25; end
 x = raw(:); y = reference(:);
@@ -37,4 +39,5 @@ else
 end
 r = y - (cal.gain * x + cal.offset + cal.temp_coeff * t);
 cal.residual_sd = sqrt(sum(r .^ 2) / max(1, numel(r) - 2));
+if nargin >= 5 && ~isempty(temperatureKey), cal.temperature_key = temperatureKey; end
 end
