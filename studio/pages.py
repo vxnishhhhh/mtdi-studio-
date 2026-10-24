@@ -2074,6 +2074,41 @@ def _computational_modules():
     return rows
 
 
+def _fmt(value, sd=None):
+    if value is None:
+        return "—"
+    text = f"{value:.4g}" if isinstance(value, (int, float)) else str(value)
+    return text if sd is None else f"{text} ± {sd:.2g}"
+
+
+def project_channels_view(packet):
+    """The running project's channels and fused estimates, straight from the MTDI packet (pure, testable)."""
+    if not packet:
+        return html.Div("No MTDI project is running in this studio. Start one with: mtdi run projects/<id>",
+                        className="mtdi-section-copy")
+    cards = []
+    for c in packet.get("channels", {}).values():
+        cal = c.get("calibration")
+        sub = [c["evidence"]["state"].upper() + (" · SIMULATED" if packet["fusion"].get("simulated") else "")]
+        if cal:
+            drift = (cal.get("checks") or {}).get("drift")
+            sub.append(f"calibrated {cal['method']} · ±{cal['residual_sd']:.2g}"
+                       + {True: " · DRIFTING", False: " · checks ok"}.get(drift, ""))
+        cards.append(html.Div([html.Div(c["label"], className="sys-name"),
+                               html.Div(f"{_fmt(c['magnitude'])} {c['unit']}", className="sys-value"),
+                               *[html.Div(t, className="sys-sub") for t in sub],
+                               html.Div(f"score {c['score']:.0f} %", className="sys-sub")],
+                              className="sys-card"))
+    for f in (packet.get("fused") or {}).values():
+        basis = ", ".join(f"{i['id']} ({i['basis']})" for i in f["inputs"]) or "no input live"
+        cards.append(html.Div([html.Div(f"FUSED · {f['label']}", className="sys-name"),
+                               html.Div(f"{_fmt(f['value'], f['sd'])} {f['unit']}", className="sys-value"),
+                               html.Div(f"{len(f['inputs'])}/{f['of']} inputs live · {f['method']}", className="sys-sub"),
+                               html.Div(basis, className="sys-sub")],
+                              className="sys-card"))
+    return html.Div(cards, className="sys-grid")
+
+
 def computational_core_section():
     rows = _computational_modules()
     areas = []
@@ -2090,6 +2125,10 @@ def computational_core_section():
                       "Every service and algorithm MTDI is built with, available to the projects built on it.",
                       f"{ready}/{len(rows)} MODULES READY", CYAN),
         html.Div(areas, className="cc-areas"),
+        html.Hr(className="divider"),
+        html.Div("PROJECT CHANNELS · CALIBRATION · FUSION", className="section-label"),
+        html.Div(project_channels_view(None), id="mtdi-project-channels"),
+        dcc.Interval(id="mtdi-project-int", interval=2000, n_intervals=0),
     ], id="mtdi-computational", className="mtdi-section-card", style={"--acc": CYAN, "--glow": f"{CYAN}22"})
 
 

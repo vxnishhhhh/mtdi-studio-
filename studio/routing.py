@@ -1152,6 +1152,12 @@ def _pi_grid():
     ]
 
 
+@app.callback(Output("mtdi-project-channels", "children"), Input("mtdi-project-int", "n_intervals"))
+def update_project_channels(_n):
+    runner = app.server.config.get("MTDI_RUNNER")
+    return project_channels_view(runner.engine.snapshot() if runner else None)
+
+
 @app.callback(
     Output("mtdi-overall","children"), Output("mtdi-sensor-grid","children"),
     Output("esp-sys-grid","children"), Output("mtdi-sys-grid","children"),

@@ -91,6 +91,7 @@ class Runner:
         """Add /mtdi/packet, /mtdi/ingest, /mtdi/action and /mtdi/ask to a Flask server."""
         from flask import jsonify, request
         http_sources = {s["id"]: s for s in self.project["sources"] if s["adapter"] == "http"}
+        server.config["MTDI_RUNNER"] = self      # the studio's project panel reads the engine in process
 
         @server.get(prefix + "/packet", endpoint="mtdi_packet")
         def _packet():
