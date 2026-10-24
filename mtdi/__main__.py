@@ -18,6 +18,7 @@
     python -m mtdi packet projects/x --seconds 5            run headless and print one MTDI packet
     python -m mtdi adopt ../my-repo                         copy MTDI into another repository and set it up
     python -m mtdi doctor                                   is this machine ready? (the installer runs it)
+    python -m mtdi update                                   update an installed MTDI in place (--check: only look)
     python -m mtdi studio --lan                             open the studio interface, reachable on the network
     python -m mtdi describe                                 everything MTDI supports, as JSON (for AIs and tools)
     python -m mtdi analyze projects/x session.jsonl         batch summary; MATLAB's mtdi.analyze must match it
@@ -443,7 +444,7 @@ def cmd_describe(args):
                          "command": "python -m mtdi capabilities"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
                      **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
-        "commands": ["aether", "doctor", "studio", "calibrate", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "commands": ["aether", "doctor", "studio", "update", "calibrate", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
@@ -454,6 +455,11 @@ def cmd_describe(args):
 def cmd_doctor(args):
     from .doctor import main as doctor
     sys.exit(doctor(quick=args.quick))
+
+
+def cmd_update(args):
+    from .update import main as update
+    sys.exit(update(check_only=args.check))
 
 
 def cmd_studio(args):
@@ -589,6 +595,9 @@ def main(argv=None):
     doc = sub.add_parser("doctor", help="check this machine is ready to run MTDI")
     doc.add_argument("--quick", action="store_true", help="skip the speed test")
     doc.set_defaults(func=cmd_doctor)
+    upd = sub.add_parser("update", help="update MTDI in place (git pull, reinstall if needed, restart autostart)")
+    upd.add_argument("--check", action="store_true", help="only say whether an update is waiting")
+    upd.set_defaults(func=cmd_update)
     studio = sub.add_parser("studio", help="open the studio interface (any run.py option passes through, e.g. --lan)")
     studio.add_argument("studio_args", nargs=argparse.REMAINDER)
     studio.set_defaults(func=cmd_studio)

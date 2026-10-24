@@ -90,7 +90,7 @@ launcher() {
 #!/bin/sh
 # MTDI launcher, written by install.sh. Remove with: $MTDI_HOME/install.sh --uninstall
 export MTDI_LOCAL_LLM="\${MTDI_LOCAL_LLM:-1}"   # use Ollama when it runs; falls back instantly when it does not
-exec "$MTDI_HOME/.venv/bin/python" -m mtdi "\$@"
+exec "$MTDI_HOME/.venv/bin/python" -P -m mtdi "\$@"   # -P: never import an mtdi/ folder from the current directory
 EOF
   chmod +x "$BIN/mtdi"
   case ":$PATH:" in
@@ -113,7 +113,7 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=$MTDI_HOME
-ExecStart=$MTDI_HOME/.venv/bin/python -m mtdi studio --lan
+ExecStart=$MTDI_HOME/.venv/bin/python -P -m mtdi studio --lan
 Restart=on-failure
 
 [Install]
@@ -132,7 +132,7 @@ EOF
 <plist version="1.0"><dict>
   <key>Label</key><string>dev.mtdi.studio</string>
   <key>WorkingDirectory</key><string>$MTDI_HOME</string>
-  <key>ProgramArguments</key><array><string>$MTDI_HOME/.venv/bin/python</string><string>-m</string><string>mtdi</string><string>studio</string><string>--lan</string></array>
+  <key>ProgramArguments</key><array><string>$MTDI_HOME/.venv/bin/python</string><string>-P</string><string>-m</string><string>mtdi</string><string>studio</string><string>--lan</string></array>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
   <key>StandardErrorPath</key><string>$HOME/.mtdi-studio/launchd.log</string>
 </dict></plist>

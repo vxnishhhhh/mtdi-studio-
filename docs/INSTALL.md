@@ -32,6 +32,16 @@ On a Pi 5 it takes a few minutes. Most of that time is downloading the Python pa
 
 When piping the installer from `curl`, pass options like this: `curl -fsSL .../install.sh | bash -s -- --autostart`.
 
+## Updating
+
+```bash
+mtdi update --check    # is there an update?
+mtdi update            # pull it, reinstall packages if they changed, restart the autostart service, run a quick doctor
+```
+
+Your projects and recordings are your own files, and an update never touches them. If you have edited
+one of MTDI's own files, the update stops and lists that file instead of overwriting it.
+
 ## After installing
 
 ```bash
