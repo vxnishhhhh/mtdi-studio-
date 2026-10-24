@@ -146,7 +146,7 @@ EOF
 uninstall() {
   local home
   home="$(script_dir || true)"
-  [ -n "$home" ] && [ -f "$home/run.py" ] || home="$MTDI_HOME"
+  [ -n "$home" ] && [ -f "$home/run.py" ] && [ -d "$home/mtdi" ] || home="$MTDI_HOME"
   if [ "$OS" = Linux ] && [ -f "$HOME/.config/systemd/user/mtdi-studio.service" ]; then
     systemctl --user disable --now mtdi-studio.service 2>/dev/null || true
     rm -f "$HOME/.config/systemd/user/mtdi-studio.service"

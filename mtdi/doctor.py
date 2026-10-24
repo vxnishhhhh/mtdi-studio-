@@ -95,19 +95,20 @@ def check_serial():
 
 
 def check_local_model():
+    keys = [k for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY") if os.environ.get(k)]
+    cloud = ("local AI", "ok", "cloud model key set: " + ", ".join(keys)) if keys else None
     try:
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=1.5) as r:
             models = [m.get("name") for m in json.loads(r.read()).get("models") or [] if isinstance(m, dict)]
         if models:
             return "local AI", "ok", "Ollama running with " + ", ".join(map(str, models[:3])) + "; NVTRA answers offline"
-        return "local AI", "warn", "Ollama running but no model pulled (run: ollama pull llama3.2:3b)"
+        return cloud or ("local AI", "warn", "Ollama running but no model pulled (run: ollama pull llama3.2:3b)")
     except (OSError, ValueError, AttributeError):
         pass
+    if cloud:
+        return cloud
     if shutil.which("ollama"):
         return "local AI", "warn", "Ollama installed but not running (start it: ollama serve)"
-    keys = [k for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY") if os.environ.get(k)]
-    if keys:
-        return "local AI", "ok", "cloud model key set: " + ", ".join(keys)
     return "local AI", "warn", "no model; NVTRA uses its offline rules (still grounded, less fluent)"
 
 

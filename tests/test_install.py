@@ -67,6 +67,9 @@ class InstallScript(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
             here = pathlib.Path(d, "lookalike")
+            for sub in (".venv",):            # run.py alone is not an MTDI checkout
+                (pathlib.Path(d, "runonly") / sub).mkdir(parents=True)
+            pathlib.Path(d, "runonly", "run.py").write_text("")
             for sub in ("mtdi", ".venv"):
                 (here / sub).mkdir(parents=True)
             (here / "run.py").write_text("")
@@ -75,6 +78,10 @@ class InstallScript(unittest.TestCase):
                 subprocess.run(["bash", "-s", "--", "--uninstall"], stdin=script, cwd=here, env=env,
                                capture_output=True, check=True)
             self.assertTrue((here / ".venv").is_dir())
+            runonly = pathlib.Path(d, "runonly")              # the script as a file beside a stray run.py
+            shutil.copy(ROOT / "install.sh", runonly / "install.sh")
+            subprocess.run(["bash", str(runonly / "install.sh"), "--uninstall"], env=env, capture_output=True, check=True)
+            self.assertTrue((runonly / ".venv").is_dir())
 
 
 class LocalModel(unittest.TestCase):
@@ -88,6 +95,11 @@ class LocalModel(unittest.TestCase):
 
     def test_ollama_without_a_model_is_a_warning(self):
         self.assertEqual(self.probe(b'{"models": []}')[1], "warn")
+
+    def test_empty_ollama_with_a_cloud_key_is_ready(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "x"}):
+            self.assertEqual(self.probe(b'{"models": []}')[1], "ok")
 
     def test_ollama_with_a_model_is_ready(self):
         name, status, detail = self.probe(b'{"models": [{"name": "llama3.2:3b"}]}')
