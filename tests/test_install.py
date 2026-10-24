@@ -84,7 +84,16 @@ class InstallScript(unittest.TestCase):
             self.assertTrue((runonly / ".venv").is_dir())
 
 
+CLOUD_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY")
+
+
 class LocalModel(unittest.TestCase):
+    def setUp(self):                        # a developer's own keys must not change the verdicts below
+        from unittest import mock
+        patcher = mock.patch.dict(os.environ, {k: v for k, v in os.environ.items() if k not in CLOUD_KEYS}, clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def probe(self, body):
         import io
         from unittest import mock
