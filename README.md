@@ -60,7 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/vxnishhhhh/mtdi-studio-/main/instal
 ~/.local/bin/mtdi studio --lan   # the interface, from any device on your network (plain `mtdi` in a new terminal)
 ```
 
-Add `--autostart` (`... | bash -s -- --autostart`) to start the studio at boot. Details: [docs/INSTALL.md](docs/INSTALL.md).
+Add `--autostart` (`... | bash -s -- --autostart`) to start the studio at boot. Update later with `mtdi update`. Details: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Quick start (from a clone)
 

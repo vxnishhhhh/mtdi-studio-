@@ -63,6 +63,12 @@ class InstallScript(unittest.TestCase):
         res = subprocess.run(["bash", str(ROOT / "install.sh"), "--nope"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 2)
 
+    def test_every_entry_point_ignores_the_current_folder(self):
+        text = (ROOT / "install.sh").read_text()
+        self.assertNotIn("/bin/python -m mtdi", text)          # each one must pass -P
+        self.assertEqual(text.count("-P -m mtdi"), 2)           # launcher and systemd unit
+        self.assertIn("<string>-P</string><string>-m</string>", text)
+
     def test_piped_uninstall_never_touches_the_current_folder(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
