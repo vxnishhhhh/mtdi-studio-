@@ -107,6 +107,21 @@ named channel must be live for the rule to match.
 
 `purpose`, `story` (list), `authorship` (list), `quote`. Non-functional.
 
+## interface
+
+The studio's words for this project: the brand, the nav and page names, each page's title and
+subtitle, the boot screen, the startup intro and the Home hero and cards. Optional. Every key is
+listed with today's default in `studio/content/default.json`. Set only the ones you want; each
+value must be non-empty text, and an unknown key is an error (`mtdi check` reports it).
+
+```json
+"interface": {"brand.title": "Greenhouse", "nav.page1": "Climate", "page1.title": "Air and soil",
+              "home.subtitle": "Three beds, eight sensors, one baseline."}
+```
+
+`mtdi run` applies them before the studio is built. For a studio without a project, point
+`MTDI_CONTENT` at a JSON file of the same shape. A project's words win over `MTDI_CONTENT`.
+
 ## studio
 
 Which project channels fill the studio interface's three display channels. Optional; without

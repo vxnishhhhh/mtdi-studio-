@@ -1,6 +1,7 @@
 """GLOBAL_CSS: the complete stylesheet, light mode and the startup intro component."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens')
+from .content import T  # studio words (S1-06)
 
 GLOBAL_CSS = f"""
 *{{box-sizing:border-box;margin:0;padding:0}}
@@ -1794,13 +1795,13 @@ def startup_intro():
     return html.Section([
         html.Div([
             html.Canvas(id="intro-shader"),
-            html.Div("I³   Induction · Interference · Intelligence", className="intro-eyebrow"),
-            html.Div('TITLE', className="intro-title intro-title-top"),
-            html.Div('TEXT', className="intro-title intro-title-bottom"),
+            html.Div(T("intro.eyebrow"), className="intro-eyebrow"),
+            html.Div(T("intro.title_top"), className="intro-title intro-title-top"),
+            html.Div(T("intro.title_bottom"), className="intro-title intro-title-bottom"),
             html.Article([
-                html.Div('Label', className="intro-card-kicker"),
-                html.H1("Heading 1", className="intro-card-title"),
-                html.P('Paragraph. Enter your text here.',
+                html.Div(T("intro.kicker"), className="intro-card-kicker"),
+                html.H1(T("intro.heading"), className="intro-card-title"),
+                html.P(T("intro.description"),
                        className="intro-description"),
                 html.Div('Label', className="hardware-label"),
                 html.Div([

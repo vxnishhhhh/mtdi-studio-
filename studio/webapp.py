@@ -1,6 +1,7 @@
 """Flask server, security headers, gzip, Spline and NVTRA asset routes, Dash app, index and layout."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser')
+from .content import T  # studio words (S1-06): studio/content/default.json
 
 
 server = Flask(__name__)
@@ -660,7 +661,7 @@ app.layout = html.Div([
             "boxShadow":"0 -4px 30px rgba(255,171,64,0.45)",
         },
     ),
-    html.Div("Author", id="fixed-credit"),
+    html.Div(T("brand.credit"), id="fixed-credit"),
     html.Div([html.Span(id="typewriter-text"), html.Span("▋", id="typewriter-cursor")], id="typewriter-bar"),
     html.Div(id="nvtra-alert-stack"),
     html.Div(id="nvtra-alert-trigger", style={"display":"none"}),
@@ -686,17 +687,17 @@ app.layout = html.Div([
     # 2px navigation progress bar — the entire "loading" affordance. See RENDERING NOTES.
     html.Div(id="nav-progress"),
     html.Div([
-        dcc.Link(html.Div("Title", className="header-brand"), href="/", style={"textDecoration":"none"}),
+        dcc.Link(html.Div(T("brand.title"), className="header-brand"), href="/", style={"textDecoration":"none"}),
         html.Div([html.Div(id="nav-glass", className="nav-glass", children=[
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Home"],     className="nav-glass-btn", id="nav-home"),     href="/",         style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),T("nav.home")],     className="nav-glass-btn", id="nav-home"),     href="/",         style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 1"], className="nav-glass-btn", id="nav-em"),       href="/page-1",       style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),T("nav.page1")], className="nav-glass-btn", id="nav-em"),       href="/page-1",       style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Page 2"], className="nav-glass-btn", id="nav-sweep3"), href="/page-2", style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),T("nav.page2")], className="nav-glass-btn", id="nav-sweep3"), href="/page-2", style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"MTDI"],     className="nav-glass-btn", id="nav-mtdi"),     href="/mtdi",     style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),T("nav.mtdi")],     className="nav-glass-btn", id="nav-mtdi"),     href="/mtdi",     style={"textDecoration":"none"}),
             html.Div(className="nav-glass-sep"),
-            dcc.Link(html.Button([html.Span(className="nav-dot"),"Settings"], className="nav-glass-btn", id="nav-settings"), href="/settings", style={"textDecoration":"none"}),
+            dcc.Link(html.Button([html.Span(className="nav-dot"),T("nav.settings")], className="nav-glass-btn", id="nav-settings"), href="/settings", style={"textDecoration":"none"}),
         ])], className="nav-glass-wrap"),
         html.Div(id="header-pills", className="header-pills"),
         dcc.Interval(id="header-interval", interval=1200, n_intervals=0),

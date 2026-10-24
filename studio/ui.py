@@ -3,6 +3,8 @@
 import base64
 import json
 import re
+
+from .content import T  # studio words (S1-06)
 import zlib
 
 CSS = r'''
@@ -767,7 +769,7 @@ BOOT_HTML = '''<div id="i3-boot" role="status" aria-live="polite">
  <div class="i3-liquid-col" style="--c1:#4f46e5;--c2:#818cf8"><i class="i3-drop"></i><b class="i3-bar"><s></s><u></u></b><i class="i3-base"></i></div>
  <div class="i3-liquid-col" style="--c1:#0e7490;--c2:#22d3ee"><i class="i3-drop"></i><b class="i3-bar"><s></s><u></u></b><i class="i3-base"></i></div>
 </div>
-<div class="i3-boot-title">Title <span>Text</span></div>
+<div class="i3-boot-title">{BOOT_TITLE}</div>
 <div class="i3-boot-row">
  <div class="i3-progress-wrap">
   <div class="i3-progress-head"><span id="i3-boot-state">Preparing the interface</span><span id="i3-boot-percent">0%</span></div>
@@ -779,7 +781,7 @@ BOOT_HTML = '''<div id="i3-boot" role="status" aria-live="polite">
 </div>
 <div id="i3-mode" hidden>
  <div class="i3-boot-eyebrow">I³ · INDUCTION · INTERFERENCE · INTELLIGENCE</div>
- <div class="i3-boot-title" style="font-size:clamp(30px,5vw,54px)">Title <span>Text</span></div>
+ <div class="i3-boot-title" style="font-size:clamp(30px,5vw,54px)">{BOOT_TITLE}</div>
  <div class="i3-mode-title">How should the studio run?</div>
  <div class="i3-mode-sub" id="i3-mode-sub">Checking the internet connection</div>
  <div class="i3-mode-grid">
@@ -791,6 +793,13 @@ BOOT_HTML = '''<div id="i3-boot" role="status" aria-live="polite">
 </div><canvas id="i3-field-background" aria-hidden="true"></canvas>
 <script>(function(){var scene=document.getElementById('i3-scene');if(!scene)return;var imgs=Array.from(scene.querySelectorAll('img')),W=innerWidth,H=innerHeight,tx=W/2,ty=H/2,px=tx,py=ty,last=performance.now(),idle=true,t0=last;function fit(){W=innerWidth;H=innerHeight;scene.style.setProperty('--scene-scale',String(Math.max(.45,Math.min(1,W/1920))));tx=Math.max(0,Math.min(W,tx));ty=Math.max(0,Math.min(H,ty));}fit();addEventListener('resize',fit,{passive:true});function apply(cx,cy){var x=cx-W/2,y=cy-H/2,rot=(x/Math.max(1,W/2))*6;for(var i=0;i<imgs.length;i++){var el=imgs[i],d=el.dataset,left=el.offsetLeft,isLeft=left<W/2?1:-1,z=Math.max(-36,Math.min(36,(cx-left)*isLeft*.045*+d.sz)),dx=-x*+d.sx,dy=y*+d.sy;el.style.transform='translate3d(calc(-50% + '+dx.toFixed(2)+'px),calc(-50% + '+dy.toFixed(2)+'px),'+z.toFixed(2)+'px) rotateY('+(rot*+d.rot).toFixed(2)+'deg)';}}function aim(x,y){idle=false;tx=Math.max(0,Math.min(W,x));ty=Math.max(0,Math.min(H,y));}addEventListener('mousemove',function(e){aim(e.clientX,e.clientY);},{passive:true});addEventListener('touchmove',function(e){var t=e.touches[0];if(t)aim(t.clientX,t.clientY);},{passive:true});if(window.DeviceOrientationEvent)addEventListener('deviceorientation',function(e){if(e.gamma==null)return;aim(W/2+Math.max(-45,Math.min(45,e.gamma))/45*W*.38,H/2+Math.max(-45,Math.min(45,e.beta-40))/45*H*.3);},{passive:true});function tick(now){if(!document.getElementById('i3-scene'))return;var dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;if(idle){var t=(now-t0)*.001;tx=W/2+Math.sin(t*.22)*W*.11;ty=H/2+Math.cos(t*.18)*H*.07;}var ease=1-Math.exp(-dt*8);px+=(tx-px)*ease;py+=(ty-py)*ease;if(!document.hidden)apply(px,py);requestAnimationFrame(tick);}requestAnimationFrame(tick);})();</script>
 <script>window.__i3FailedScripts=[];addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT'&&e.target.src)window.__i3FailedScripts.push(e.target.src.split('/').pop().split('?')[0]);},true);(function(){var cols=document.querySelectorAll('.i3-liquid-col'),fill=document.getElementById('i3-boot-progress'),pct=document.getElementById('i3-boot-percent'),st=document.getElementById('i3-boot-state'),bar=fill&&fill.parentElement;var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;function tick(){if(!document.getElementById('i3-boot'))return;var t=performance.now()*.001;if(!reduced&&!window.__i3BootLiquid)for(var i=0;i<cols.length;i++){var d=i*.72,level=.16+.84*(.5+.5*Math.sin(t*1.15+d)+Math.sin(t*2.3+d)*.06);level=Math.max(.12,Math.min(1,level));cols[i].querySelector('.i3-bar').style.transform='scaleY('+level.toFixed(3)+')';cols[i].querySelector('.i3-drop').classList.toggle('on',level>.9);}if(!window.__i3BootTaken){var sizes=window.I3_BUNDLES||{},detail=document.getElementById('i3-boot-detail'),total=0,got=0,count=0,done=0,failed=window.__i3FailedScripts||[];for(var j=0;j<document.scripts.length;j++){var src=document.scripts[j].src;if(!src)continue;var path=src.replace(location.origin,'').split('?')[0],size=sizes[path]||0;if(!size)continue;count++;total+=size;var e=performance.getEntriesByName(src);if(e.length&&e[0].responseEnd>0){got+=size;done++;}}var frac=total?got/total*.55:0;var value=Math.round(frac*100);fill.style.width=(frac*100).toFixed(2)+'%';pct.textContent=value+'%';if(bar)bar.setAttribute('aria-valuenow',String(value));var mb=function(b){return (b/1048576).toFixed(2);};var stalled=(failed.length||(done>=count&&count&&performance.now()>45000))&&!window.__i3BootReloading;if(stalled){var n=0;try{n=+(sessionStorage.getItem('i3-boot-retry')||0);}catch(e){}if(n<3){window.__i3BootReloading=true;try{sessionStorage.setItem('i3-boot-retry',String(n+1));}catch(e){}setTimeout(function(){location.reload();},1200);}}st.textContent=window.__i3BootReloading?'A module did not arrive intact; reloading':failed.length?'A module failed to load: '+failed[0]+'. Reload to retry.':(done<count?'Receiving interface modules':'Interface modules received');if(detail)detail.textContent=total?mb(got)+' / '+mb(total)+' MB received or cache-ready · '+done+' / '+count+' modules':'Measuring interface modules';}requestAnimationFrame(tick);}requestAnimationFrame(tick);})();</script>'''
+
+def boot_html():
+    """The boot screen with this studio's words (S1-06), escaped for HTML."""
+    from html import escape
+    title = f'{escape(T("boot.title"))} <span>{escape(T("boot.title_accent"))}</span>'
+    return BOOT_HTML.replace("{BOOT_TITLE}", title)
+
 
 HEAD_JS = r'''
 window.__i3ReadyPromise=new Promise(function(resolve){window.__i3ResolveReady=resolve;});
@@ -1094,8 +1103,8 @@ function scrubMount(hero){scrubTeardown();heroMarkSeen('hero:'+hero.dataset.i3Sc
  const kind=hero.dataset.i3Scrub;const stage=document.createElement('div');stage.className='i3-scrub-stage';hero.appendChild(stage);const c=document.createElement('canvas');c.className='i3-scrub-canvas';stage.appendChild(c);
  const grad=document.createElement('div');grad.className='i3-scrub-grad';hero.appendChild(grad);
  const scrim=document.createElement('div');scrim.className='i3-scrub-scrim';stage.appendChild(scrim);
- const title=document.createElement('div');title.className='i3-scrub-title'+(hero.dataset.i3Title.length>40?' i3-scrub-title-long':'');title.innerHTML='<h1>'+hero.dataset.i3Title+'</h1>';stage.appendChild(title);
- const tag=document.createElement('div');tag.className='i3-scrub-tag';tag.innerHTML='<p>'+hero.dataset.i3Tagline+'</p>';stage.appendChild(tag);
+ const title=document.createElement('div');title.className='i3-scrub-title'+(hero.dataset.i3Title.length>40?' i3-scrub-title-long':'');{const h1=document.createElement('h1');h1.textContent=hero.dataset.i3Title;title.appendChild(h1);}stage.appendChild(title);
+ const tag=document.createElement('div');tag.className='i3-scrub-tag';{const para=document.createElement('p');para.textContent=hero.dataset.i3Tagline;tag.appendChild(para);}stage.appendChild(tag);
  const hint=document.createElement('div');hint.className='i3-scrub-hint';hint.innerHTML='<span>SCROLL</span><svg width="14" height="18" viewBox="0 0 14 18" aria-hidden="true"><path d="M7 1 L7 17 M2 12 L7 17 L12 12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';stage.appendChild(hint);
  const skip=document.createElement('button');skip.type='button';skip.className='i3-scrub-skip';skip.textContent='Skip';skip.addEventListener('click',()=>{scrub.target=scrub.shown=1;scrub.moved=true;scrubPaint(1);scrubRelease(true);});hero.appendChild(skip);
  const rail=document.createElement('div');rail.className='i3-scrub-rail';const bar=document.createElement('div');bar.className='i3-scrub-bar';rail.appendChild(bar);hero.appendChild(rail);
@@ -1230,7 +1239,7 @@ function skylinePainter(c){const rnd=seeded(23);const far=[],near=[];let x=-.05;
   ctx.strokeStyle='rgba(49,215,230,'+(.10+dusk*.18).toFixed(2)+')';ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<9;i++){const yy=base+Math.pow(i/8,1.8)*(h-base);ctx.moveTo(0,yy);ctx.lineTo(w,yy);}for(let i=-8;i<=8;i++){ctx.moveTo(sx+i*w*.07,base);ctx.lineTo(sx+i*w*.24,h);}ctx.stroke();
   ctx.strokeStyle='rgba(120,225,245,'+(.35+dusk*.3).toFixed(2)+')';ctx.beginPath();ctx.moveTo(0,base+.5);ctx.lineTo(w,base+.5);ctx.stroke();
   /* brand mark composes above the masts */
-  const t=clamp((p-.80)/.13,0,1);if(t>0){ctx.save();ctx.globalAlpha=t;ctx.font='700 '+Math.min(w*.062,h*.13)+'px Inter,-apple-system,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#eaf6ff';ctx.shadowColor='rgba(49,215,230,.6)';ctx.shadowBlur=36*t;ctx.letterSpacing=((1-t)*.25*40+6)+'px';ctx.fillText('TITLE',w/2,h*.40-(1-t)*16);ctx.restore();}
+  const t=clamp((p-.80)/.13,0,1);if(t>0){ctx.save();ctx.globalAlpha=t;ctx.font='700 '+Math.min(w*.062,h*.13)+'px Inter,-apple-system,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#eaf6ff';ctx.shadowColor='rgba(49,215,230,.6)';ctx.shadowBlur=36*t;ctx.letterSpacing=((1-t)*.25*40+6)+'px';ctx.fillText(String((scrub.hero&&scrub.hero.dataset.i3Title)||'Title').toUpperCase(),w/2,h*.40-(1-t)*16);ctx.restore();}
   const lit=clamp((dusk-.3)/.5,0,1);
   for(const m of far)mast(ctx,m.x*w,base,m.h*h,m.w*w,m,.22,lit*.5,p);
   for(const m of near)mast(ctx,m.x*w,base,m.h*h,m.w*w,m,.55,lit,p);};}
@@ -2808,13 +2817,13 @@ def cards_track(html, dcc):
 
 def page(html, dcc):
     return html.Main([
-        html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "skyline", "data-i3-title": 'Title',
-                                              "data-i3-tagline": 'Text'}),
+        html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "skyline", "data-i3-title": T("page3.hero_title"),
+                                              "data-i3-tagline": T("page3.hero_tagline")}),
         html.Div([
         html.Header([
-            html.Div("Label", className="i3-eyebrow"),
-            html.H1('Heading 1'),
-            html.P('Paragraph. Enter your text here.'),
+            html.Div(T("page3.eyebrow"), className="i3-eyebrow"),
+            html.H1(T("page3.title")),
+            html.P(T("page3.subtitle")),
         ]),
         html.Article([
         html.Section([
@@ -2986,7 +2995,7 @@ def install(ns, runtime):
     for node in _walk(app.layout):
         if getattr(node, "id", None) == "nav-glass":
             children = list(node.children)
-            entry = [dcc.Link(html.Button([html.Span(className="nav-dot"), "Page 3"], className="nav-glass-btn", id="nav-page3"), href="/page-3", style={"textDecoration": "none"}), html.Div(className="nav-glass-sep")]
+            entry = [dcc.Link(html.Button([html.Span(className="nav-dot"), T("nav.page3")], className="nav-glass-btn", id="nav-page3"), href="/page-3", style={"textDecoration": "none"}), html.Div(className="nav-glass-sep")]
             position = next((i for i, child in enumerate(children) if getattr(getattr(child, "children", None), "id", None) == "nav-settings"), len(children))
             node.children = children[:position] + entry + children[position:]
     children = list(app.layout.children)
@@ -3106,7 +3115,7 @@ def install(ns, runtime):
     app.interpolate_index = interpolate_without_unused
     index = index.replace('<head>', '<head><script>' + HEAD_JS + '</script>', 1)
     index = index.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + CSS + '</style></head>', 1)
-    index = re.sub(r'</head>\s*<body\b[^>]*>', lambda match: match[0] + BOOT_HTML, index, count=1)
+    index = re.sub(r'</head>\s*<body\b[^>]*>', lambda match: match[0] + boot_html(), index, count=1)
     index = index.replace('</body>', '<script>' + _gsap() + '</script><script>' + JS.replace('__I3_VERSION__', str(ns['APP_VERSION'])) + '</script></body>')
     app.index_string = centralize_css(index)
     app.server.config["I3_UI_RUNTIME"] = runtime
