@@ -50,7 +50,19 @@ The repository is written to be read by machines as well as people:
 | **SDKs** | Python, C++ (header only), Java, JavaScript, MATLAB, Arduino and MicroPython: same protocol, same detectors, same numbers | `sdk/`, `matlab/+mtdi`, `firmware/` |
 | **Verification** | 52 tests including a cross-language check that C++, Java, JS and MATLAB agree with Python to 1e-9 | `tests/` |
 
-## Quick start
+## Install
+
+One command on a Raspberry Pi (64-bit Raspberry Pi OS) or a Mac. It downloads MTDI, builds its own
+Python environment, adds the `mtdi` command and checks the machine with `mtdi doctor`. Free, no accounts.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vxnishhhhh/mtdi-studio-/main/install.sh | bash
+mtdi studio --lan          # the interface, from any device on your network
+```
+
+Add `--autostart` (`... | bash -s -- --autostart`) to start the studio at boot. Details: [docs/INSTALL.md](docs/INSTALL.md).
+
+## Quick start (from a clone)
 
 ```bash
 git clone https://github.com/vxnishhhhh/mtdi-studio- mtdi && cd mtdi

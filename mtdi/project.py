@@ -43,6 +43,9 @@ class ManifestError(ValueError):
 def load(path):
     """Load a project from its folder or its project.json."""
     path = pathlib.Path(path)
+    bundled = pathlib.Path(__file__).resolve().parent.parent / path
+    if not path.exists() and not path.is_absolute() and bundled.exists():
+        path = bundled                       # "projects/host-health" works from any folder
     file = path / "project.json" if path.is_dir() else path
     if not file.exists():
         raise ManifestError(f"no project.json at {file}")

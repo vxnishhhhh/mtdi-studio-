@@ -17,6 +17,8 @@
     python -m mtdi parse "TEMP=21.4,HUM=40"                 test a firmware line
     python -m mtdi packet projects/x --seconds 5            run headless and print one MTDI packet
     python -m mtdi adopt ../my-repo                         copy MTDI into another repository and set it up
+    python -m mtdi doctor                                   is this machine ready? (the installer runs it)
+    python -m mtdi studio --lan                             open the studio interface, reachable on the network
     python -m mtdi describe                                 everything MTDI supports, as JSON (for AIs and tools)
     python -m mtdi analyze projects/x session.jsonl         batch summary; MATLAB's mtdi.analyze must match it
     python -m mtdi create                                   wizard: project + GitHub + Vercel + Notion + MATLAB
@@ -441,12 +443,31 @@ def cmd_describe(args):
                          "command": "python -m mtdi capabilities"},
         "registry": {"file": "registry/integrations.json", "command": "python -m mtdi registry",
                      **__import__("mtdi.registry", fromlist=["x"]).snapshot()},
-        "commands": ["aether", "calibrate", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
+        "commands": ["aether", "doctor", "studio", "calibrate", "capabilities", "registry", "run", "watch", "ask", "chat", "voice", "anomalies", "send", "store", "check", "new", "adopt",
                      "describe", "parse", "packet", "analyze", "create", "publish", "matlab"],
         "docs": {"ai": "docs/AI.md", "architecture": "docs/ARCHITECTURE.md", "integrating": "INTEGRATING.md",
                  "manifest": "docs/MANIFEST.md", "schema": "docs/schema/project.schema.json",
                  "protocol": "firmware/PROTOCOL.md"},
     }, indent=2, ensure_ascii=False))
+
+
+def cmd_doctor(args):
+    from .doctor import main as doctor
+    sys.exit(doctor(quick=args.quick))
+
+
+def cmd_studio(args):
+    if not (ROOT / "run.py").exists():
+        sys.exit("no studio interface in this copy; use: mtdi run <project> --headless")
+    sys.path.insert(0, str(ROOT))
+    from run import main as studio
+    sys.exit(studio(args.studio_args))
+
+
+def _studio_argv(argv):
+    """`mtdi studio --port 9000`: argparse REMAINDER drops leading options, so pass them through by hand."""
+    argv = sys.argv[1:] if argv is None else list(argv)
+    return argv[1:] if argv[:1] == ["studio"] else None
 
 
 def main(argv=None):
@@ -565,8 +586,17 @@ def main(argv=None):
     reg = sub.add_parser("registry", help="list integrations and Computational Core modules with status")
     reg.add_argument("--json", action="store_true")
     reg.set_defaults(func=cmd_registry)
+    doc = sub.add_parser("doctor", help="check this machine is ready to run MTDI")
+    doc.add_argument("--quick", action="store_true", help="skip the speed test")
+    doc.set_defaults(func=cmd_doctor)
+    studio = sub.add_parser("studio", help="open the studio interface (any run.py option passes through, e.g. --lan)")
+    studio.add_argument("studio_args", nargs=argparse.REMAINDER)
+    studio.set_defaults(func=cmd_studio)
     describe = sub.add_parser("describe", help="print MTDI's capabilities as JSON")
     describe.set_defaults(func=cmd_describe)
+    passthrough = _studio_argv(argv)
+    if passthrough is not None and not {"-h", "--help"} & set(passthrough[:1]):
+        return cmd_studio(argparse.Namespace(studio_args=passthrough))
     args = parser.parse_args(argv)
     try:
         args.func(args)
