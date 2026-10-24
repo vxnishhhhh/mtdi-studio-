@@ -91,8 +91,6 @@ class Runner:
         """Add /mtdi/packet, /mtdi/ingest, /mtdi/action and /mtdi/ask to a Flask server."""
         from flask import jsonify, request
         http_sources = {s["id"]: s for s in self.project["sources"] if s["adapter"] == "http"}
-        server.config["MTDI_RUNNER"] = self      # the studio's project panel reads the engine in process
-        self._servers = getattr(self, "_servers", []) + [server]
 
         @server.get(prefix + "/packet", endpoint="mtdi_packet")
         def _packet():
@@ -132,6 +130,9 @@ class Runner:
             body = request.get_json(silent=True) or {}
             return jsonify({"answer": self.ask(str(body.get("question", ""))[:2000])})
 
+        # Only once every route registered: a duplicate registration raises above and changes nothing.
+        server.config["MTDI_RUNNER"] = self      # the studio's project panel reads the engine in process
+        self._servers = getattr(self, "_servers", []) + [server]
         return server
 
     def headless_app(self):

@@ -100,6 +100,9 @@ class StudioProjectPanel(unittest.TestCase):
             first.stop()
             self.assertNotIn("MTDI_RUNNER", server_a.config)
             self.assertIs(server_b.config["MTDI_RUNNER"], second)
+            with self.assertRaises(AssertionError):    # Flask refuses a second set of the same routes
+                first.register(server_b)
+            self.assertIs(server_b.config["MTDI_RUNNER"], second)
             server_b.config["MTDI_RUNNER"] = first     # another runner took over: stop must not clear it
             second.stop()
             self.assertIs(server_b.config["MTDI_RUNNER"], first)
