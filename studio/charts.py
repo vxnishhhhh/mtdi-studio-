@@ -1,6 +1,7 @@
 """Plotly figure builders and shared chart helpers."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser', 'webapp', 'reports')
+from .content import T  # studio words (S1-06)
 
 # ════════════════════════════════════════════════════════
 #  CHART / SHARED HELPERS
@@ -109,7 +110,18 @@ def _scene(height):
                            camera=dict(eye=dict(x=1.5, y=1.5, z=1.2))))
 
 
-def fig_axis(xyz, height=250, unit="unit"):
+def ch2_axis_unit(data):
+    """The unit channel 2's charts show. Data fed in (an MTDI project, /api/ingest) carries its own
+    unit; the studio's own ADC paths keep their labels. "mV RMS relative" is feed_ch2's default when a
+    sender gave no unit, so it is treated as none."""
+    fed = str(data.get("unit") or "").strip()
+    if fed and fed != "mV RMS relative":
+        return fed
+    return "ADC counts RMS" if data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
+
+
+def fig_axis(xyz, height=250, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()
     if xyz:
         for idx, (c, nm) in enumerate([(BLUE,"X"), (GREEN,"Y"), (AMBER,"Z")]):
@@ -143,7 +155,8 @@ def fig_pie(x, y, z, height=250):
     return fig
 
 
-def fig_gauge(c1, height=250, unit="unit"):
+def fig_gauge(c1, height=250, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     if c1 is None:
         fig = go.Figure()
         fig.add_annotation(text='TEXT', x=0.5, y=0.5,
@@ -164,7 +177,7 @@ def fig_gauge(c1, height=250, unit="unit"):
     return fig
 
 
-def fig_bar(mn, avg, mx, height=250, unit="unit", quantity='channel 1 magnitude'):
+def fig_bar(mn, avg, mx, height=250, unit=None, quantity=None):
     """Session min/average/max.
 
     unit and quantity are parameters because the Ch2 channel needs the same
@@ -172,6 +185,8 @@ def fig_bar(mn, avg, mx, height=250, unit="unit", quantity='channel 1 magnitude'
     call unchanged -- a second near-identical function would have been the
     alternative, and the two would have drifted apart the first time either was
     touched."""
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 words (S1-06)
+    quantity = f"{T('ch1.name').lower()} magnitude" if quantity is None else quantity
     fig = go.Figure()
     if mn is not None and avg is not None and mx is not None:
         fig.add_trace(go.Bar(x=["MIN","AVG","MAX"], y=[mn, avg, mx], marker=dict(color=[BLUE, CYAN, AMBER]),
@@ -192,7 +207,8 @@ def fig_bar(mn, avg, mx, height=250, unit="unit", quantity='channel 1 magnitude'
     return fig
 
 
-def fig_2d_scatter(xyz, height=280, unit="unit"):
+def fig_2d_scatter(xyz, height=280, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()
     if xyz:
         xs = [p[0] for p in xyz]; ys = [p[1] for p in xyz]
@@ -227,7 +243,8 @@ def fig_2d_scatter(xyz, height=280, unit="unit"):
     return fig
 
 
-def fig_2d_delta(xyz, height=280, unit="unit"):
+def fig_2d_delta(xyz, height=280, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()
     if len(xyz) > 1:
         mags = [math.sqrt(a*a+b*b+c*c) for a,b,c in xyz]
@@ -252,7 +269,8 @@ def fig_2d_delta(xyz, height=280, unit="unit"):
     return fig
 
 
-def fig_3d_surface(xyz, height=300, unit="unit"):
+def fig_3d_surface(xyz, height=300, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()
     if xyz:
         pts = xyz[-80:]
@@ -287,7 +305,8 @@ def fig_3d_surface(xyz, height=300, unit="unit"):
     return fig
 
 
-def fig_3d_terrain(xyz, height=300, unit="unit"):
+def fig_3d_terrain(xyz, height=300, unit=None):
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()
     if xyz:
         pts=xyz[-120:]
@@ -573,13 +592,14 @@ def fig_3d_dipolch2f(xyz, height=420, direction_state=None):
     return fig
 
 
-def fig_archive(height=220, series=None, unit="unit"):
+def fig_archive(height=220, series=None, unit=None):
     """The rolling signal archive.
 
     series lets a caller supply its own sequence; with none it reads the ch1
     archive as before, so existing calls are untouched. The Ch2 channel needs
     this identical view over its own vector magnitude, and passing the data in
     beats reaching for a second module-level global."""
+    unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     if series is None:
         with archive_lock:
             arch = [a["c1"] for a in signal_archive]

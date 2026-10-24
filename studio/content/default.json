@@ -40,5 +40,11 @@
   "page3.subtitle": "Paragraph. Enter your text here.",
   "settings.eyebrow": "SETTINGS",
   "settings.title": "Settings",
-  "settings.subtitle": "Subtext"
+  "settings.subtitle": "Subtext",
+  "ch1.name": "Channel 1",
+  "ch2.name": "Channel 2",
+  "ch3.name": "Channel 3",
+  "ch1.unit": "unit",
+  "ch2.unit": "unit",
+  "ch3.unit": "unit"
 }
