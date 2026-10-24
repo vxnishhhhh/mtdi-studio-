@@ -44,6 +44,16 @@ class StudioProjectPanel(unittest.TestCase):
         self.assertIn("2/2 inputs live", text)
         self.assertIn("a (calibration), b (manifest)", text)
 
+    def test_simulated_label_is_per_channel_and_missing_residual_is_safe(self):
+        from run import NAMESPACE
+        packet = self.packet()
+        packet["channels"]["b"]["evidence"]["data_source"] = "SIMULATED"
+        packet["fusion"]["simulated"] = True
+        packet["channels"]["a"]["calibration"]["residual_sd"] = None
+        text = self.text(NAMESPACE["project_channels_view"](packet))
+        self.assertEqual(text.count("SIMULATED"), 1)
+        self.assertIn("residual unknown", text)
+
     def test_no_project_is_an_honest_empty_state(self):
 
         sys.path.insert(0, str(ROOT))

@@ -2089,10 +2089,12 @@ def project_channels_view(packet):
     cards = []
     for c in packet.get("channels", {}).values():
         cal = c.get("calibration")
-        sub = [c["evidence"]["state"].upper() + (" · SIMULATED" if packet["fusion"].get("simulated") else "")]
+        simulated = c["evidence"].get("data_source") == "SIMULATED"   # per channel: a mixed project labels only its fakes
+        sub = [c["evidence"]["state"].upper() + (" · SIMULATED" if simulated else "")]
         if cal:
             drift = (cal.get("checks") or {}).get("drift")
-            sub.append(f"calibrated {cal['method']} · ±{cal['residual_sd']:.2g}"
+            residual = "residual unknown" if cal.get("residual_sd") is None else f"±{cal['residual_sd']:.2g}"
+            sub.append(f"calibrated {cal['method']} · {residual}"
                        + {True: " · DRIFTING", False: " · checks ok"}.get(drift, ""))
         cards.append(html.Div([html.Div(c["label"], className="sys-name"),
                                html.Div(f"{_fmt(c['magnitude'])} {c['unit']}", className="sys-value"),
