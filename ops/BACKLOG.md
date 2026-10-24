@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slice 1: shell, page titles, Home hero and cards)
+### S1-06 · Project-driven studio words · in progress (slices 1–2 merged: shell, page titles, Home hero and cards; channel names and units)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
