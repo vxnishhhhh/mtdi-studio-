@@ -130,6 +130,9 @@ class Runner:
             body = request.get_json(silent=True) or {}
             return jsonify({"answer": self.ask(str(body.get("question", ""))[:2000])})
 
+        # Only once every route registered: a duplicate registration raises above and changes nothing.
+        server.config["MTDI_RUNNER"] = self      # the studio's project panel reads the engine in process
+        self._servers = getattr(self, "_servers", []) + [server]
         return server
 
     def headless_app(self):
@@ -146,6 +149,9 @@ class Runner:
     def stop(self):
         for adapter in self.adapters:
             adapter.stop()
+        for server in getattr(self, "_servers", []):    # a stopped project must not keep showing in the studio
+            if server.config.get("MTDI_RUNNER") is self:
+                server.config.pop("MTDI_RUNNER")
 
 
 def answer_offline(question, packet):
