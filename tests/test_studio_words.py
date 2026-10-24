@@ -202,6 +202,23 @@ class ChannelWords(unittest.TestCase):
         self.assertEqual(unit({"data_source": "ARDUINO_UNO_USB"}), "ADC counts RMS")
 
 
+class SlotWords(unittest.TestCase):
+    def setUp(self):
+        content.reset()
+        self.addCleanup(content.reset)
+        sys.path.insert(0, str(ROOT))
+        from run import NAMESPACE
+        self.slot_words = NAMESPACE["_slot_words"]
+
+    def test_defaults_leave_engine_messages_unchanged(self):
+        self.assertEqual(self.slot_words("Recommended: run channel 1 recalibration"),
+                         "Recommended: run channel 1 recalibration")
+
+    def test_one_pass_never_renames_a_word_twice(self):
+        content.use({"ch1.name": "Channel 2", "ch2.name": "Soil"})
+        self.assertEqual(self.slot_words("Channel 1 then channel 2"), "Channel 2 then soil")
+
+
 class HeroWordsAreText(unittest.TestCase):
     """Project words reach the page as text, never as markup (CWE-79)."""
 
@@ -210,6 +227,11 @@ class HeroWordsAreText(unittest.TestCase):
         self.assertNotRegex(js, r"innerHTML\s*=[^;]*dataset\.i3(Title|Tagline)")
         self.assertIn("h1.textContent=hero.dataset.i3Title", js)
         self.assertIn("para.textContent=hero.dataset.i3Tagline", js)
+
+    def test_judge_tiles_escape_label_and_unit(self):
+        js = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn("<div class=\"k\">'+h(k)+'</div>", js)
+        self.assertIn("'<small>'+h(unit)+'</small>'", js)
 
     def test_boot_title_is_escaped(self):
         from studio import ui

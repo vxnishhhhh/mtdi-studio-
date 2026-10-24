@@ -2528,7 +2528,9 @@ function judgePanelOpen(){const els=judgeEls();els.panel.classList.add('on');jud
 function judgeExit(){const els=judgeEls();els.panel.classList.remove('on');clearInterval(EGG.judgeTimer);}
 function judgeTick(){const grid=document.getElementById('i3-judge-grid');if(!grid)return;const p=window.__i3Instrument||{};const ch=p.channels||{};const fu=p.fusion||{};
  const num=(v,d=2)=>Number.isFinite(v)?Number(v).toFixed(d):'—';
- const tile=(k,v,unit,s,cls)=>'<div class="i3-judge-tile '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+(unit?'<small>'+unit+'</small>':'')+'</div><div class="s">'+s+'</div></div>';
+ // k and unit carry project words and fed units (S1-06): escaped, never markup.
+ const h=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const tile=(k,v,unit,s,cls)=>'<div class="i3-judge-tile '+(cls||'')+'"><div class="k">'+h(k)+'</div><div class="v">'+v+(unit?'<small>'+h(unit)+'</small>':'')+'</div><div class="s">'+s+'</div></div>';
  const st=c=>!c?'bad':c.state==='connected'?(c.clipped?'warn':'ok'):'bad';const sv=c=>!c?'NOT PRESENT':c.state==='connected'?(c.clipped?'CLIPPING':'CONNECTED'):String(c.state||'OFFLINE').toUpperCase();
  const m=ch.ch1,e=ch.ch2,r=ch.ch3;const conf=Number(fu.confidence)||0;
  grid.innerHTML=

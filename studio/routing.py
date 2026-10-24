@@ -7,9 +7,11 @@ def _slot_words(text):
     """The D4 engine speaks in slot terms ("channel 1"); show the project's names instead (S1-06)."""
     if not isinstance(text, str):
         return text
-    for n in (1, 2, 3):
-        text = text.replace(f"channel {n}", T(f"ch{n}.name").lower()).replace(f"Channel {n}", T(f"ch{n}.name"))
-    return text
+    # One pass over the original text: a project word that itself reads "Channel 2" is never renamed again.
+    def name(match):
+        word = T(f"ch{match.group(2)}.name")
+        return word if match.group(1) == "C" else word.lower()
+    return re.sub(r"\b([Cc])hannel ([123])\b", name, text)
 
 
 # ════════════════════════════════════════════════════════
