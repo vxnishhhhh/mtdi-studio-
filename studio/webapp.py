@@ -730,6 +730,8 @@ app.clientside_callback(
     "function(n){"
     "try{history.scrollRestoration='manual';}catch(e){}"
     "document.documentElement.classList.remove('nav-busy');"
+    # The new page is in: start its ready signal (data-page-ready, see browser.py).
+    "if(window.__i3PageMounted){window.__i3PageMounted();}"
     # FIRST render is Home because the head normalises every fresh document URL to /.
     # Leave the document at 0 while the fixed intro handles its own internal scroll.
     "if(!window.__i3FirstRouteDone){window.__i3FirstRouteDone=true;return '';}"
