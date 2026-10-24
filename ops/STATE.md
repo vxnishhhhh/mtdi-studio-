@@ -5,12 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 137 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
-* **Next item:** studio per-page ready signal; `mtdi update`. Older: studio panel for fused/calibrated channels (S1-11), S1-10 Hugging Face copy (needs a workflow: owner review per ADR 0002), S1-15 I³ refresh, S1-12 NVTRA brand beyond the chat header. Re-check S1-16b against real Pi numbers before more speed work.
+* **Next item:** S1-06 slice 2 (section heads and cards, channel names from the project); S1-07 Third Eye reference project; S1-05 Compatibility Lab (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-24 night · Merged #41 (`mtdi update`, launcher -P fix) and #42 (studio page-ready signal, tour phone pass 3/3). S1-06 slice 1 (studio words from studio/content/default.json, MTDI_CONTENT, manifest `interface`) in review. Backlog statuses corrected (S1-02/03/04 done, S1-16b done, S1-11 scope stated).
 
 * 2026-10-24 midday · Owner directive: sessions decide everything technical. Merged #38 (install.sh, mtdi doctor, mtdi studio, local AI on by default). #39 (studio project panel, S1-11 decided: read the packet).
 

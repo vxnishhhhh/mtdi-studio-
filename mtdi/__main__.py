@@ -70,6 +70,11 @@ def cmd_run(args):
     import os
     os.environ.setdefault("STUDIO_HTTPS_PORT", "0")
     sys.path.insert(0, str(ROOT))
+    from studio import content                     # the project's words, before the layout is built
+    try:
+        content.use(runner.project.get("interface"), source=f"{args.project}: interface")
+    except content.ContentError as error:
+        sys.exit(f"manifest error: {error}")
     from run import NAMESPACE                      # the studio interface, in this process
     runner.register(NAMESPACE["server"])
     NAMESPACE["LIFECYCLE"].start()
@@ -92,6 +97,14 @@ def cmd_check(args):
         print(f"  {c['id']:<14} {c['kind']:<7} {c['domain']:<11} keys={','.join(c['keys']):<18} "
               f"unit={c['unit'] or '-':<8} source={'|'.join(c['sources'])}  floor={c['noise_floor']}"
               + (f"  {c['transform']}({c['window']})" if c["transform"] != "none" else ""))
+    if project["interface"] and (ROOT / "studio" / "content.py").exists():
+        sys.path.insert(0, str(ROOT))
+        from studio import content
+        try:
+            content.validate(project["interface"], "interface")
+        except content.ContentError as error:
+            sys.exit(f"manifest error: {error}")
+        print(f"interface: {len(project['interface'])} studio word(s) set")
     from .capabilities import detect_host, load_targets
     from .profiles import qualifies
     target = load_targets().get(args.target) if args.target else detect_host()

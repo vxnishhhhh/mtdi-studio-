@@ -1,6 +1,7 @@
 """Page builders: Home, EM Field, Sweep3, MTDI and Settings."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser', 'webapp', 'reports', 'charts')
+from .content import T  # studio words (S1-06)
 
 # ════════════════════════════════════════════════════════
 #  DISCIPLINE BLOCK  (for MTDI page)
@@ -58,21 +59,21 @@ def home_page():
         ch3_val = "SWEEPING"; ch3_lbl = "CHANNEL 3"
     # Fixed route identities: status and readings change, module colour never does.
     mods = [
-        ("page-1","01","Page 1",'Paragraph. Enter your text here.',
+        ("page-1","01",T("nav.page1"),T("home.card.page1"),
          f"{cur_c1:.2f} unit" if c1_have and not c1_err else "OFFLINE",
          "MAGNITUDE" if c1_have else "NO DATA", "#67cbd5", "103,203,213"),
-        ("page-2","02","Page 2",'Paragraph. Enter your text here.',
+        ("page-2","02",T("nav.page2"),T("home.card.page2"),
          ch3_val, ch3_lbl, "#718ee8", "113,142,232"),
-        ("mtdi","03","MTDI",'Paragraph. Enter your text here.',
+        ("mtdi","03",T("nav.mtdi"),T("home.card.mtdi"),
          f"{overall:.0f}%",'TEXT', "#72b99c", "114,185,156"),
-        ("settings","04","Settings",'Paragraph. Enter your text here.',
+        ("settings","04",T("nav.settings"),T("home.card.settings"),
          "THEME","APPEARANCE", "#9a91bd", "154,145,189"),
     ]
     orbit_cards = []
     for index, (mid, numerology, title, desc, val, vl, vc, vrgb) in enumerate(mods):
         orbit_cards.append(dcc.Link(html.Div([
             html.Div([html.Span(numerology, className="mtdi-card-index"),
-                      html.Span({"page-1": "PAGE 1", "page-2": "PAGE 2"}.get(mid, mid.upper()), className="mtdi-card-role")], className="mtdi-card-top"),
+                      html.Span(title.upper(), className="mtdi-card-role")], className="mtdi-card-top"),
             html.Div(title, className="mtdi-card-title"),
             html.Div(desc, className="mtdi-card-short"),
             html.Div([html.Span(val), html.Small(vl)], className="home-module-live"),
@@ -97,10 +98,10 @@ def home_page():
 
     hero = html.Div([
         html.Div([
-            html.Div("Title", className="hero-title"),
-            html.Div([html.Span('TEXT', className="i3"), html.Span('   TEXT')], className="hero-tag"),
+            html.Div(T("home.title"), className="hero-title"),
+            html.Div([html.Span(T("home.tag_lead"), className="i3"), html.Span(T("home.tag"))], className="hero-tag"),
         ], className="hero-title-wrap"),
-        html.Div("Paragraph. Enter your text here.", className="hero-sub"),
+        html.Div(T("home.subtitle"), className="hero-sub"),
         html.Div([
             html.Div([html.Div('TEXT', className="k"), html.Div('Text', className="v")]),
             html.Div([html.Div('TEXT', className="k"), html.Div('Text', className="v")]),
@@ -745,13 +746,12 @@ def _combined_view_base():
 
 def p1_page():
     airlock = html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "p1-vector",
-                                                    "data-i3-title": 'Title',
-                                                    "data-i3-tagline": 'Paragraph. Enter your text here.'})
+                                                    "data-i3-title": T("page1.hero_title"),
+                                                    "data-i3-tagline": T("page1.hero_tagline")})
     return html.Div([
         airlock,
         dcc.Link(html.Button("BACK", className="back-btn"), href="/", style={"textDecoration":"none"}),
-        _ph('LIVE  Source 1 + Source 2', 'Title',
-            'Subtext'),
+        _ph(T("page1.eyebrow"), T("page1.title"), T("page1.subtitle")),
         html.Hr(className="divider"),
         html.Div([
             html.Button("CHANNEL 1", id="p1-tab-c1", className="tab-btn active", n_clicks=0),
@@ -1176,11 +1176,10 @@ def bluetooth_view():
 def sweep3_page():
     from .ui import parallax_header
     return html.Div([
-        html.Div(parallax_header(html, 'Title'), className="parallax__pin"),
+        html.Div(parallax_header(html, T("page2.hero_title")), className="parallax__pin"),
         html.Div([
             dcc.Link(html.Button("BACK", className="back-btn"), href="/", style={"textDecoration":"none"}),
-            _ph('LIVE  Source 3 ULTRA + Source 4 + Channel 5 + BLE', 'Title',
-                'Subtext'),
+            _ph(T("page2.eyebrow"), T("page2.title"), T("page2.subtitle")),
             html.Hr(className="divider"),
             html.Div([
                 html.Button('BUTTON',  id="sp-tab-rf",   className="tab-btn active", n_clicks=0),
@@ -2223,7 +2222,7 @@ def mtdi_page():
         html.Div([
             html.Div("MICROPROCESSING TECHNOLOGICAL DIAGNOSTIC INTELLIGENCE",
                      className="mtdi-v2-kicker"),
-            html.Div('Title', className="mtdi-v2-title"),
+            html.Div(T("mtdi.title"), className="mtdi-v2-title"),
             html.Div("MTDI separates connection, freshness, stability, completeness and trust. "
                      f"{_count_word(len(MTDI_ORBIT_PILLARS))} pillars surround one diagnostic core; "
                      "select one to enter it.",
@@ -2296,7 +2295,7 @@ def _settings_page_base():
     return html.Div([
         dcc.Link(html.Button("BACK", className="back-btn"), href="/", style={"textDecoration":"none"}),
         html.Div(html.Div(className="i3-lunar-stage", **{"data-i3-lunar": "true"}), className="i3-lunar-open"),
-        _ph("SETTINGS", "Settings", 'Subtext'),
+        _ph(T("settings.eyebrow"), T("settings.title"), T("settings.subtitle")),
         html.Hr(className="divider"),
         html.Div([
             html.Div([

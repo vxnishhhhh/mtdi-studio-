@@ -478,7 +478,11 @@
     },
     "interface": {
       "type": "object",
-      "description": "reserved; ignored by MTDI 5.0 (the studio is configured through \"studio\")"
+      "description": "The studio's words for this project: keys from studio/content/default.json (brand.title, nav.page1, home.subtitle, ...), each set to non-empty text. Applied by `mtdi run`; unknown keys are an error.",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "studio": {
       "type": "object",
