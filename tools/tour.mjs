@@ -95,37 +95,36 @@ for (let attempt = 1; attempt <= PHONE_ATTEMPTS && !phoneReport.viewport_applied
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true,
     isMobile: true, reducedMotion: "reduce" });
   const phone = await context.newPage();
-  const phoneErrors = [];
+  const phoneErrors = [];               // every uncaught page error of this attempt counts, retried or not
   phone.on("pageerror", (e) => { if (!ignored(e.message)) phoneErrors.push("phone pageerror: " + e.message); });
-  await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
   try {
+    await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
     await ready(phone, "/");
     const view = await phone.evaluate(() => ({
       wantsDesktop: document.documentElement.classList.contains("phone-desktop"), width: innerWidth }));
-    if (view.wantsDesktop && view.width !== 1180) {           // the emulator ignored the studio's viewport
-      await context.close();
-      continue;
+    if (!(view.wantsDesktop && view.width !== 1180)) {        // else the emulator ignored the viewport: retry
+      phoneReport.viewport_applied = true;
+      const covered = await phone.evaluate((ids) => ids.map((id) => {
+        const el = document.getElementById(id);
+        if (!el) return `${id}: missing`;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return `${id}: not visible`;
+        if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
+      }).filter(Boolean), pages.map((p) => p[1]));
+      for (const c of covered) problems.push("phone nav " + c);
+      await phone.tap("#nav-mtdi", { timeout: 10000 });
+      const ms = await ready(phone, "/mtdi");
+      visited.push({ name: "phone-tap-mtdi", path: await phone.evaluate(() => location.pathname), ready_ms: ms });
     }
-    phoneReport.viewport_applied = true;
-    problems.push(...phoneErrors);
-    const covered = await phone.evaluate((ids) => ids.map((id) => {
-      const el = document.getElementById(id);
-      if (!el) return `${id}: missing`;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) return `${id}: not visible`;
-      if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
-    }).filter(Boolean), pages.map((p) => p[1]));
-    for (const c of covered) problems.push("phone nav " + c);
-    await phone.tap("#nav-mtdi", { timeout: 10000 });
-    const ms = await ready(phone, "/mtdi");
-    visited.push({ name: "phone-tap-mtdi", path: await phone.evaluate(() => location.pathname), ready_ms: ms });
   } catch (e) {
-    phoneReport.viewport_applied = true;                      // a real failure, not the precondition
-    problems.push(...phoneErrors, "phone: " + e.message.split("\n")[0]);
+    phoneReport.viewport_applied = true;                      // a real failure (navigation included), not the precondition
+    problems.push("phone: " + e.message.split("\n")[0]);
+  } finally {
+    problems.push(...phoneErrors);
+    await context.close().catch(() => {});
   }
-  await context.close();
 }
 if (!phoneReport.viewport_applied) {
   phoneReport.skipped = `the emulator ignored the studio's 1180 px viewport in ${phoneReport.attempts} fresh contexts`;
