@@ -57,7 +57,7 @@ Python environment, adds the `mtdi` command and checks the machine with `mtdi do
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vxnishhhhh/mtdi-studio-/main/install.sh | bash
-mtdi studio --lan          # the interface, from any device on your network
+~/.local/bin/mtdi studio --lan   # the interface, from any device on your network (plain `mtdi` in a new terminal)
 ```
 
 Add `--autostart` (`... | bash -s -- --autostart`) to start the studio at boot. Details: [docs/INSTALL.md](docs/INSTALL.md).

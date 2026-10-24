@@ -63,6 +63,37 @@ class InstallScript(unittest.TestCase):
         res = subprocess.run(["bash", str(ROOT / "install.sh"), "--nope"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 2)
 
+    def test_piped_uninstall_never_touches_the_current_folder(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            here = pathlib.Path(d, "lookalike")
+            for sub in ("mtdi", ".venv"):
+                (here / sub).mkdir(parents=True)
+            (here / "run.py").write_text("")
+            env = dict(os.environ, HOME=str(pathlib.Path(d, "home")), MTDI_HOME=str(pathlib.Path(d, "home", "mtdi")))
+            with open(ROOT / "install.sh", "rb") as script:
+                subprocess.run(["bash", "-s", "--", "--uninstall"], stdin=script, cwd=here, env=env,
+                               capture_output=True, check=True)
+            self.assertTrue((here / ".venv").is_dir())
+
+
+class LocalModel(unittest.TestCase):
+    def probe(self, body):
+        import io
+        from unittest import mock
+        response = mock.MagicMock()
+        response.__enter__.return_value = io.BytesIO(body)
+        with mock.patch("urllib.request.urlopen", return_value=response):
+            return doctor.check_local_model()
+
+    def test_ollama_without_a_model_is_a_warning(self):
+        self.assertEqual(self.probe(b'{"models": []}')[1], "warn")
+
+    def test_ollama_with_a_model_is_ready(self):
+        name, status, detail = self.probe(b'{"models": [{"name": "llama3.2:3b"}]}')
+        self.assertEqual(status, "ok")
+        self.assertIn("llama3.2:3b", detail)
+
 
 if __name__ == "__main__":
     unittest.main()

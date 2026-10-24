@@ -27,6 +27,13 @@ for arg in "$@"; do
   esac
 done
 
+# The script's own folder when run as a file (./install.sh); empty when piped from curl, so the
+# current directory is never mistaken for a copy of MTDI to install or uninstall.
+script_dir() {
+  local src="${BASH_SOURCE[0]:-}"
+  [ -n "$src" ] && [ -f "$src" ] && cd "$(dirname "$src")" && pwd
+}
+
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[31mmtdi install: %s\033[0m\n' "$*" >&2; exit 1; }
 OS="$(uname -s)"
@@ -55,7 +62,7 @@ system_packages() {
 
 get_code() {
   local here
-  here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+  here="$(script_dir || true)"
   if [ -n "$here" ] && [ -f "$here/run.py" ] && [ -d "$here/mtdi" ]; then
     MTDI_HOME="$here"; say "using this copy: $MTDI_HOME"; return
   fi
@@ -138,7 +145,8 @@ EOF
 
 uninstall() {
   local home
-  home="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "$MTDI_HOME")"
+  home="$(script_dir || true)"
+  [ -n "$home" ] && [ -f "$home/run.py" ] || home="$MTDI_HOME"
   if [ "$OS" = Linux ] && [ -f "$HOME/.config/systemd/user/mtdi-studio.service" ]; then
     systemctl --user disable --now mtdi-studio.service 2>/dev/null || true
     rm -f "$HOME/.config/systemd/user/mtdi-studio.service"
@@ -166,6 +174,7 @@ main() {
   "$BIN/mtdi" doctor || die "doctor found problems (above). Fix them and run: mtdi doctor"
   echo
   say "MTDI is installed. Try:"
+  case ":$PATH:" in *":$BIN:"*) ;; *) echo "    (in this terminal, until you open a new one: export PATH=\"$BIN:\$PATH\")" ;; esac
   echo "    mtdi studio --lan                       the interface (open the address it prints, from any device on your network)"
   echo "    mtdi run projects/host-health           a live project on this computer's own data"
   echo "    mtdi doctor                             check the machine again any time"

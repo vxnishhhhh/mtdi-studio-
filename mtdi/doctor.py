@@ -7,6 +7,7 @@ GUIDE: add a check as a function returning that tuple, then list it in CHECKS.
 """
 import importlib
 import importlib.util
+import json
 import os
 import pathlib
 import platform
@@ -89,16 +90,18 @@ def check_studio():
 def check_serial():
     if importlib.util.find_spec("serial") is None:
         return "serial", "warn", "pyserial not installed; USB/UART sensors unavailable"
-    ports = sorted(str(p) for pat in ("ttyUSB*", "ttyACM*", "cu.usb*") for p in pathlib.Path("/dev").glob(pat))
+    ports = sorted(str(p) for pat in ("ttyUSB*", "ttyACM*", "ttyAMA*", "serial0", "cu.usb*") for p in pathlib.Path("/dev").glob(pat))
     return "serial", "ok", ("ports: " + ", ".join(ports)) if ports else "ready (no device plugged in)"
 
 
 def check_local_model():
     try:
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=1.5) as r:
-            r.read()
-        return "local AI", "ok", "Ollama is running; NVTRA can answer offline with a local model"
-    except OSError:
+            models = [m.get("name") for m in json.loads(r.read()).get("models") or [] if isinstance(m, dict)]
+        if models:
+            return "local AI", "ok", "Ollama running with " + ", ".join(map(str, models[:3])) + "; NVTRA answers offline"
+        return "local AI", "warn", "Ollama running but no model pulled (run: ollama pull llama3.2:3b)"
+    except (OSError, ValueError, AttributeError):
         pass
     if shutil.which("ollama"):
         return "local AI", "warn", "Ollama installed but not running (start it: ollama serve)"
