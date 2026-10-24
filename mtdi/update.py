@@ -24,6 +24,9 @@ GIT_LOCATION_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_D
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR", "GIT_NAMESPACE")
 
 
+GIT_TIMEOUT = 120      # seconds; a stalled network must end in a message, not a hang
+
+
 def git_env():
     return {k: v for k, v in os.environ.items() if k not in GIT_LOCATION_VARS}
 
@@ -33,7 +36,11 @@ class UpdateError(Exception):
 
 
 def git(root, *args):
-    res = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, env=git_env())
+    try:
+        res = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, env=git_env(),
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired as error:
+        raise UpdateError(f"git {args[0]} gave no answer in {GIT_TIMEOUT} s; check the network and try again") from error
     if res.returncode:
         raise UpdateError(f"git {' '.join(args)}: {(res.stderr or res.stdout).strip()}")
     return res.stdout.strip()
@@ -102,7 +109,11 @@ def update(root=ROOT, check_only=False, run=subprocess.run, home=None):
     if current == latest:
         return ["MTDI is up to date (" + current[:7] + ")"]
     behind = len(git(root, "rev-list", f"{current}..{latest}").splitlines())
-    ancestor = subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", current, latest], env=git_env())
+    try:
+        ancestor = subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", current, latest],
+                                  env=git_env(), timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired as error:
+        raise UpdateError(f"git merge-base gave no answer in {GIT_TIMEOUT} s") from error
     if ancestor.returncode:
         raise UpdateError("this copy has its own commits that the latest MTDI does not; "
                           "update it with git yourself, or reinstall into a fresh folder")

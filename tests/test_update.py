@@ -125,6 +125,19 @@ class Update(unittest.TestCase):
         self.assertEqual((self.install / "README.md").read_text(), "v2\n")
         self.assertEqual((decoy / "README.md").read_text(), "v1\n")
 
+    def test_a_stalled_fetch_ends_in_a_message_not_a_hang(self):
+        from unittest import mock
+        real = subprocess.run
+
+        def stall(cmd, *a, **kw):
+            if "fetch" in cmd:
+                self.assertEqual(kw.get("timeout"), update.GIT_TIMEOUT)
+                raise subprocess.TimeoutExpired(cmd, kw["timeout"])
+            return real(cmd, *a, **kw)
+        with mock.patch.object(update.subprocess, "run", side_effect=stall):
+            with self.assertRaisesRegex(update.UpdateError, "fetch gave no answer"):
+                update.update(self.install, run=Ran(), home=self.home)
+
     def test_not_a_checkout_is_a_clear_error(self):
         plain = self.tmp / "plain"
         plain.mkdir()
