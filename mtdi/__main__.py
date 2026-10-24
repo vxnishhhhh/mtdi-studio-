@@ -71,8 +71,11 @@ def cmd_run(args):
     os.environ.setdefault("STUDIO_HTTPS_PORT", "0")
     sys.path.insert(0, str(ROOT))
     from studio import content                     # the project's words, before the layout is built
+    from .bridge import words_for
     try:
-        content.use(runner.project.get("interface"), source=f"{args.project}: interface")
+        # Channel names and units come from the channels the project maps into the studio;
+        # the project's own interface block wins over them.
+        content.use({**words_for(runner.project), **runner.project["interface"]}, source=f"{args.project}: interface")
     except content.ContentError as error:
         sys.exit(f"manifest error: {error}")
     from run import NAMESPACE                      # the studio interface, in this process

@@ -794,6 +794,15 @@ BOOT_HTML = '''<div id="i3-boot" role="status" aria-live="polite">
 <script>(function(){var scene=document.getElementById('i3-scene');if(!scene)return;var imgs=Array.from(scene.querySelectorAll('img')),W=innerWidth,H=innerHeight,tx=W/2,ty=H/2,px=tx,py=ty,last=performance.now(),idle=true,t0=last;function fit(){W=innerWidth;H=innerHeight;scene.style.setProperty('--scene-scale',String(Math.max(.45,Math.min(1,W/1920))));tx=Math.max(0,Math.min(W,tx));ty=Math.max(0,Math.min(H,ty));}fit();addEventListener('resize',fit,{passive:true});function apply(cx,cy){var x=cx-W/2,y=cy-H/2,rot=(x/Math.max(1,W/2))*6;for(var i=0;i<imgs.length;i++){var el=imgs[i],d=el.dataset,left=el.offsetLeft,isLeft=left<W/2?1:-1,z=Math.max(-36,Math.min(36,(cx-left)*isLeft*.045*+d.sz)),dx=-x*+d.sx,dy=y*+d.sy;el.style.transform='translate3d(calc(-50% + '+dx.toFixed(2)+'px),calc(-50% + '+dy.toFixed(2)+'px),'+z.toFixed(2)+'px) rotateY('+(rot*+d.rot).toFixed(2)+'deg)';}}function aim(x,y){idle=false;tx=Math.max(0,Math.min(W,x));ty=Math.max(0,Math.min(H,y));}addEventListener('mousemove',function(e){aim(e.clientX,e.clientY);},{passive:true});addEventListener('touchmove',function(e){var t=e.touches[0];if(t)aim(t.clientX,t.clientY);},{passive:true});if(window.DeviceOrientationEvent)addEventListener('deviceorientation',function(e){if(e.gamma==null)return;aim(W/2+Math.max(-45,Math.min(45,e.gamma))/45*W*.38,H/2+Math.max(-45,Math.min(45,e.beta-40))/45*H*.3);},{passive:true});function tick(now){if(!document.getElementById('i3-scene'))return;var dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;if(idle){var t=(now-t0)*.001;tx=W/2+Math.sin(t*.22)*W*.11;ty=H/2+Math.cos(t*.18)*H*.07;}var ease=1-Math.exp(-dt*8);px+=(tx-px)*ease;py+=(ty-py)*ease;if(!document.hidden)apply(px,py);requestAnimationFrame(tick);}requestAnimationFrame(tick);})();</script>
 <script>window.__i3FailedScripts=[];addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT'&&e.target.src)window.__i3FailedScripts.push(e.target.src.split('/').pop().split('?')[0]);},true);(function(){var cols=document.querySelectorAll('.i3-liquid-col'),fill=document.getElementById('i3-boot-progress'),pct=document.getElementById('i3-boot-percent'),st=document.getElementById('i3-boot-state'),bar=fill&&fill.parentElement;var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;function tick(){if(!document.getElementById('i3-boot'))return;var t=performance.now()*.001;if(!reduced&&!window.__i3BootLiquid)for(var i=0;i<cols.length;i++){var d=i*.72,level=.16+.84*(.5+.5*Math.sin(t*1.15+d)+Math.sin(t*2.3+d)*.06);level=Math.max(.12,Math.min(1,level));cols[i].querySelector('.i3-bar').style.transform='scaleY('+level.toFixed(3)+')';cols[i].querySelector('.i3-drop').classList.toggle('on',level>.9);}if(!window.__i3BootTaken){var sizes=window.I3_BUNDLES||{},detail=document.getElementById('i3-boot-detail'),total=0,got=0,count=0,done=0,failed=window.__i3FailedScripts||[];for(var j=0;j<document.scripts.length;j++){var src=document.scripts[j].src;if(!src)continue;var path=src.replace(location.origin,'').split('?')[0],size=sizes[path]||0;if(!size)continue;count++;total+=size;var e=performance.getEntriesByName(src);if(e.length&&e[0].responseEnd>0){got+=size;done++;}}var frac=total?got/total*.55:0;var value=Math.round(frac*100);fill.style.width=(frac*100).toFixed(2)+'%';pct.textContent=value+'%';if(bar)bar.setAttribute('aria-valuenow',String(value));var mb=function(b){return (b/1048576).toFixed(2);};var stalled=(failed.length||(done>=count&&count&&performance.now()>45000))&&!window.__i3BootReloading;if(stalled){var n=0;try{n=+(sessionStorage.getItem('i3-boot-retry')||0);}catch(e){}if(n<3){window.__i3BootReloading=true;try{sessionStorage.setItem('i3-boot-retry',String(n+1));}catch(e){}setTimeout(function(){location.reload();},1200);}}st.textContent=window.__i3BootReloading?'A module did not arrive intact; reloading':failed.length?'A module failed to load: '+failed[0]+'. Reload to retry.':(done<count?'Receiving interface modules':'Interface modules received');if(detail)detail.textContent=total?mb(got)+' / '+mb(total)+' MB received or cache-ready · '+done+' / '+count+' modules':'Measuring interface modules';}requestAnimationFrame(tick);}requestAnimationFrame(tick);})();</script>'''
 
+def words_script():
+    """The studio's words for the browser (S1-06): window.I3_WORDS, read through __i3Word(key, fallback).
+    JSON with "<" escaped, so no word can close the script element."""
+    from .content import words
+    data = json.dumps(words(), ensure_ascii=False).replace("<", "\\u003c")
+    return ("<script>window.I3_WORDS=" + data + ";window.__i3Word=function(k,f){var w=window.I3_WORDS||{};"
+            "return typeof w[k]==='string'&&w[k]?w[k]:f;};</script>")
+
+
 def boot_html():
     """The boot screen with this studio's words (S1-06), escaped for HTML."""
     from html import escape
@@ -1131,9 +1140,9 @@ function scrubSize(c){const r=c.parentElement.getBoundingClientRect(),ratio=Math
 function seeded(n){let s=n>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
 function mtdiFlowPainter(c){
  const nodes=[
-  {x:.18,y:.22,w:.25,title:'CHANNEL 1',copy:'TEXT · TEXT · UNIT',at:.02},
-  {x:.50,y:.22,w:.25,title:'CHANNEL 2',copy:'TEXT · TEXT · UNIT',at:.07},
-  {x:.82,y:.22,w:.25,title:'CHANNEL 3',copy:'TEXT · TEXT · UNIT',at:.12},
+  {x:.18,y:.22,w:.25,title:__i3Word('ch1.name','Channel 1').toUpperCase(),copy:'TEXT · TEXT · '+__i3Word('ch1.unit','unit').toUpperCase(),at:.02},
+  {x:.50,y:.22,w:.25,title:__i3Word('ch2.name','Channel 2').toUpperCase(),copy:'TEXT · TEXT · '+__i3Word('ch2.unit','unit').toUpperCase(),at:.07},
+  {x:.82,y:.22,w:.25,title:__i3Word('ch3.name','Channel 3').toUpperCase(),copy:'TEXT · TEXT · '+__i3Word('ch3.unit','unit').toUpperCase(),at:.12},
   {x:.31,y:.44,w:.35,title:'VALIDATION CHAMBER',copy:'TEXT · TEXT · TEXT',at:.30},
   {x:.69,y:.44,w:.35,title:'ENVIRONMENTAL INTELLIGENCE',copy:'TEXT · TEXT',at:.36},
   {x:.50,y:.64,w:.48,title:'MTDI FUSION LAYER',copy:'TEXT · TEXT · TEXT',at:.55,core:true},
@@ -1594,7 +1603,7 @@ function scModels(T){
   const board=roundedBox(1.45,.95,.14,.1,body);board.position.set(-.15,-.85,.42);root.add(board);
   for(let i=0;i<6;i++){const pin=new T.Mesh(new T.CylinderGeometry(.035,.035,.3,8),wire);pin.rotation.x=Math.PI/2;pin.position.set(-.62+i*.2,-.85,.55);root.add(pin);}
   for(let i=0;i<4;i++){const t=new T.Mesh(new T.TorusGeometry(.4+i*.12,.012,8,40),cyan);t.rotation.x=Math.PI/2;t.position.set(.35,1.72,.4);root.add(t);}
-  const label=textSprite('CHANNEL 2','#d8faff');label.position.set(-.7,-1.05,.52);label.scale.set(1.2,.23,1);root.add(label);root.scale.setScalar(.7);return root;};
+  const label=textSprite(__i3Word('ch2.name','Channel 2').toUpperCase(),'#d8faff');label.position.set(-.7,-1.05,.52);label.scale.set(1.2,.23,1);root.add(label);root.scale.setScalar(.7);return root;};
  return {ch1:ch1(),ch2:ch2()};}
 function scBuild(canvas){const T=window.THREE;const renderer=new T.WebGLRenderer({canvas,alpha:true,antialias:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));renderer.outputColorSpace=T.SRGBColorSpace;const size=()=>{const r=canvas.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);cam.aspect=r.width/Math.max(1,r.height);cam.updateProjectionMatrix();};
  const scene=new T.Scene();const cam=new T.PerspectiveCamera(35,1,.1,100);cam.position.set(0,0,7);
@@ -2519,13 +2528,15 @@ function judgePanelOpen(){const els=judgeEls();els.panel.classList.add('on');jud
 function judgeExit(){const els=judgeEls();els.panel.classList.remove('on');clearInterval(EGG.judgeTimer);}
 function judgeTick(){const grid=document.getElementById('i3-judge-grid');if(!grid)return;const p=window.__i3Instrument||{};const ch=p.channels||{};const fu=p.fusion||{};
  const num=(v,d=2)=>Number.isFinite(v)?Number(v).toFixed(d):'—';
- const tile=(k,v,unit,s,cls)=>'<div class="i3-judge-tile '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+(unit?'<small>'+unit+'</small>':'')+'</div><div class="s">'+s+'</div></div>';
+ // k and unit carry project words and fed units (S1-06): escaped, never markup.
+ const h=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const tile=(k,v,unit,s,cls)=>'<div class="i3-judge-tile '+(cls||'')+'"><div class="k">'+h(k)+'</div><div class="v">'+v+(unit?'<small>'+h(unit)+'</small>':'')+'</div><div class="s">'+s+'</div></div>';
  const st=c=>!c?'bad':c.state==='connected'?(c.clipped?'warn':'ok'):'bad';const sv=c=>!c?'NOT PRESENT':c.state==='connected'?(c.clipped?'CLIPPING':'CONNECTED'):String(c.state||'OFFLINE').toUpperCase();
  const m=ch.ch1,e=ch.ch2,r=ch.ch3;const conf=Number(fu.confidence)||0;
  grid.innerHTML=
-  tile('CHANNEL 3',r&&r.state==='connected'?num(r.deviation,1):'—',r?r.unit||'':'',sv(r),st(r))+
-  tile('CHANNEL 1',m&&m.state==='connected'?num(m.display&&m.display.magnitude,2):'—','',sv(m),st(m))+
-  tile('CHANNEL 2',e&&e.state==='connected'?num(e.display&&e.display.rms_mv,1):'—','',sv(e),st(e))+
+  tile(__i3Word('ch3.name','Channel 3').toUpperCase(),r&&r.state==='connected'?num(r.deviation,1):'—',r?r.unit||'':'',sv(r),st(r))+
+  tile(__i3Word('ch1.name','Channel 1').toUpperCase(),m&&m.state==='connected'?num(m.display&&m.display.magnitude,2):'—','',sv(m),st(m))+
+  tile(__i3Word('ch2.name','Channel 2').toUpperCase(),e&&e.state==='connected'?num(e.display&&e.display.rms_mv,1):'—','',sv(e),st(e))+
   tile('MTDI · FUSED',String(fu.condition||'—').toUpperCase(),'',String(fu.interpretation||'').slice(0,110),'text '+(conf>80?'ok':conf>50?'warn':'bad'))+
   tile('CONFIDENCE',conf.toFixed(0),'%','Evidence quality',conf>80?'ok':conf>50?'warn':'bad')+
   tile('STATUS',[m,e,r].filter(c=>c&&c.state==='connected').length+' / 3','','channels reporting',[m,e,r].every(c=>c&&c.state==='connected')?'ok':'warn')+
@@ -3116,6 +3127,8 @@ def install(ns, runtime):
     index = index.replace('<head>', '<head><script>' + HEAD_JS + '</script>', 1)
     index = index.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + CSS + '</style></head>', 1)
     index = re.sub(r'</head>\s*<body\b[^>]*>', lambda match: match[0] + boot_html(), index, count=1)
+    # The words go first in <head>: SCRUB_JS and the rest read __i3Word while they load.
+    index = re.sub(r'<head\b[^>]*>', lambda match: match[0] + words_script(), index, count=1)
     index = index.replace('</body>', '<script>' + _gsap() + '</script><script>' + JS.replace('__I3_VERSION__', str(ns['APP_VERSION'])) + '</script></body>')
     app.index_string = centralize_css(index)
     app.server.config["I3_UI_RUNTIME"] = runtime

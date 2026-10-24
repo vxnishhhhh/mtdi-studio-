@@ -38,6 +38,20 @@ def mapping_for(project):
     return dict(zip(SLOTS, ids))
 
 
+def words_for(project):
+    """The studio's words for the slots this project fills: {"ch1.name": label, "ch1.unit": unit, ...}.
+    Empty labels and units are left out, so the studio keeps its default for them."""
+    by_id = {c["id"]: c for c in project["channels"]}
+    words = {}
+    for slot, cid in mapping_for(project).items():
+        ch = by_id[cid]
+        if str(ch.get("label") or "").strip():
+            words[f"{slot}.name"] = str(ch["label"]).strip()
+        if str(ch.get("unit") or "").strip():
+            words[f"{slot}.unit"] = str(ch["unit"]).strip()
+    return words
+
+
 def sample_for(slot, channel):
     """One studio sample for one slot from one packet channel, or None when it has nothing new."""
     if channel["evidence"]["state"] != "connected" or channel["value"] is None:
@@ -61,6 +75,10 @@ class StudioBridge:
         self.token = token
         self.interval = interval
         self.source = source or ("MTDI:" + engine.project["project"]["id"])[:40]
+        # Each slot's unit from the project, so the studio labels the data with it (S1-06).
+        by_id = {c["id"]: c for c in engine.project["channels"]}
+        self.units = {slot: str(by_id[cid].get("unit")).strip() for slot, cid in self.mapping.items()
+                      if cid in by_id and str(by_id[cid].get("unit") or "").strip()}
         self._seen = {}
         self._stop = threading.Event()
         self._thread = None
@@ -85,19 +103,22 @@ class StudioBridge:
                 self._seen[slot] = marker
         return out
 
+    def _unit(self, slot):
+        return {"unit": self.units[slot]} if slot in self.units else {}
+
     def push(self, sample):
         if not sample:
             return 0
         if callable(self.target) or isinstance(self.target, dict):
             feeds = self.target if isinstance(self.target, dict) else self.target()
             if "ch1" in sample:
-                feeds["feed_ch1"](sample["ch1"], source=self.source)
+                feeds["feed_ch1"](sample["ch1"], source=self.source, **self._unit("ch1"))
             if "ch2" in sample:
-                feeds["feed_ch2"](sample["ch2"], source=self.source)
+                feeds["feed_ch2"](sample["ch2"], source=self.source, **self._unit("ch2"))
             if "ch3" in sample:
                 feeds["feed_ch3"](sample["ch3"]["x"], sample["ch3"]["y"], source=self.source)
         else:
-            body = json.dumps(dict(sample, source=self.source)).encode()
+            body = json.dumps(dict(sample, source=self.source, **({"unit": self.units} if self.units else {}))).encode()
             headers = {"Content-Type": "application/json"}
             if self.token:
                 headers["Authorization"] = "Bearer " + self.token

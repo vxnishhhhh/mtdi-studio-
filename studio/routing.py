@@ -1,6 +1,18 @@
 """Routing, navigation, live callbacks, self test, argument parsing and main."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser', 'webapp', 'reports', 'charts', 'pages')
+from .content import T  # studio words (S1-06)
+
+def _slot_words(text):
+    """The D4 engine speaks in slot terms ("channel 1"); show the project's names instead (S1-06)."""
+    if not isinstance(text, str):
+        return text
+    # One pass over the original text: a project word that itself reads "Channel 2" is never renamed again.
+    def name(match):
+        word = T(f"ch{match.group(2)}.name")
+        return word if match.group(1) == "C" else word.lower()
+    return re.sub(r"\b([Cc])hannel ([123])\b", name, text)
+
 
 # ════════════════════════════════════════════════════════
 #  ROUTING / NAV
@@ -174,7 +186,7 @@ def update_numbers(n, _refresh):
     baseline_status = (
         f"Quiet vector learned: {m['baseline_magnitude']:.2f} unit; live change is {m['baseline_delta']:.2f} unit."
         if m["baseline_calibrated"] else
-        'Learning the quiet channel 1 baseline… keep the instrument still and clear of devices (~5 s).'
+        f"Learning the quiet {T('ch1.name').lower()} baseline… keep the instrument still and clear of devices (~5 s)."
     )
     summary_c1 = f"{m['magnitude']:.2f} unit" if m["last_rx"] is not None else "—"
     summary_axes = (
@@ -221,7 +233,7 @@ def update_charts(n, zoom, _refresh):
         mn = avg = mx = None
     have = bool(hist)
     return (make_line_chart(hist, color=CYAN, fill_color="rgba(0,229,255,0.07)",
-                            height=250, ylabel="unit", smart_scale=True, zoom=zoom,
+                            height=250, ylabel=T("ch1.unit"), smart_scale=True, zoom=zoom,
                             revision="c1-line"),
             fig_axis(xyz), fig_pie(m['x'], m['y'], m['z']) if have else fig_pie(None, None, None),
             fig_gauge(m['magnitude'] if have else None), fig_bar(mn, avg, mx),
@@ -248,7 +260,7 @@ def update_ch2f_triaxial(n, _refresh):
         xyz = list(ch2f_data.get("exyz_history") or [])
         sgm = list(ch2f_data.get("sgm_history") or [])
     live = e.get("axes_live", 0)
-    axis_unit = "ADC counts RMS" if e.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
+    axis_unit = ch2_axis_unit(e)
     # An axis that is not reporting shows an em dash. Rendering 0.00 would be a
     # fabricated measurement -- indistinguishable on screen from a working plate
     # in a null field -- which is the whole reason acquisition passes None up.
@@ -270,7 +282,7 @@ def update_ch2f_triaxial(n, _refresh):
             fig_2d_delta(xyz, unit=axis_unit),
             fig_gauge(e.get("e_magnitude_mv"), unit=axis_unit),
             fig_pie(e.get("ex_mv"), e.get("ey_mv"), e.get("ez_mv")),
-            fig_bar(*_e3_stats(sgm), unit=axis_unit, quantity='channel 2 activity magnitude'),
+            fig_bar(*_e3_stats(sgm), unit=axis_unit, quantity=f"{T('ch2.name').lower()} activity magnitude"),
             fig_archive(series=sgm, unit=axis_unit))
 
 
@@ -283,7 +295,7 @@ def update_ch2f_triaxial(n, _refresh):
 def update_ch2f_triaxial_3d(n, _refresh):
     with ch2f_lock:
         xyz = list(ch2f_data.get("exyz_history") or [])
-        axis_unit = "ADC counts RMS" if ch2f_data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
+        axis_unit = ch2_axis_unit(ch2f_data)
     state = _direction_plot_state(xyz)
     return (fig_3d_surface(xyz, height=400, unit=axis_unit),
             fig_3d_terrain(xyz, height=400, unit=axis_unit),
@@ -353,12 +365,12 @@ def update_ch2f_numbers(n, _refresh):
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     lc = _c2_level_color(e["level"])
     if e["error"] and not (e["last_rx"] is None and e["error"] == "Waiting for Ch2 sensor"):
-        st = f"CHANNEL 2 OFFLINE · {e['error'][:64]}"; sc = RED; dot = "online-dot off"
+        st = f"{T('ch2.name').upper()} OFFLINE · {e['error'][:64]}"; sc = RED; dot = "online-dot off"
     elif e["error"]:
-        st = 'CHANNEL 2 WAITING · connect the Uno USB ADC'; sc = AMBER; dot = "online-dot warn"
+        st = f"{T('ch2.name').upper()} WAITING · connect the Uno USB ADC"; sc = AMBER; dot = "online-dot warn"
     elif provisional:
         age = time.time() - e["last_rx"] if e["last_rx"] else 0.0
-        st = f"CHANNEL 2 ONLINE · SOURCE 6 UNO USB · {e['sample_rate']:.1f} SPS · {age:.1f}s ago"
+        st = f"{T('ch2.name').upper()} ONLINE · SOURCE 6 UNO USB · {e['sample_rate']:.1f} SPS · {age:.1f}s ago"
         sc = GREEN; dot = "online-dot on"
         warn = None
         clipped_axes = e.get("axis_clipped") or {}
@@ -393,7 +405,7 @@ def update_ch2f_numbers(n, _refresh):
             wiring = CH2F_MUX_NAME.get(CH2F_MUX, f"input {CH2F_MUX}")
         except Exception:
             wiring = "probe input"
-        st = f"CHANNEL 2 ONLINE · Source 2 {wiring} @ 0x48 · {age:.1f}s ago"; sc = GREEN; dot = "online-dot on"
+        st = f"{T('ch2.name').upper()} ONLINE · Source 2 {wiring} @ 0x48 · {age:.1f}s ago"; sc = GREEN; dot = "online-dot on"
     warning_text = (
         "SIGNAL ABOVE ADC RANGE — live value is streaming, but is only a lower bound while clipped"
         if e["clipped"] and e["calibrated"] else e["warning"]
@@ -527,14 +539,14 @@ def update_sweep3_numbers(n, _refresh):
         sm = ch3_stats["sum"]; strongest = dict(ch3_stats["strongest"])
 
     if s["error"]:
-        st = f"CHANNEL 3 OFFLINE · {s['error'][:64]}"; sc = RED; dot = "online-dot off"
+        st = f"{T('ch3.name').upper()} OFFLINE · {s['error'][:64]}"; sc = RED; dot = "online-dot off"
     elif "paused" in s["status"].lower():
-        st = 'CHANNEL 3 PAUSED · last valid sweep retained'; sc = AMBER; dot = "online-dot warn"
+        st = f"{T('ch3.name').upper()} PAUSED · last valid sweep retained"; sc = AMBER; dot = "online-dot warn"
     elif s["last_rx"] is None:
         st = 'SOURCE 3 CONNECTED · waiting for the first sweep…'; sc = AMBER; dot = "online-dot warn"
     else:
         age = time.time() - s["last_rx"]
-        st = f"CHANNEL 3 ONLINE · {s['device']} · sweep {s['sweep_s']:.1f}s · {age:.1f}s ago"
+        st = f"{T('ch3.name').upper()} ONLINE · {s['device']} · sweep {s['sweep_s']:.1f}s · {age:.1f}s ago"
         sc = GREEN; dot = "online-dot on"
 
     # Suspicious values are shown but never diagnosed or treated as trusted.
@@ -1051,7 +1063,7 @@ def update_nvtra_basic_ml(_n, _refresh):
         ch2_vu = float(ch2f_data["field_vu"])
         c2_ready = ch2f_data["error"] is None and ch2f_data["last_rx"] is not None
     if not (c1_ready and c2_ready):
-        return 'MODEL WAITING\nBoth live channel 1 and channel 2 sources are required.'
+        return f"MODEL WAITING\nBoth live {T('ch1.name').lower()} and {T('ch2.name').lower()} sources are required."
     result = _nvtra_basic_ml(ch2_vu, ch1_val)
     confidence = f"{result['confidence']}%" if result["label"] != "UNKNOWN" else "REJECTED"
     return (
@@ -1215,10 +1227,10 @@ def update_mtdi(n, _refresh):
               f"Min {md['min_c1']:.2f}  Max {md['max_c1']:.2f}" if md['min_c1'] != float('inf') else "—",
               vc=CYAN if mo_ else SUBTEXT),
         _card("NOISE σ", vs, 'Text', vc=vc_),
-        _card('CHANNEL 2 LINK', "ONLINE" if eonline else ('TITLE' if ed["error"] is None else "OFFLINE"),
+        _card(f"{T('ch2.name').upper()} LINK", "ONLINE" if eonline else ('TITLE' if ed["error"] is None else "OFFLINE"),
               f"diff A0-A1 · {_gain_label(ed['gain'])} · {ed['level']}" if eonline else (ed["error"] or "warming up")[:40],
               vc=GREEN if eonline else (AMBER if ed["error"] is None else RED)),
-        _card('CHANNEL 2',
+        _card(T('ch2.name').upper(),
               (f"{ed.get('rms_counts'):.2f} ADC counts RMS"
                if ed.get("data_source") == "ARDUINO_UNO_USB" and ed.get("rms_counts") is not None else
                f"{ed['field_vu']:.3f} unit = N/C" if ed["last_rx"] and ed["field_vu"] is not None else "—"),
@@ -1227,7 +1239,7 @@ def update_mtdi(n, _refresh):
                f"index {ed['rel_index']:.0f}% · base {ed['baseline_vu']:.3f} unit"),
               vc=RED if ed["clipped"] else CYAN),
         _card("SAMPLES", str(len(md["xyz_history"])), 'Text', vc=WHITE),
-        _card('CHANNEL 3 LINK', ('TITLE' if sd_ch3["trusted"] else 'TITLE') if ronline else "OFFLINE",
+        _card(f"{T('ch3.name').upper()} LINK", ('TITLE' if sd_ch3["trusted"] else 'TITLE') if ronline else "OFFLINE",
               f"{sd_ch3['device'][:28]} · {sd_ch3['sweeps']} sweeps" if ronline
               else (sd_ch3["error"] or "waiting")[:40],
               vc=(GREEN if sd_ch3["trusted"] else AMBER) if ronline else RED),
@@ -2313,7 +2325,7 @@ def _d4_render(kind, d, rt, where):
                 html.Div(f"weights {' · '.join(f'{k} {v:.2f}' for k, v in d['weights'].items())} · engine {rt.d4.compute_seconds or 0} s per pass{sim}", className="validation-subcopy d4-weights")]
     if kind == "consensus":
         cs = d.get("consensus")
-        return [_d4_bar("Channel 3", sc.get("ch3"), z.get("ch3")), _d4_bar("Channel 2", sc.get("ch2"), z.get("ch2")), _d4_bar("Channel 1", sc.get("ch1"), z.get("ch1")),
+        return [_d4_bar(T("ch3.name"), sc.get("ch3"), z.get("ch3")), _d4_bar(T("ch2.name"), sc.get("ch2"), z.get("ch2")), _d4_bar(T("ch1.name"), sc.get("ch1"), z.get("ch1")),
                 _d4_bar("Transient", sc.get("transient")),
                 html.Div(f"Cross-source agreement: {'—' if cs is None else f'{cs:.0f}%'} · MTDI 2.0 {d.get('mtdi')} · contributions " + ", ".join(f"{k} {v}" for k, v in (d.get("contributions") or {}).items()), className="validation-subcopy", style={"marginTop": "6px"})]
     if kind == "confidence":
@@ -2371,7 +2383,7 @@ def _d4_render(kind, d, rt, where):
     if kind == "calhealth":
         ch = d.get("calibration_health") or {}
         return [_d4_kv([("Status", str(ch.get("status", "—")).upper()), ('Text', f"{ch['quality']} %" if ch.get("quality") is not None else "—"), ('Text', f"{ch.get('magnitude_spread_pct')} %"),
-                        ('Text', f"{ch.get('offset_drift_val')} unit"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} unit RMS"), ("Recalibration", ch.get("recalibration", ch.get("text", "—"))), ('Text', cfg.get("source") or "defaults")])]
+                        ('Text', f"{ch.get('offset_drift_val')} {T('ch1.unit')}"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} {T('ch1.unit')} RMS"), ("Recalibration", _slot_words(ch.get("recalibration", ch.get("text", "—")))), ('Text', cfg.get("source") or "defaults")])]
     if kind == "transients":
         tr = d.get("transients") or {}; ev = tr.get("events") or []
         return [_d4_kv([('Text', f"{tr.get('count', 0)} in {tr.get('window_s') or 0} s"), ("Threshold", f"{tr.get('threshold')} (baseline {tr.get('baseline')}, MAD {tr.get('noise_mad')})"), ("Repetition", f"{tr['repetition_hz']} Hz" if tr.get("repetition_hz") else "—")]),
@@ -2414,7 +2426,7 @@ def _d4_render(kind, d, rt, where):
     if kind == "limits":
         lim = d.get("detection_limits") or {}
         rows = []
-        for key, label in (("ch1", 'Channel 1'), ("ch2", 'Text')):
+        for key, label in (("ch1", T("ch1.name")), ("ch2", 'Text')):
             v = lim.get(key) or {}
             if v.get("error") or not v.get("lod"):
                 rows.append((label, v.get("error") or "not measured yet"))
@@ -2453,7 +2465,7 @@ def _d4_render(kind, d, rt, where):
         fp = d.get("fingerprint") or {}; ref = d.get("fingerprint_reference"); chg = d.get("fingerprint_change") or {}
         return [_d4_kv([('Text', f"{fp.get('ch1_val')} unit"), ('Text', f"{fp.get('ch2')}"), ('Text', f"{fp.get('ch3_floor_dbm')} unit · peak {_freq_label(fp['ch3_peak_hz']) if fp.get('ch3_peak_hz') else '—'}"),
                         ('Reference', f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ('Text', f"{fp.get('transient_rate_per_min')} /min")]),
-                html.Div(('Text' if not ref else f"Environmental change vs reference: CH 3 floor {chg.get('ch3_floor_db'):+} dB · channel 1 {chg.get('ch1_pct')} % · channel 2 {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
+                html.Div(('Text' if not ref else f"Environmental change vs reference: CH 3 floor {chg.get('ch3_floor_db'):+} dB · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
     if kind == "trend":
         t = d.get("trend"); hist = d.get("history") or {}
         rows = [('TEXT', f"{t['minutes']} min window · slope {t['mtdi_per_min']:+} per min · {t['text']}")] if t else [('TEXT', "collecting")]
@@ -2467,7 +2479,7 @@ def _d4_render(kind, d, rt, where):
     if kind == "events":
         evs = d.get("events") or []
         return [html.Div([html.B(f"EVENT #{e['id']:05d} · {e['time']}" + (' TEXT' if e.get("open") else f" · {e.get('duration_s')} s")),
-                          html.Div(f"CH 3 {e['ch3']} · Channel 1 {e['ch1']} · Channel 2 {e['ch2']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
+                          html.Div(f"CH 3 {e['ch3']} · {T('ch1.name')} {e['ch1']} · {T('ch2.name')} {e['ch2']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
             or [html.Div('Subtext', className="validation-subcopy")]
     if kind == "config":
         return [_d4_kv([("Source", cfg.get("source")), ('Text', str(cfg.get("c1_offsets"))), ("Scale", str(cfg.get("c1_scale"))), ('Text', f"{cfg.get('c1_calibration_quality')} %" if cfg.get("c1_calibration_quality") is not None else "—"),
@@ -2631,12 +2643,12 @@ def d4_actions(clicks, values, in_ids, status_ids):
                 msg = f"REJECTED · {patch}"
             elif action == "cal_apply":
                 path = rt.d4.update_config(patch)
-                rt.note("d4", f"channel 1 calibration applied: offsets {result['offsets_val']} unit, quality {result['quality']} %")
+                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {T('ch1.unit')}, quality {result['quality']} %")
                 msg = f"Fit applied: offsets {result['offsets_val']} unit · quality {result['quality']} % · written to {path}"
             else:
                 msg = f"Fit done: offsets {result['offsets_val']} unit · quality {result['quality']} % (not applied)"
         elif action == "burst":
-            rt.d4.request_burst(3440, "ch2f"); msg = 'Burst requested: next Channel 2 block is 3440 contiguous samples'
+            rt.d4.request_burst(3440, "ch2f"); msg = f"Burst requested: next {T('ch2.name')} block is 3440 contiguous samples"
         elif action == "repeat_start":
             def num(k, dflt):
                 v = fields.get(k)

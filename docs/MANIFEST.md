@@ -122,6 +122,11 @@ value must be non-empty text, and an unknown key is an error (`mtdi check` repor
 `mtdi run` applies them before the studio is built. For a studio without a project, point
 `MTDI_CONTENT` at a JSON file of the same shape. A project's words win over `MTDI_CONTENT`.
 
+The three display channels name themselves after the project's channels. For each slot the project
+fills (see `studio` below), `ch1.name` / `ch1.unit` (and `ch2.*`, `ch3.*`) come from that channel's
+`label` and `unit`. Page 1's tabs, chart axes and statuses show them, and the data fed into the
+studio carries that unit. Set them in `interface` only to override.
+
 ## studio
 
 Which project channels fill the studio interface's three display channels. Optional; without

@@ -13,10 +13,20 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from studio import content  # noqa: E402
 
-# Which surface must show each group of keys. Brand, nav, boot and intro live in the shell.
+# Which surface must show each key. Brand, nav, boot and intro live in the shell. Channel words show
+# offline on page 1 (tabs, axis titles) and Home (channel 3's card); the channel 2 and 3 units are
+# read by the browser layer, so their surface is the served window.I3_WORDS.
 SURFACES = {"brand.": "layout", "nav.": "layout", "intro.": "layout", "boot.": "boot",
             "home.": "/", "page1.": "/page-1", "page2.": "/page-2", "mtdi.": "/mtdi",
-            "page3.": "/page-3", "settings.": "/settings"}
+            "page3.": "/page-3", "settings.": "/settings",
+            "ch1.name": "/page-1", "ch2.name": "/page-1", "ch3.name": "/", "ch1.unit": "/page-1",
+            "ch2.unit": "words", "ch3.unit": "words"}
+
+
+def surface_for(key):
+    if key in SURFACES:
+        return SURFACES[key]
+    return next(s for p, s in SURFACES.items() if p.endswith(".") and key.startswith(p))
 
 RENDER = r'''
 import json, os, sys
@@ -24,7 +34,8 @@ sys.path.insert(0, os.getcwd())
 import plotly.utils
 from run import NAMESPACE as ns
 dump = lambda c: json.dumps(c, cls=plotly.utils.PlotlyJSONEncoder)
-out = {"layout": dump(ns["app"].layout), "boot": sys.modules["studio.ui"].boot_html()}
+ui = sys.modules["studio.ui"]
+out = {"layout": dump(ns["app"].layout), "boot": ui.boot_html(), "words": ui.words_script()}
 out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
 print(json.dumps(out))
 '''
@@ -73,12 +84,14 @@ class Content(unittest.TestCase):
     def test_every_key_is_used_and_every_used_key_exists(self):
         used = set()
         for path in (ROOT / "studio").glob("*.py"):
-            used |= set(re.findall(r'\bT\("([a-z0-9_.]+)"\)', path.read_text(encoding="utf-8")))
+            text = path.read_text(encoding="utf-8")
+            used |= set(re.findall(r"""\bT\(["']([a-z0-9_.]+)["']\)""", text))      # Python
+            used |= set(re.findall(r"__i3Word\('([a-z0-9_.]+)'", text))             # the browser layer
         keys = set(content.defaults())
         self.assertEqual(sorted(used - keys), [], "T() keys missing from default.json")
         self.assertEqual(sorted(keys - used), [], "default.json keys nothing uses")
         for key in keys:
-            self.assertTrue(any(key.startswith(p) for p in SURFACES), f"{key}: no surface to check it on")
+            self.assertTrue(surface_for(key), f"{key}: no surface to check it on")
 
 
 class SecondContentFile(unittest.TestCase):
@@ -97,8 +110,8 @@ class SecondContentFile(unittest.TestCase):
         for page in ("/", "/page-1", "/page-2", "/mtdi", "/page-3", "/settings"):
             self.assertIn(page, rendered)
         for key, word in words.items():
-            surface = next(s for p, s in SURFACES.items() if key.startswith(p))
-            self.assertIn(word, rendered[surface], f"{key} not shown on {surface}")
+            surface = surface_for(key)            # headings upper-case some words, so compare without case
+            self.assertIn(word.lower(), rendered[surface].lower(), f"{key} not shown on {surface}")
 
 
 class ManifestInterface(unittest.TestCase):
@@ -127,6 +140,85 @@ class ManifestInterface(unittest.TestCase):
         self.assertIn("1 studio word(s) set", res.stdout)
 
 
+class ChannelWords(unittest.TestCase):
+    """The studio's three channels take their names and units from the project (S1-06 slice 2)."""
+
+    def project(self, studio=None):
+        from mtdi.project import normalise
+        return normalise({"project": {"id": "g"}, "sources": [{"id": "s", "adapter": "http"}],
+                          "channels": [{"id": "air", "label": "Air temperature", "keys": ["T"], "unit": "°C", "noise_floor": 0.1},
+                                       {"id": "soil", "label": "Soil moisture", "keys": ["M"], "unit": "%", "noise_floor": 0.1},
+                                       {"id": "bare", "keys": ["B"], "noise_floor": 0.1}],
+                          **({"studio": studio} if studio else {})})
+
+    def test_words_follow_the_studio_mapping_and_skip_empty_units(self):
+        from mtdi.bridge import words_for
+        words = words_for(self.project())
+        self.assertEqual(words["ch1.name"], "Air temperature")
+        self.assertEqual(words["ch1.unit"], "°C")
+        self.assertEqual(words["ch2.unit"], "%")
+        self.assertNotIn("ch3.unit", words)                       # no unit given: the studio keeps its default
+        swapped = words_for(self.project(studio={"ch1": "soil", "ch2": "air"}))
+        self.assertEqual((swapped["ch1.name"], swapped["ch2.unit"]), ("Soil moisture", "°C"))
+
+    def test_the_bridge_labels_fed_samples_with_the_project_unit(self):
+        from mtdi.bridge import StudioBridge
+        from mtdi.engine import Engine
+        calls = []
+        feeds = {"feed_ch1": lambda v, **kw: calls.append(("ch1", kw)),
+                 "feed_ch2": lambda v, **kw: calls.append(("ch2", kw)),
+                 "feed_ch3": lambda x, y, **kw: calls.append(("ch3", kw))}
+        bridge = StudioBridge(Engine(self.project()), feeds)
+        bridge.push({"ch1": [21.0], "ch2": 40.0})
+        self.assertEqual(dict(calls)["ch1"]["unit"], "°C")
+        self.assertEqual(dict(calls)["ch2"]["unit"], "%")
+
+    def test_the_bridge_sends_units_over_http_too(self):
+        from mtdi.bridge import StudioBridge
+        from mtdi.engine import Engine
+        sent = {}
+
+        class Response:
+            status = 200
+            def read(self): return b"{\"ok\": true}"
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_open(request, timeout=None):
+            sent.update(json.loads(request.data))
+            return Response()
+        bridge = StudioBridge(Engine(self.project()), "http://127.0.0.1:9")
+        with mock.patch("urllib.request.urlopen", fake_open):
+            bridge.push({"ch2": 40.0})
+        self.assertEqual(sent["unit"], {"ch1": "°C", "ch2": "%"})
+
+    def test_channel_2_axis_shows_the_fed_unit_and_keeps_the_adc_labels(self):
+        sys.path.insert(0, str(ROOT))
+        from run import NAMESPACE
+        unit = NAMESPACE["ch2_axis_unit"]
+        self.assertEqual(unit({"unit": "%"}), "%")
+        self.assertEqual(unit({"unit": "mV RMS relative"}), "mV RMS")     # feed default: no unit was given
+        self.assertEqual(unit({}), "mV RMS")
+        self.assertEqual(unit({"data_source": "ARDUINO_UNO_USB"}), "ADC counts RMS")
+
+
+class SlotWords(unittest.TestCase):
+    def setUp(self):
+        content.reset()
+        self.addCleanup(content.reset)
+        sys.path.insert(0, str(ROOT))
+        from run import NAMESPACE
+        self.slot_words = NAMESPACE["_slot_words"]
+
+    def test_defaults_leave_engine_messages_unchanged(self):
+        self.assertEqual(self.slot_words("Recommended: run channel 1 recalibration"),
+                         "Recommended: run channel 1 recalibration")
+
+    def test_one_pass_never_renames_a_word_twice(self):
+        content.use({"ch1.name": "Channel 2", "ch2.name": "Soil"})
+        self.assertEqual(self.slot_words("Channel 1 then channel 2"), "Channel 2 then soil")
+
+
 class HeroWordsAreText(unittest.TestCase):
     """Project words reach the page as text, never as markup (CWE-79)."""
 
@@ -135,6 +227,11 @@ class HeroWordsAreText(unittest.TestCase):
         self.assertNotRegex(js, r"innerHTML\s*=[^;]*dataset\.i3(Title|Tagline)")
         self.assertIn("h1.textContent=hero.dataset.i3Title", js)
         self.assertIn("para.textContent=hero.dataset.i3Tagline", js)
+
+    def test_judge_tiles_escape_label_and_unit(self):
+        js = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn("<div class=\"k\">'+h(k)+'</div>", js)
+        self.assertIn("'<small>'+h(unit)+'</small>'", js)
 
     def test_boot_title_is_escaped(self):
         from studio import ui

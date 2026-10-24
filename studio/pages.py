@@ -52,15 +52,15 @@ def home_page():
     with mtdi_lock:
         overall = mtdi_data["active_health"]
     if ch3_have and not ch3_err:
-        ch3_val = f"{ch3_pl:+.0f} unit"; ch3_lbl = f"PEAK @ {_freq_label(ch3_pf)}"
+        ch3_val = f"{ch3_pl:+.0f} {T('ch3.unit')}"; ch3_lbl = f"PEAK @ {_freq_label(ch3_pf)}"
     elif ch3_err:
-        ch3_val = "OFFLINE"; ch3_lbl = "CHANNEL 3"
+        ch3_val = "OFFLINE"; ch3_lbl = T("ch3.name").upper()
     else:
-        ch3_val = "SWEEPING"; ch3_lbl = "CHANNEL 3"
+        ch3_val = "SWEEPING"; ch3_lbl = T("ch3.name").upper()
     # Fixed route identities: status and readings change, module colour never does.
     mods = [
         ("page-1","01",T("nav.page1"),T("home.card.page1"),
-         f"{cur_c1:.2f} unit" if c1_have and not c1_err else "OFFLINE",
+         f"{cur_c1:.2f} {T('ch1.unit')}" if c1_have and not c1_err else "OFFLINE",
          "MAGNITUDE" if c1_have else "NO DATA", "#67cbd5", "103,203,213"),
         ("page-2","02",T("nav.page2"),T("home.card.page2"),
          ch3_val, ch3_lbl, "#718ee8", "113,142,232"),
@@ -227,7 +227,7 @@ def ch1_body():
         html.Div([
             _chart("g-line", 'Title',
                    make_line_chart(hist, color=CYAN, fill_color="rgba(0,229,255,0.07)",
-                                   height=250, ylabel="unit", smart_scale=True, zoom=1,
+                                   height=250, ylabel=T("ch1.unit"), smart_scale=True, zoom=1,
                                    revision="c1-line")),
         ], className="chart-grid chart-grid-primary"),
         html.Div([
@@ -409,7 +409,7 @@ def ch2_triaxial_blocks():
     status = e.get("axis_status") or {}
     tri = bool(e.get("triaxial"))
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
-    axis_unit = "ADC counts RMS" if provisional else "mV RMS"
+    axis_unit = ch2_axis_unit(e)
 
     # The section is built whether or not the probe is triaxial. Returning a
     # different panel here would leave e3-int, e3-line and the rest unmounted
@@ -494,7 +494,7 @@ def ch2_triaxial_blocks():
                    fig_pie(e.get("ex_mv"), e.get("ey_mv"), e.get("ez_mv"))),
             _chart("e3-bar", 'Title',
                    fig_bar(*_e3_stats(sgm), unit=axis_unit,
-                           quantity='channel 2 activity magnitude' if provisional else 'channel 2 magnitude')),
+                           quantity=f"{T('ch2.name').lower()} activity magnitude" if provisional else f"{T('ch2.name').lower()} magnitude")),
         ], className="chart-grid"),
         html.Div('LABEL', className="section-label",
                  style={"marginTop": "30px"}),
@@ -754,8 +754,8 @@ def p1_page():
         _ph(T("page1.eyebrow"), T("page1.title"), T("page1.subtitle")),
         html.Hr(className="divider"),
         html.Div([
-            html.Button("CHANNEL 1", id="p1-tab-c1", className="tab-btn active", n_clicks=0),
-            html.Button("CHANNEL 2", id="p1-tab-c2x", className="tab-btn", n_clicks=0),
+            html.Button(T("ch1.name").upper(), id="p1-tab-c1", className="tab-btn active", n_clicks=0),
+            html.Button(T("ch2.name").upper(), id="p1-tab-c2x", className="tab-btn", n_clicks=0),
             html.Button('BUTTON', id="p1-tab-both", className="tab-btn", n_clicks=0),
         ], className="tab-bar p1-mode-tabs"),
         html.Div(id="p1-subcontent", children=ch1_view()),
@@ -1526,15 +1526,16 @@ def _validation_chamber_base():
 
 
 NVTRA_SUGGESTIONS = [
-    'What am I looking at on the Channel 3 tab?',
-    'Is my channel 1 reading normal right now?',
+    f"What am I looking at on the {T('ch3.name')} tab?",
+    f"Is my {T('ch1.name').lower()} reading normal right now?",
     "Explain unit like I'm five",
 ]
 
 
 def _nvtra_greeting():
     if nvtra_online():
-        return ('NVTRA online. Ask me about any reading on this dashboard — the channel 1, the Channel 2, the channel 3 sweep, or what the numbers mean. I can see the live values.')
+        return (f"NVTRA online. Ask me about any reading on this dashboard — the {T('ch1.name').lower()}, "
+                f"the {T('ch2.name')}, the {T('ch3.name').lower()} sweep, or what the numbers mean. I can see the live values.")
     return ("NVTRA is installed but has no AI key yet. Add one in Settings → AI KEYS and "
             "I'll come online. Until then the rest of the instrument runs normally.")
 
