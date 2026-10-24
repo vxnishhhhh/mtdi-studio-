@@ -53,9 +53,9 @@ project's `interface` block or `MTDI_CONTENT` path. Defaults reproduce today's p
 Slice 1 (2026-10-24): `studio/content.py`, `studio/content/default.json` (42 keys), `MTDI_CONTENT`, the
 manifest's `interface` block (`mtdi run` applies it, `mtdi check` validates it). Covers the brand,
 author credit, nav, boot screen, startup intro, Home hero and cards, and every page's eyebrow,
-title and subtitle. Defaults render identically to before on every page. Next slices: section
-heads and cards on each page, channel names and units (from the project's channels), tab and
-button labels, typewriter lines, constellation and globe words.
+title and subtitle. Defaults render identically to before on every page. Slice 2 (#46): channel names and
+units from the project's channels. Next slices: section heads and cards on each page, channel 3's
+sweep units, tab and button labels, typewriter lines, constellation and globe words, PDF headings.
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · ready
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

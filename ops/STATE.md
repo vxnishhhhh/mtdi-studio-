@@ -5,7 +5,7 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 137 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
-* **Next item:** S1-06 slice 2 (section heads and cards, channel names from the project); S1-07 Third Eye reference project; S1-05 Compatibility Lab (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings); S1-07 Third Eye reference project; S1-05 Compatibility Lab (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
