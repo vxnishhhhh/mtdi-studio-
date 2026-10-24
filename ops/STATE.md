@@ -4,7 +4,7 @@ Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 137 tests, MATLAB parity in GNU Octave)
-* **Open PRs:** none
+* **Open PRs:** #39 (studio project panel), #40 (this report)
 * **Next item:** merge #39; studio per-page ready signal; `mtdi update`. Older: studio panel for fused/calibrated channels (S1-11), S1-10 Hugging Face copy (needs a workflow: owner review per ADR 0002), S1-15 I³ refresh, S1-12 NVTRA brand beyond the chat header. Re-check S1-16b against real Pi numbers before more speed work.
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
