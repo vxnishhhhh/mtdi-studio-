@@ -95,15 +95,20 @@ def check_serial():
 
 
 def check_local_model():
-    keys = [k for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY") if os.environ.get(k)]
+    """Uses mtdi.llm's own rules, so the doctor agrees with what NVTRA will actually pick."""
+    from . import llm
+    keys = [p for p in llm.ORDER if p != "ollama" and llm._key(p)]
     cloud = ("local AI", "ok", "cloud model key set: " + ", ".join(keys)) if keys else None
     try:
-        with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=1.5) as r:
+        base = llm._base("ollama")
+        with urllib.request.urlopen(base + "/api/tags", timeout=1.5) as r:
             models = [m.get("name") for m in json.loads(r.read()).get("models") or [] if isinstance(m, dict)]
+        if models and not llm._key("ollama"):
+            return "local AI", "warn", "Ollama has a model but MTDI is not using it (set MTDI_LOCAL_LLM=1; the installed mtdi command does)"
         if models:
             return "local AI", "ok", "Ollama running with " + ", ".join(map(str, models[:3])) + "; NVTRA answers offline"
         return cloud or ("local AI", "warn", "Ollama running but no model pulled (run: ollama pull llama3.2:3b)")
-    except (OSError, ValueError, AttributeError):
+    except (OSError, ValueError, AttributeError, llm.LLMError):
         pass
     if cloud:
         return cloud

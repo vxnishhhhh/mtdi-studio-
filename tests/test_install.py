@@ -90,8 +90,10 @@ class LocalModel(unittest.TestCase):
         from unittest import mock
         response = mock.MagicMock()
         response.__enter__.return_value = io.BytesIO(body)
-        with mock.patch("urllib.request.urlopen", return_value=response):
-            return doctor.check_local_model()
+        with mock.patch("urllib.request.urlopen", return_value=response) as opened:
+            result = doctor.check_local_model()
+        self.url = opened.call_args[0][0] if opened.call_args else None
+        return result
 
     def test_ollama_without_a_model_is_a_warning(self):
         self.assertEqual(self.probe(b'{"models": []}')[1], "warn")
@@ -101,8 +103,27 @@ class LocalModel(unittest.TestCase):
         with mock.patch.dict(os.environ, {"GROQ_API_KEY": "x"}):
             self.assertEqual(self.probe(b'{"models": []}')[1], "ok")
 
+    def test_whitespace_key_is_not_a_cloud_model(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "  "}):
+            self.assertEqual(self.probe(b'{"models": []}')[1], "warn")
+
+    def test_probe_uses_the_configured_ollama_host(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"OLLAMA_HOST": "192.168.1.20:11434"}):
+            self.probe(b'{"models": [{"name": "m"}]}')
+        self.assertEqual(self.url, "http://192.168.1.20:11434/api/tags")
+
+    def test_model_present_but_local_ai_off_is_a_warning(self):
+        from unittest import mock
+        env = {k: v for k, v in os.environ.items() if k not in ("OLLAMA_HOST", "MTDI_LOCAL_LLM")}
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(self.probe(b'{"models": [{"name": "m"}]}')[1], "warn")
+
     def test_ollama_with_a_model_is_ready(self):
-        name, status, detail = self.probe(b'{"models": [{"name": "llama3.2:3b"}]}')
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"MTDI_LOCAL_LLM": "1"}):
+            name, status, detail = self.probe(b'{"models": [{"name": "llama3.2:3b"}]}')
         self.assertEqual(status, "ok")
         self.assertIn("llama3.2:3b", detail)
 

@@ -89,6 +89,7 @@ launcher() {
   cat > "$BIN/mtdi" <<EOF
 #!/bin/sh
 # MTDI launcher, written by install.sh. Remove with: $MTDI_HOME/install.sh --uninstall
+export MTDI_LOCAL_LLM="\${MTDI_LOCAL_LLM:-1}"   # use Ollama when it runs; falls back instantly when it does not
 exec "$MTDI_HOME/.venv/bin/python" -m mtdi "\$@"
 EOF
   chmod +x "$BIN/mtdi"
