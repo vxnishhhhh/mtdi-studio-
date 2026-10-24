@@ -42,6 +42,48 @@ SCRUB_JS = r"""
   // Shared with the routing clientside callback so route changes and in-page view
   // changes use ONE definition of "top of the current module".
   window.__i3ResetScroll=resetScroll;
+  // ── page ready signal ─────────────────────────────────────────────────────
+  // <html data-page="/mtdi" data-page-ready="1"> once a routed page has mounted, the boot
+  // screen is gone, no Dash callback is still loading, and #page-content has had no new
+  // elements for READY_QUIET_MS.
+  // Fires 'i3:page-ready' too, and data-page-ready-ms holds how long the page took. Tools wait
+  // on this instead of sleeping a guess. The page never gives up on its own: a slow machine
+  // (software GL in the cloud blocks the main thread for tens of seconds on the 3D pages) is
+  // slow, not broken, so the waiting tool sets the deadline.
+  // Only childList is watched: Plotly redraws and RAF loops change attributes, not structure.
+  var READY_QUIET_MS=400;
+  function markPageMounted(){
+    var root=document.documentElement, host=document.getElementById('page-content');
+    var token=(window.__i3PageSeq=(window.__i3PageSeq||0)+1);
+    root.setAttribute('data-page-ready','0');
+    root.setAttribute('data-page',location.pathname);
+    root.removeAttribute('data-page-ready-ms');
+    var start=performance.now(), last=start, idle=null;   // idle: when loading last stopped
+    var mo=host&&window.MutationObserver?new MutationObserver(function(){last=performance.now();}):null;
+    if(mo)mo.observe(host,{childList:true,subtree:true});
+    (function check(){
+      if(token!==window.__i3PageSeq){if(mo)mo.disconnect();return;}   // a newer navigation took over
+      var now=performance.now();
+      // #i3-boot is the studio's own boot screen (studio/ui.py): it covers everything until the
+      // first packet has arrived and the mode is settled, so a page under it is not usable yet.
+      var busy=!host||!host.childElementCount||!!document.getElementById('i3-boot')||
+               !!document.querySelector('[data-dash-is-loading="true"]');
+      if(busy){idle=null;}else if(idle===null){idle=now;}
+      var settled=idle===null?null:Math.max(idle,last);
+      if(settled!==null&&now-settled>=READY_QUIET_MS){
+        if(mo)mo.disconnect();
+        var ms=Math.round(settled-start);              // when it settled, not when we noticed
+        root.setAttribute('data-page-ready-ms',String(ms));
+        root.setAttribute('data-page-ready','1');
+        try{window.dispatchEvent(new CustomEvent('i3:page-ready',{detail:{page:location.pathname,ms:ms}}));}catch(e){}
+        return;
+      }
+      setTimeout(check,100);
+    })();
+  }
+  window.__i3PageMounted=markPageMounted;
+  // This script can load after the first route has already mounted; start that page's signal too.
+  if(!document.documentElement.hasAttribute('data-page-ready')) setTimeout(markPageMounted,0);
   function reduceMotion(){
     try{
       if(document.documentElement.classList.contains('no-anim')) return true;
