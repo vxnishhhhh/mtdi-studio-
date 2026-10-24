@@ -19,13 +19,13 @@ def commit(repo, name, text, message="change"):
 
 
 class Ran:
-    """Stands in for subprocess.run: records commands, succeeds."""
-    def __init__(self):
-        self.calls = []
+    """Stands in for subprocess.run: records commands, returns `code`."""
+    def __init__(self, code=0):
+        self.calls, self.code = [], code
 
     def __call__(self, cmd, **_):
         self.calls.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0)
+        return subprocess.CompletedProcess(cmd, self.code, "", "unit not found" if self.code else "")
 
 
 @unittest.skipUnless(shutil.which("git"), "needs git")
@@ -107,11 +107,39 @@ class Update(unittest.TestCase):
         self.assertIn("studio service restarted", out)
         self.assertEqual(ran.calls[-1], ["systemctl", "--user", "restart", "mtdi-studio.service"])
 
+    def test_a_failed_restart_is_an_error_not_a_success(self):
+        unit = self.home / ".config/systemd/user/mtdi-studio.service"
+        unit.parent.mkdir(parents=True)
+        unit.write_text("")
+        commit(self.upstream, "README.md", "v2\n")
+        with self.assertRaisesRegex(update.UpdateError, "restarting the studio failed.*unit not found"):
+            update.update(self.install, run=Ran(code=5), home=self.home)
+
+    def test_git_location_variables_cannot_redirect_the_update(self):
+        from unittest import mock
+        decoy = self.tmp / "decoy"
+        sh(self.tmp, "git", "clone", "-q", str(self.upstream), str(decoy))
+        commit(self.upstream, "README.md", "v2\n")
+        with mock.patch.dict(update.os.environ, {"GIT_DIR": str(decoy / ".git"), "GIT_WORK_TREE": str(decoy)}):
+            update.update(self.install, run=Ran(), home=self.home)
+        self.assertEqual((self.install / "README.md").read_text(), "v2\n")
+        self.assertEqual((decoy / "README.md").read_text(), "v1\n")
+
     def test_not_a_checkout_is_a_clear_error(self):
         plain = self.tmp / "plain"
         plain.mkdir()
         with self.assertRaisesRegex(update.UpdateError, "not a git checkout"):
             update.update(plain, run=Ran(), home=self.home)
+
+
+class DependencyLists(unittest.TestCase):
+    def test_requirements_txt_matches_pyproject(self):
+        """The install uses pyproject.toml; Vercel and CI use requirements.txt. They must not drift."""
+        import tomllib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        project = tomllib.loads((root / "pyproject.toml").read_text())["project"]["dependencies"]
+        lines = [line.split("#")[0].strip() for line in (root / "requirements.txt").read_text().splitlines()]
+        self.assertEqual(sorted(project), sorted(line for line in lines if line))
 
 
 if __name__ == "__main__":
