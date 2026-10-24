@@ -57,6 +57,13 @@ class Content(unittest.TestCase):
             with self.assertRaisesRegex(content.ContentError, needle):
                 content.use(words)
 
+    def test_use_refuses_non_objects_and_treats_only_none_as_empty(self):
+        for bad in ([], "", 0):
+            with self.assertRaisesRegex(content.ContentError, "object"):
+                content.use(bad)
+        content.use(None)
+        self.assertEqual(content.T("nav.home"), "Home")
+
     def test_a_broken_mtdi_content_file_is_a_clear_error(self):
         with mock.patch.dict(os.environ, {"MTDI_CONTENT": "/nonexistent/words.json"}):
             content.reset()
@@ -108,10 +115,39 @@ class ManifestInterface(unittest.TestCase):
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("nav.hmoe", res.stderr)
 
+    def test_an_interface_that_is_not_an_object_is_refused(self):
+        for bad in ([], "", 0, None):
+            res = self.run_check(bad)
+            self.assertNotEqual(res.returncode, 0, bad)
+            self.assertIn("interface must be an object", res.stderr)
+
     def test_mtdi_check_accepts_known_words(self):
         res = self.run_check({"brand.title": "Greenhouse"})
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertIn("1 studio word(s) set", res.stdout)
+
+
+class HeroWordsAreText(unittest.TestCase):
+    """Project words reach the page as text, never as markup (CWE-79)."""
+
+    def test_scrub_hero_never_puts_configured_words_through_innerhtml(self):
+        js = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        self.assertNotRegex(js, r"innerHTML\s*=[^;]*dataset\.i3(Title|Tagline)")
+        self.assertIn("h1.textContent=hero.dataset.i3Title", js)
+        self.assertIn("para.textContent=hero.dataset.i3Tagline", js)
+
+    def test_boot_title_is_escaped(self):
+        from studio import ui
+        content.use({"boot.title": "<img src=x onerror=alert(1)>"})
+        self.addCleanup(content.reset)
+        html = ui.boot_html()
+        self.assertNotIn("<img src=x", html)
+        self.assertIn("&lt;img src=x onerror=alert(1)&gt;", html)
+
+    def test_skyline_canvas_paints_the_configured_title(self):
+        js = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        self.assertNotIn("ctx.fillText('TITLE'", js)
+        self.assertIn("scrub.hero.dataset.i3Title", js)
 
 
 if __name__ == "__main__":

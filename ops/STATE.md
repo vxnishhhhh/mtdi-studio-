@@ -12,7 +12,7 @@ Updated by every session. Newest first.
 
 ## Log
 
-* 2026-10-24 night · Merged #41 (`mtdi update`, launcher -P fix) and #42 (studio page-ready signal, tour phone pass 3/3). S1-06 slice 1 (studio words from studio/content/default.json, MTDI_CONTENT, manifest `interface`) in review. Backlog statuses corrected (S1-02/03/04 done, S1-16b done, S1-11 scope stated).
+* 2026-10-24 night · Merged #41 (`mtdi update`, launcher -P fix) and #42 (studio page-ready signal, tour phone pass 3/3). S1-06 slice 1 (studio words from studio/content/default.json, MTDI_CONTENT, manifest `interface`) in review. Backlog statuses corrected (S1-02/03/04 done; S1-11 and S1-16b still in progress, with what is missing stated).
 
 * 2026-10-24 midday · Owner directive: sessions decide everything technical. Merged #38 (install.sh, mtdi doctor, mtdi studio, local AI on by default). #39 (studio project panel, S1-11 decided: read the packet).
 

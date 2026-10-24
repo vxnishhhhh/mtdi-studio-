@@ -59,7 +59,7 @@ def _from_env():
 
 def use(words, source="interface"):
     """Apply a project's interface block. Call before the studio layout is built."""
-    _state["project"] = validate(words or {}, source)
+    _state["project"] = validate({} if words is None else words, source)
 
 
 def reset():

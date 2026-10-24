@@ -123,6 +123,7 @@ def normalise(data):
         _require(rule.get("condition"), f"nvtra.rules[{i}].condition is required")
     data.setdefault("aether", {})
     data.setdefault("interface", {})
+    _require(isinstance(data["interface"], dict), "interface must be an object of studio word keys to text")
     return data
 
 
