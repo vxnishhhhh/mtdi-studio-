@@ -84,6 +84,26 @@ class StudioProjectPanel(unittest.TestCase):
                 if saved is not None:
                     server.config["MTDI_RUNNER"] = saved
 
+    def test_stopping_a_runner_clears_its_registration_only(self):
+        import json
+        import tempfile
+        from flask import Flask
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            pathlib.Path(d, "project.json").write_text(json.dumps({
+                "project": {"id": "x"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "t", "keys": ["T"], "noise_floor": 0.1}]}))
+            first, second = Runner(d), Runner(d)
+            server_a, server_b = Flask("a"), Flask("b")
+            first.register(server_a)
+            second.register(server_b)
+            first.stop()
+            self.assertNotIn("MTDI_RUNNER", server_a.config)
+            self.assertIs(server_b.config["MTDI_RUNNER"], second)
+            server_b.config["MTDI_RUNNER"] = first     # another runner took over: stop must not clear it
+            second.stop()
+            self.assertIs(server_b.config["MTDI_RUNNER"], first)
+
 
 if __name__ == "__main__":
     unittest.main()

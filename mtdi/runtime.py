@@ -92,6 +92,7 @@ class Runner:
         from flask import jsonify, request
         http_sources = {s["id"]: s for s in self.project["sources"] if s["adapter"] == "http"}
         server.config["MTDI_RUNNER"] = self      # the studio's project panel reads the engine in process
+        self._servers = getattr(self, "_servers", []) + [server]
 
         @server.get(prefix + "/packet", endpoint="mtdi_packet")
         def _packet():
@@ -147,6 +148,9 @@ class Runner:
     def stop(self):
         for adapter in self.adapters:
             adapter.stop()
+        for server in getattr(self, "_servers", []):    # a stopped project must not keep showing in the studio
+            if server.config.get("MTDI_RUNNER") is self:
+                server.config.pop("MTDI_RUNNER")
 
 
 def answer_offline(question, packet):
