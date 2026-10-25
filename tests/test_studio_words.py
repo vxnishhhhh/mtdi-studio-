@@ -45,7 +45,7 @@ ns["feed_ch3"]([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 4.0, 2.0, 6.0, 1.0], source="TES
 fed = fig(s3["freqs"], s3["levels"], s3["maxhold"], s3["peaks"], s3["floor"])
 out["fed"] = dump(fed)
 out["sweeps"] = {"radio_x": list(radio.data[-1].x), "radio_hover": radio.data[-1].hovertemplate,
-                 "radio_shapes": len(radio.layout.shapes),
+                 "radio_shapes": sum(shape.type == "rect" for shape in radio.layout.shapes),   # the bands, not the floor line
                  "fed_x": list(fed.data[0].x), "fed_shapes": len(fed.layout.shapes),
                  "bands": [p["band"] for p in s3["peaks"]], "at": ns["_ch3_at"](2.0),
                  "span": ns["_ch3_span"](1.0, 5.0),
@@ -139,6 +139,11 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual(sw["at"], f"2 {xu}")
         self.assertEqual(sw["span"], f"1 – 5 {xu}")
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
+        # the archive headings carry the channel names, and the bound report still marks them raw
+        report = json.loads(rendered["report"])
+        heads = [b[1] for b in report if b[0] == "h" and "ARCHIVE" in b[1]]
+        self.assertEqual(heads, [f"{words['ch1.name'].upper()} SIGNAL ARCHIVE   RAW DIAGNOSTICS",
+                                 f"{words['ch3.name'].upper()} PEAK ARCHIVE   RAW DIAGNOSTICS"])
 
 
 class ManifestInterface(unittest.TestCase):

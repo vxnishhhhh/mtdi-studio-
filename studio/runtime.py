@@ -570,7 +570,7 @@ def install_reports(ns, runtime):
                 blocks[i] = ('kv', 'Instrument', 'SRC1 + SRC2 + src3 Ultra; host identified in live telemetry')
             elif block[0] == 'h' and block[1] == 'HOST TELEMETRY   (host computer)':
                 blocks[i] = ('h', 'ACTUAL HOST TELEMETRY')
-            elif block[0] == 'h' and block[1] in ('CH1 SIGNAL ARCHIVE', 'CH3 PEAK ARCHIVE'):
+            elif block[0] == 'h' and block[1].endswith((' SIGNAL ARCHIVE', ' PEAK ARCHIVE')):   # named by the project (S1-06)
                 blocks[i] = ('h', block[1] + '   RAW DIAGNOSTICS')
         blocks = [(b[0], clean_text(b[1]), *b[2:]) if b[0] in ('band', 'h', 'sub', 'dim') and isinstance(b[1], str) else b for b in blocks]
         return blocks

@@ -820,7 +820,7 @@ def ch3_sweep_body():
             _mcard("ch3-peak-f",  'LABEL', "—", AMBER),
             _mcard("ch3-peak-l",  'LABEL',     "—", CYAN),
             _mcard("ch3-floor",   'Label',    "—"),
-            _mcard("ch3-span",    'LABEL',           _ch3_span(s["span_start"], s["span_stop"])),
+            _mcard("ch3-span",    'LABEL',           _ch3_span(s["span_start"], s["span_stop"], s)),
             _mcard("ch3-res",     'LABEL',     "—"),
             _mcard("ch3-sweep",   'LABEL',     "—"),
         ], className="metric-row", style={"marginBottom":"18px"}),

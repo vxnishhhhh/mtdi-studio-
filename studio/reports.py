@@ -4,15 +4,16 @@ inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'the
 from .content import T  # studio words (S1-06): report title, channel names and units
 
 
-def _ch3_at(x):
-    """A channel 3 position: a radio frequency, or a fed sweep's x in its own unit (S1-06)."""
-    unit = sweep3_data.get("x_unit")
+def _ch3_at(x, snap=None):
+    """A channel 3 position: a radio frequency, or a fed sweep's x in its own unit (S1-06).
+    snap: a copy of sweep3_data the caller took, so one readout reads one sweep."""
+    unit = (sweep3_data if snap is None else snap).get("x_unit")
     return _freq_label(x) if unit is None else f"{x:g} {unit}"
 
 
-def _ch3_span(start, stop):
+def _ch3_span(start, stop, snap=None):
     """Channel 3's span as words, in the same terms as _ch3_at."""
-    unit = sweep3_data.get("x_unit")
+    unit = (sweep3_data if snap is None else snap).get("x_unit")
     return _span_label(start, stop) if unit is None else f"{start:g} – {stop:g} {unit}"
 
 # ════════════════════════════════════════════════════════
@@ -255,14 +256,15 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
         b += [("dim", f"Status: OFFLINE  -  {s['error'] or 'no sweep yet'}")]
     else:
         b += [("kv", "Device / Port", f"{s['device']}  /  {s['port']}"),
-              ("kv", "Span", _ch3_span(s["span_start"], s["span_stop"])),
+              ("kv", "Span", _ch3_span(s["span_start"], s["span_stop"], s)),
               ("kv", "Points / Sweeps", f"{s['points']}  /  {s['sweeps']}"),
               ("kv", "Level offset", str(s["leveloffset"])),
               ("kv", "Noise floor", f"{s['floor']:+.1f} {u3}  ({'plausible' if s['level_sane'] else 'untrusted - verify setup'})"),
-              ("kv", "Strongest peak", f"{_ch3_at(s['peak_freq'])} at {s['peak_level']:+.1f} {u3}"),
-              ("dim", "Tracked peaks (rank, frequency, level, possible allocation):")]
+              ("kv", "Strongest peak", f"{_ch3_at(s['peak_freq'], s)} at {s['peak_level']:+.1f} {u3}"),
+              ("dim", "Tracked peaks (rank, position, level):" if s.get("x_unit") is not None
+                      else "Tracked peaks (rank, frequency, level, possible allocation):")]
         for i, p in enumerate(peaks[:8], 1):
-            b += [("line", f"   {i:>2}.  {_ch3_at(p['freq']):>14}   {p['level']:+7.1f} {u3}   {p['band']}")]
+            b += [("line", f"   {i:>2}.  {_ch3_at(p['freq'], s):>14}   {p['level']:+7.1f} {u3}   {p['band']}")]
     b += [("space", "")]
 
     # ── WiFi / Bluetooth ──
