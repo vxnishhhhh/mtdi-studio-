@@ -9,6 +9,7 @@ by a manifest whose replay source is also called "uno".
 """
 import json
 import pathlib
+import threading
 import time
 
 from . import Adapter, sleep_until
@@ -48,10 +49,19 @@ class Recorder:
         self.path = pathlib.Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.stream = self.path.open("a", encoding="utf-8")
+        self._lock = threading.Lock()       # adapters and the studio's ingest route write from their own threads
 
     def __call__(self, wall, source, values, data_source):
         if data_source == "SIMULATED":
             return                          # a recording is evidence; simulated data is not
-        self.stream.write(json.dumps({"t": wall, "source": source, "values": values,
-                                      "data_source": data_source}) + "\n")
-        self.stream.flush()
+        line = json.dumps({"t": wall, "source": source, "values": values, "data_source": data_source}) + "\n"
+        with self._lock:
+            if self.stream.closed:          # arrived after the project stopped: dropped whole, never half-written
+                return
+            self.stream.write(line)
+            self.stream.flush()
+
+    def close(self):
+        # Windows cannot move or delete a file another handle still holds open.
+        with self._lock:
+            self.stream.close()

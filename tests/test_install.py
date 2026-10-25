@@ -36,6 +36,110 @@ class Doctor(unittest.TestCase):
 
 
 class Cli(unittest.TestCase):
+    def test_a_console_that_is_not_utf8_gets_question_marks_not_a_crash(self):
+        import io
+        import sys
+        from unittest import mock
+        cp1252 = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", newline="\n")    # a Windows console or pipe
+        with mock.patch.object(sys, "stdout", cp1252), mock.patch.object(sys, "stderr", cp1252):
+            cli._tolerant_output()
+            print("\u2713 project")                                   # the line `mtdi create` crashed on
+            cp1252.flush()
+        self.assertEqual(cp1252.buffer.getvalue(), b"? project\n")
+
+    def test_a_stopped_project_refuses_ingest_instead_of_dropping_it_quietly(self):
+        from flask import Flask
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        runner = Runner(normalise({"project": {"id": "h"}, "sources": [{"id": "s", "adapter": "http"}],
+                                   "channels": [{"id": "a", "keys": ["A"]}]}), start=False)
+        server = Flask("t")
+        runner.register(server)
+        client = server.test_client()
+        post = lambda: client.post("/mtdi/ingest", json={"source": "s", "values": {"A": 1}})   # noqa: E731
+        self.assertEqual(post().status_code, 200)
+        runner.stop()
+        reply = post()
+        self.assertEqual((reply.status_code, reply.get_json()["message"]), (409, "this project has stopped"))
+
+    def test_stop_waits_for_an_ingest_already_admitted(self):
+        import tempfile
+        import threading
+        from flask import Flask
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            runner = Runner(normalise({"project": {"id": "h"}, "sources": [{"id": "s", "adapter": "http"}],
+                                       "channels": [{"id": "a", "keys": ["A"]}]}),
+                            record=pathlib.Path(d, "rec.jsonl"), start=False)
+            server = Flask("t")
+            runner.register(server)
+            inside, release, replies = threading.Event(), threading.Event(), []
+            ingest = runner.engine.ingest_values
+
+            def slow(*args, **kw):                         # hold the request between admission and ingest
+                inside.set()
+                release.wait(5)
+                return ingest(*args, **kw)
+            runner.engine.ingest_values = slow
+            request = threading.Thread(target=lambda: replies.append(
+                server.test_client().post("/mtdi/ingest", json={"source": "s", "values": {"A": 1}})))
+            request.start()
+            self.assertTrue(inside.wait(5))
+            stopper = threading.Thread(target=runner.stop)
+            stopper.start()
+            stopper.join(0.3)
+            self.assertTrue(stopper.is_alive())            # stop() waits for the admitted request
+            release.set()
+            request.join(5)
+            stopper.join(5)
+            self.assertEqual(replies[0].status_code, 200)
+            self.assertEqual(len(pathlib.Path(d, "rec.jsonl").read_text().splitlines()), 1)   # it was recorded
+            self.assertTrue(runner.stopped)
+
+    def test_stop_lets_an_ingest_inside_the_engine_finish_its_row(self):
+        import tempfile
+        import threading
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            runner = Runner(normalise({"project": {"id": "h"}, "sources": [{"id": "s", "adapter": "http"}],
+                                       "channels": [{"id": "a", "keys": ["A"]}]}),
+                            record=pathlib.Path(d, "rec.jsonl"), start=False)
+            inside, release = threading.Event(), threading.Event()
+
+            class Slow:                                   # an ingest held inside the engine, before its row is written
+                def __init__(self, real):
+                    self.real = real
+
+                def __call__(self, *args):
+                    inside.set()
+                    release.wait(5)
+                    self.real(*args)
+
+                def close(self):
+                    self.real.close()
+            runner.engine.recorders[0] = Slow(runner.engine.recorders[0])
+            worker = threading.Thread(target=runner.engine.ingest_values, args=("s", {"A": 1.0}, "HARDWARE"))
+            worker.start()
+            self.assertTrue(inside.wait(5))
+            stopper = threading.Thread(target=runner.stop)
+            stopper.start()
+            stopper.join(0.3)
+            self.assertTrue(stopper.is_alive())            # stop() waits for the ingest holding the engine
+            release.set()
+            worker.join(5)
+            stopper.join(5)
+            self.assertEqual(len(pathlib.Path(d, "rec.jsonl").read_text().splitlines()), 1)   # its row was kept
+
+    def test_recording_files_are_closed_when_a_project_stops(self):
+        import tempfile
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            runner = Runner("projects/host-health", record=pathlib.Path(d, "rec.jsonl"), start=False)
+            runner.stop()
+            self.assertTrue(runner.engine.recorders[0].stream.closed)
+
     def test_studio_options_pass_through(self):
         self.assertEqual(cli._studio_argv(["studio", "--port", "9000", "--lan"]), ["--port", "9000", "--lan"])
         self.assertIsNone(cli._studio_argv(["doctor"]))
@@ -49,6 +153,11 @@ class Cli(unittest.TestCase):
             os.chdir(here)
 
 
+# install.sh is for Linux and macOS; on Windows `bash` is usually WSL's launcher, often with no Linux inside.
+ON_WINDOWS = os.name == "nt"
+
+
+@unittest.skipIf(ON_WINDOWS, "install.sh is for Linux and macOS (on Windows MTDI installs inside WSL)")
 @unittest.skipUnless(shutil.which("bash"), "needs bash")
 class InstallScript(unittest.TestCase):
     def test_syntax_and_help(self):
@@ -94,6 +203,7 @@ def _git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
 
 
+@unittest.skipIf(ON_WINDOWS, "install.sh is for Linux and macOS (on Windows MTDI installs inside WSL)")
 @unittest.skipUnless(shutil.which("bash") and shutil.which("git"), "needs bash and git")
 class PinnedInstall(unittest.TestCase):
     """MTDI_REF installs one exact revision (CWE-494: the newest main is not the only choice)."""

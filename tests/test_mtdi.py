@@ -1,5 +1,7 @@
 """MTDI core tests. Standard library only:  python -m unittest discover tests"""
+import contextlib
 import hashlib
+import io
 import json
 import pathlib
 import random
@@ -236,6 +238,39 @@ class Adapters(unittest.TestCase):
         finally:
             adapter.stop()
 
+    def test_stop_waits_for_the_worker_and_a_closed_recording_drops_late_samples_whole(self):
+        import threading
+        from mtdi.adapters import Adapter
+        from mtdi.adapters.replay import Recorder
+        errors = []
+        hook, threading.excepthook = threading.excepthook, lambda args: errors.append(args.exc_value)
+        self.addCleanup(setattr, threading, "excepthook", hook)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "rec.jsonl"
+            engine = Engine(manifest())
+            recorder = Recorder(path)
+            engine.recorders.append(recorder)
+
+            class Busy(Adapter):                       # ingests as fast as it can until told to stop
+                def run(self):
+                    while not self.stop_event.is_set():
+                        self.engine.ingest_values("s", {"A": 1.0}, "HARDWARE")
+
+            busy = Busy(engine, {"id": "s"}).start()
+            deadline = time.time() + 3
+            while path.stat().st_size == 0 and time.time() < deadline:
+                time.sleep(0.01)
+            busy.stop()
+            self.assertFalse(busy.thread.is_alive())    # nothing can ingest after stop() returns
+            recorder.close()
+            late = threading.Thread(target=engine.ingest_values, args=("s", {"A": 2.0}, "HARDWARE"))
+            late.start()
+            late.join()                                  # e.g. a studio ingest request after the project stopped
+            self.assertEqual(errors, [])
+            lines = path.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(lines)
+            self.assertTrue(all(json.loads(line)["values"]["A"] == 1.0 for line in lines))
+
     def test_record_then_replay(self):
         from mtdi.adapters.replay import Recorder, ReplayAdapter
         with tempfile.TemporaryDirectory() as tmp:
@@ -243,10 +278,12 @@ class Adapters(unittest.TestCase):
             m = manifest()
             m["_dir"] = tmp
             src = Engine(m)
-            src.recorders.append(Recorder(path))
+            recorder = Recorder(path)
+            src.recorders.append(recorder)
             src.ingest_values("s", {"A": 1.0}, "HARDWARE")
             src.ingest_values("s", {"A": 2.0}, "SIMULATED")       # never recorded
             src.ingest_values("s", {"A": 3.0}, "HARDWARE")
+            recorder.close()                                       # Windows will not delete an open file
             rows = [json.loads(x) for x in path.read_text().splitlines()]
             self.assertEqual([r["values"]["A"] for r in rows], [1.0, 3.0])
             m2 = normalise({"project": {"id": "t"}, "sources": [{"id": "s", "adapter": "replay", "file": str(path), "loop": False}],
@@ -416,7 +453,8 @@ class Integrations(unittest.TestCase):
                 target = pathlib.Path(tmp) / "rover"
                 args = Namespace(name="Rover", id=None, description="A rover.", standalone=str(target), github="rover",
                                  public=False, vercel="rover-studio", notion="env", matlab=True, yes=True, dry_run=False)
-                results = create.run(args)
+                with contextlib.redirect_stdout(io.StringIO()):    # its ✓ lines; a cp1252 console cannot encode them
+                    results = create.run(args)
             finally:
                 github.http, vercel.http, notion.http, github._gh_ready, webbrowser.open = originals
                 for k, v in saved.items():

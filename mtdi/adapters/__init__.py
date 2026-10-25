@@ -33,8 +33,12 @@ class Adapter:
         self.thread.start()
         return self
 
-    def stop(self):
+    def stop(self, wait=2.0):
+        """Signal the worker and give it `wait` seconds to finish, so nothing it ingests lands after
+        the caller has moved on (closed a recording, say). A read blocked longer is left to its timeout."""
         self.stop_event.set()
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(wait)
 
     def _guarded(self):
         """Run forever; on any failure report it and retry, never take the studio down."""
