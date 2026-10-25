@@ -5,12 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 242 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 4 (section heads and cards, tab and button labels, typewriter lines, constellation and globe words, the other charts' axis titles), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-25 evening · Merged #60, S1-06 slice 3: a fed channel 3 sweep keeps its own x unit (`ch3.axis_unit`, "sample" from the bridge) with no radio bands, in charts, readouts and the PDF report; the report takes `report.title`/`report.subtitle`, channel names and units. Fixed on the way: the report crashed on an empty archive (stale "CH1PROBE" lookup), and the archive headings had lost "RAW DIAGNOSTICS". CodeRabbit: 6 findings over 4 reviews, all fixed. Report: ops/reports/2026-10-25-night.md ("Evening on 2026-10-25").
 
 * 2026-10-25 midday · Merged #58: an upright swipe in the intro or a scrollable panel no longer triggers Chrome's swipe-back (live since #55, fixed and checked on production 11:22 UTC); the tour gained a 60 Hz swipe pass in full Chrome; NVTRA's island says "Tap ◍" on touch and sits bottom-right on the phone stage. CodeRabbit on #58: 4 findings, 2 fixed, 2 declined with reasons. Report: ops/reports/2026-10-25-midday.md.
 
