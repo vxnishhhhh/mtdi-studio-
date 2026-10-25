@@ -125,10 +125,15 @@ const phoneReport = { stage: null, frame: null };
 // Swipes (the flick): upright again, with motion on, so Page 1 opens with its scroll hero. Touches
 // go in at 60 Hz with their own timestamps, as a phone sends them; the studio measures a flick from
 // those, so the emulator's slow software GL does not hide it. The hero must clear in at most 3
-// swipes, and the next swipe must scroll the page.
+// swipes, and the next swipe must scroll the page. It runs in a browser of its own, full Chrome
+// (which has swipe-back, the failure it guards against) without forced software WebGL: it tests
+// touch, and the 3D views drawn on the CPU after the passes above can outlast the page deadline.
 const swipeReport = { swipes: null, scrolled: null };
 {
-  const context = await browser.newContext({ ...playwright.devices["iPhone 13"] });
+  const plain = await playwright.chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM || "/opt/pw-browsers/chromium", headless: false, args: ["--headless=new"],
+  });
+  const context = await plain.newContext({ ...playwright.devices["iPhone 13"] });
   const phone = await context.newPage();
   phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("swipe pageerror: " + e.message); });
   try {
@@ -171,6 +176,7 @@ const swipeReport = { swipes: null, scrolled: null };
     problems.push("swipe: " + e.message.split("\n")[0]);
   } finally {
     await context.close().catch(() => {});
+    await plain.close().catch(() => {});
   }
 }
 
