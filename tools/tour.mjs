@@ -81,53 +81,45 @@ for (const [name, nav, path] of pages) {
 // (nothing on top of it), then make one real tap (the bug class fixed in #33). Reduced motion skips
 // the startup intro by design, so the check sees the page a returning visitor sees, every run.
 //
-// Precondition: on a phone the studio asks for the 1180 px desktop composition through the
-// viewport meta, set by its head script (studio/webapp.py, syncPhoneMode). Chromium's device
-// emulation often ignores a viewport meta changed by script: the meta is identical every run, yet
-// the layout stays 390 px wide in most fresh contexts. Judging the nav in that state tests the
-// emulator, not the studio, so an attempt where the viewport was not applied is retried in a
-// fresh context (PHONE_ATTEMPTS). If none applies it, the pass is reported as skipped with the
-// reason, never as passed. Whether real phones apply it is not verified here.
-const PHONE_ATTEMPTS = Number(process.env.TOUR_PHONE_ATTEMPTS || 5);
-const phoneReport = { attempts: 0, viewport_applied: false, skipped: null };
-for (let attempt = 1; attempt <= PHONE_ATTEMPTS && !phoneReport.viewport_applied; attempt++) {
-  phoneReport.attempts = attempt;
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true,
-    isMobile: true, reducedMotion: "reduce" });
+// A phone is sent to /phone, which holds the studio in a 1180 px iframe (the desktop composition)
+// and turns it a quarter turn when the phone is upright (studio/webapp.py, PHONE_SHELL). The pass
+// runs upright, the harder case: the tap goes through the scale and the rotation.
+const phoneReport = { stage: null, frame: null };
+{
+  const context = await browser.newContext({ ...playwright.devices["iPhone 13"], reducedMotion: "reduce" });
   const phone = await context.newPage();
-  const phoneErrors = [];               // every uncaught page error of this attempt counts, retried or not
-  phone.on("pageerror", (e) => { if (!ignored(e.message)) phoneErrors.push("phone pageerror: " + e.message); });
+  phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("phone pageerror: " + e.message); });
   try {
     await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
-    await ready(phone, "/");
-    const view = await phone.evaluate(() => ({
-      wantsDesktop: document.documentElement.classList.contains("phone-desktop"), width: innerWidth }));
-    if (!(view.wantsDesktop && view.width !== 1180)) {        // else the emulator ignored the viewport: retry
-      phoneReport.viewport_applied = true;
-      const covered = await phone.evaluate((ids) => ids.map((id) => {
-        const el = document.getElementById(id);
-        if (!el) return `${id}: missing`;
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) return `${id}: not visible`;
-        if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
-      }).filter(Boolean), pages.map((p) => p[1]));
-      for (const c of covered) problems.push("phone nav " + c);
-      await phone.tap("#nav-mtdi", { timeout: 10000 });
-      const ms = await ready(phone, "/mtdi");
-      visited.push({ name: "phone-tap-mtdi", path: await phone.evaluate(() => location.pathname), ready_ms: ms });
+    await phone.waitForURL(/\/phone/, { timeout: 30000 });
+    let stage = null;
+    for (let i = 0; i < 300 && !stage; i++) {
+      stage = phone.frames().find((f) => f.url().includes("stage=phone")) || null;
+      if (!stage) await phone.waitForTimeout(100);
     }
+    if (!stage) throw new Error("/phone has no studio frame");
+    phoneReport.stage = await phone.evaluate(() => document.getElementById("stage").style.transform);
+    await ready(stage, "/");
+    phoneReport.frame = await stage.evaluate(() => ({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio }));
+    if (phoneReport.frame.w !== 1180) problems.push(`phone stage is ${phoneReport.frame.w} px wide, not 1180`);
+    const covered = await stage.evaluate((ids) => ids.map((id) => {
+      const el = document.getElementById(id);
+      if (!el) return `${id}: missing`;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return `${id}: not visible`;
+      if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
+    }).filter(Boolean), pages.map((p) => p[1]));
+    for (const c of covered) problems.push("phone nav " + c);
+    await stage.locator("#nav-mtdi").tap({ timeout: 15000 });
+    const ms = await ready(stage, "/mtdi");
+    visited.push({ name: "phone-tap-mtdi", path: await stage.evaluate(() => location.pathname), ready_ms: ms });
   } catch (e) {
-    phoneReport.viewport_applied = true;                      // a real failure (navigation included), not the precondition
     problems.push("phone: " + e.message.split("\n")[0]);
   } finally {
-    problems.push(...phoneErrors);
     await context.close().catch(() => {});
   }
-}
-if (!phoneReport.viewport_applied) {
-  phoneReport.skipped = `the emulator ignored the studio's 1180 px viewport in ${phoneReport.attempts} fresh contexts`;
 }
 
 await browser.close();
