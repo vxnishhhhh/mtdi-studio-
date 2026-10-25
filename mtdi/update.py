@@ -61,6 +61,12 @@ def fetch(root):
     try:
         latest = git(root, "rev-parse", "@{u}")
     except UpdateError as error:
+        try:
+            git(root, "symbolic-ref", "-q", "HEAD")
+        except UpdateError:              # detached: an install pinned with MTDI_REF stays where it is
+            raise UpdateError(f"this install is pinned to {git(root, 'rev-parse', '--short', 'HEAD')}. To move it, "
+                              "run the installer again with a new MTDI_REF, or follow updates again with: "
+                              f"git -C {root} checkout main") from error
         raise UpdateError("this checkout does not follow a remote branch") from error
     return git(root, "rev-parse", "HEAD"), latest
 

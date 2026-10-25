@@ -90,6 +90,71 @@ class InstallScript(unittest.TestCase):
             self.assertTrue((runonly / ".venv").is_dir())
 
 
+def _git(cwd, *args):
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+@unittest.skipUnless(shutil.which("bash") and shutil.which("git"), "needs bash and git")
+class PinnedInstall(unittest.TestCase):
+    """MTDI_REF installs one exact revision (CWE-494: the newest main is not the only choice)."""
+
+    def setUp(self):
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = pathlib.Path(tmp.name)
+        self.upstream = self.tmp / "upstream"
+        self.upstream.mkdir()
+        _git(self.upstream, "init", "-q", "-b", "main")
+        self.revs = []
+        for text in ("v1\n", "v2\n"):
+            (self.upstream / "README.md").write_text(text)
+            _git(self.upstream, "add", "README.md")
+            _git(self.upstream, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", text.strip())
+            self.revs.append(_git(self.upstream, "rev-parse", "HEAD"))
+        self.script = self.tmp / "bin" / "install.sh"     # a folder with no run.py: never "this copy"
+        self.script.parent.mkdir()
+        shutil.copy(ROOT / "install.sh", self.script)
+        self.home = self.tmp / "home" / "mtdi"
+
+    def get_code(self, ref=""):
+        env = dict(os.environ, MTDI_INSTALL_NO_MAIN="1", MTDI_REPO=self.upstream.as_uri(),     # file://: --depth works as over https
+                   MTDI_HOME=str(self.home), MTDI_REF=ref, HOME=str(self.tmp / "home"))
+        return subprocess.run(["bash", "-c", f'source "{self.script}" && get_code'], env=env,
+                              capture_output=True, text=True, timeout=120)
+
+    def test_a_pinned_install_is_that_revision_and_update_leaves_it(self):
+        from mtdi import update
+        res = self.get_code(self.revs[0])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(_git(self.home, "rev-parse", "HEAD"), self.revs[0])
+        self.assertEqual((self.home / "README.md").read_text(), "v1\n")
+        self.assertIn(f"pinned to {self.revs[0]}", res.stdout)
+        with self.assertRaisesRegex(update.UpdateError, "pinned to"):
+            update.update(self.home, home=self.tmp / "home")
+        self.assertEqual(_git(self.home, "rev-parse", "HEAD"), self.revs[0])
+
+    def test_pinning_an_existing_shallow_install_reaches_an_older_revision(self):
+        res = self.get_code()                              # the default install: newest, shallow
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(_git(self.home, "rev-parse", "--is-shallow-repository"), "true")
+        res = self.get_code(self.revs[0])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual((self.home / "README.md").read_text(), "v1\n")
+
+    def test_a_plain_reinstall_follows_main_again(self):
+        self.assertEqual(self.get_code(self.revs[0]).returncode, 0)
+        res = self.get_code()
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(_git(self.home, "rev-parse", "HEAD"), self.revs[1])
+        self.assertEqual(_git(self.home, "symbolic-ref", "--short", "HEAD"), "main")
+
+    def test_an_unknown_revision_stops_with_a_message(self):
+        res = self.get_code("no-such-tag")
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("could not check out 'no-such-tag'", res.stderr)
+
+
 CLOUD_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY")
 
 
