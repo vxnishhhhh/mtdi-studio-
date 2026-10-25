@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–2 merged: shell, page titles, Home hero and cards; channel names and units)
+### S1-06 · Project-driven studio words · in progress (slices 1–3: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
@@ -54,8 +54,12 @@ Slice 1 (2026-10-24): `studio/content.py`, `studio/content/default.json` (42 key
 manifest's `interface` block (`mtdi run` applies it, `mtdi check` validates it). Covers the brand,
 author credit, nav, boot screen, startup intro, Home hero and cards, and every page's eyebrow,
 title and subtitle. Defaults render identically to before on every page. Slice 2 (#46): channel names and
-units from the project's channels. Next slices: section heads and cards on each page, channel 3's
-sweep units, tab and button labels, typewriter lines, constellation and globe words, PDF headings.
+units from the project's channels. Slice 3: channel 3's sweep units. A fed sweep (a project, or
+`/api/ingest`) was drawn as a radio spectrum: x divided by 10^6 and labelled MHz, FM and Wi-Fi bands
+shaded, radio band names on its peaks. Now it keeps its own x, labelled `ch3.axis_unit` ("sample"
+from a project), with no radio bands; the radio sweep is unchanged. The PDF report takes the channel
+names and units and `report.title`/`report.subtitle`. Next slices: section heads and cards on each
+page, tab and button labels, typewriter lines, constellation and globe words, and the other charts' axis titles (still the placeholder "Text"; the channel 3 sweep chart titles its axes since slice 3).
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

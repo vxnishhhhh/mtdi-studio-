@@ -46,5 +46,8 @@
   "ch3.name": "Channel 3",
   "ch1.unit": "unit",
   "ch2.unit": "unit",
-  "ch3.unit": "unit"
+  "ch3.unit": "unit",
+  "ch3.axis_unit": "x",
+  "report.title": "MTDI STUDIO",
+  "report.subtitle": "SCIENTIFIC SIGNAL FIELD REPORT"
 }

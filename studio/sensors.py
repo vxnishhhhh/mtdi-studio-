@@ -149,6 +149,7 @@ sweep3_lock = threading.RLock()
 sweep3_data = {
     "freqs":[], "levels":[], "maxhold":[],           # current sweep + running max hold
     "peaks":[],                                       # [{"freq","level","band"}]
+    "x_unit":None,                                    # None: radio hertz; text: a fed sweep's own x unit (S1-06)
     "floor":0.0, "peak_level":0.0, "peak_freq":0.0,
     "span_start":S3_DEFAULT_START, "span_stop":S3_DEFAULT_STOP,
     "bands":{}, "focus":[],
@@ -1250,7 +1251,7 @@ def src3_reader():
 
                 with sweep3_lock:
                     sweep3_data.update({
-                        "freqs":list(freqs), "levels":list(levels),
+                        "freqs":list(freqs), "levels":list(levels), "x_unit":None,
                         "maxhold":list(maxhold or []),
                         "peaks":peaks, "floor":floor,
                         "peak_level":pk_level, "peak_freq":pk_freq,

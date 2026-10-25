@@ -583,14 +583,15 @@ def update_sweep3_numbers(n, _refresh):
            if s["error"] else None)
 
     have = s["last_rx"] is not None and s["levels"]
-    pf = _freq_label(s["peak_freq"]) if have else "—"
-    pl = f"{s['peak_level']:+.1f} unit" if have else "—"
-    fl = f"{s['floor']:+.1f} unit" if have else "—"
+    u3 = T("ch3.unit")   # a fed sweep reads in its own units, a radio sweep in hertz (S1-06)
+    pf = _ch3_at(s["peak_freq"], s) if have else "—"
+    pl = f"{s['peak_level']:+.1f} {u3}" if have else "—"
+    fl = f"{s['floor']:+.1f} {u3}" if have else "—"
     flc = WHITE if s["level_sane"] else RED
-    span = _span_label(s["span_start"], s["span_stop"])
+    span = _ch3_span(s["span_start"], s["span_stop"], s)
     if have and len(s["freqs"]) > 1:
         step = (s["freqs"][-1] - s["freqs"][0]) / (len(s["freqs"]) - 1)
-        res = f"{_freq_label(step)}/pt"
+        res = f"{_ch3_at(step, s)}/pt"
     else:
         res = "—"
     sweep = f"{s['sweep_s']:.1f} s" if have else "—"
@@ -599,7 +600,8 @@ def update_sweep3_numbers(n, _refresh):
     mn_s = f"{mn:+.1f}" if cnt else "—"
     mx_s = f"{mx:+.1f}" if cnt else "—"
     avg_s = f"{avg:+.1f}" if cnt else "—"
-    str_s = (f"{strongest['level']:+.1f} unit @ {_freq_label(strongest['freq'])}" if cnt else "—")
+    # the archive is radio only (see studio/reports.py), so its strongest peak is a frequency
+    str_s = (f"{strongest['level']:+.1f} {u3} @ {_freq_label(strongest['freq'])}" if cnt else "—")
 
     return (pf, pl, fl, f"metric-value {_cls(flc)}", span, res, sweep,
             st, f"online-text {_cls(sc)}", dot, warn, _ch3_dev_strip(),
