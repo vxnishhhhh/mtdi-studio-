@@ -59,7 +59,7 @@ units from the project's channels. Slice 3: channel 3's sweep units. A fed sweep
 shaded, radio band names on its peaks. Now it keeps its own x, labelled `ch3.axis_unit` ("sample"
 from a project), with no radio bands; the radio sweep is unchanged. The PDF report takes the channel
 names and units and `report.title`/`report.subtitle`. Next slices: section heads and cards on each
-page, tab and button labels, typewriter lines, constellation and globe words.
+page, tab and button labels, typewriter lines, constellation and globe words, and the other charts' axis titles (still the placeholder "Text"; the channel 3 sweep chart titles its axes since slice 3).
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

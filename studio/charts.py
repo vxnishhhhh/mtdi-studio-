@@ -946,10 +946,10 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
         margin=dict(l=0, r=0, t=22, b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(type="log" if logx else "linear", gridcolor="rgba(128,128,128,0.10)",
                    tickfont=dict(color=SUBTEXT, size=9), zeroline=False,
-                   title=dict(text='Text', font=dict(color=SUBTEXT, size=10))),
+                   title=dict(text=_ch3_xunit(), font=dict(color=SUBTEXT, size=10))),
         yaxis=dict(gridcolor="rgba(128,128,128,0.12)", zeroline=False,
                    tickfont=dict(color=SUBTEXT, size=9),
-                   title=dict(text='Text', font=dict(color=SUBTEXT, size=10))),
+                   title=dict(text=T('ch3.unit'), font=dict(color=SUBTEXT, size=10))),
         showlegend=True, legend=dict(orientation="h", y=1.14, x=0,
                                      font=dict(color=SUBTEXT, size=9), bgcolor="rgba(0,0,0,0)"),
         uirevision="sweep3")

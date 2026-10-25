@@ -47,6 +47,7 @@ out["fed"] = dump(fed)
 out["sweeps"] = {"radio_x": list(radio.data[-1].x), "radio_hover": radio.data[-1].hovertemplate,
                  "radio_shapes": sum(shape.type == "rect" for shape in radio.layout.shapes),   # the bands, not the floor line
                  "fed_x": list(fed.data[0].x), "fed_shapes": len(fed.layout.shapes),
+                 "axes": [radio.layout.xaxis.title.text, fed.layout.xaxis.title.text, fed.layout.yaxis.title.text],
                  "bands": [p["band"] for p in s3["peaks"]], "at": ns["_ch3_at"](2.0),
                  "span": ns["_ch3_span"](1.0, 5.0),
                  "bar_rows": list(ns["fig_ch3_bands"](s3["peaks"]).data[0].y)}
@@ -138,6 +139,7 @@ class SecondContentFile(unittest.TestCase):
         self.assertTrue(sw["bands"] and all(b == "—" for b in sw["bands"]))
         self.assertEqual(sw["at"], f"2 {xu}")
         self.assertEqual(sw["span"], f"1 – 5 {xu}")
+        self.assertEqual(sw["axes"], ["MHz", xu, lu])                  # the sweep chart titles its own axes
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
         # the archive headings carry the channel names, and the bound report still marks them raw
         report = json.loads(rendered["report"])
