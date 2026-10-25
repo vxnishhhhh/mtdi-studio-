@@ -71,8 +71,11 @@ class PhoneStage(unittest.TestCase):
 
     def test_a_flick_carries_on_and_its_speed_comes_from_the_touch_events(self):
         ui = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
-        self.assertIn("addEventListener('touchend',e=>{if(!scrubActive()||!scrub.locked||e.timeStamp-scrubTouchT>90", ui)
+        self.assertIn("e.timeStamp-scrubTouchT>90||Math.abs(scrubFlingV)<.3)return;", ui)
         self.assertIn("scrubConsume(scrubFlingV*dt)", ui)                   # the hero keeps the swipe's speed
+        # one finger drives it: a second finger is ignored, and only the last lift may flick
+        self.assertIn("const t=scrubTouch(e.touches);if(!t)return;", ui)
+        self.assertIn("if(!lifted||e.touches.length||", ui)
         self.assertNotIn("scrubTouchT=performance.now()", ui)                # not when a busy page got to it
         shell = self.client.get("/phone").get_data(as_text=True)
         self.assertIn("t:e.timeStamp", shell)                                # the turned stage glides the same way
