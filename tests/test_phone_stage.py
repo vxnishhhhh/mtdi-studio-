@@ -69,6 +69,21 @@ class PhoneStage(unittest.TestCase):
         self.assertIn("var dpr=LITE?0.6:", browser)
         self.assertIn("TARGET=LITE?1000/30:FRAME_INTERVAL", browser)
 
+    def test_a_flick_carries_on_and_its_speed_comes_from_the_touch_events(self):
+        ui = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn("e.timeStamp-scrubTouchT>90||Math.abs(scrubFlingV)<.3)return;", ui)
+        self.assertIn("scrubConsume(scrubFlingV*dt)", ui)                   # the hero keeps the swipe's speed
+        # one finger drives it: a second finger is ignored, and only the last lift may flick
+        self.assertIn("const t=scrubTouch(e.touches);if(!t)return;", ui)
+        self.assertIn("if(!lifted||e.touches.length||", ui)
+        # the tracked finger lifts while another stays: that finger takes over where it is, with no flick
+        self.assertIn("if(lifted&&e.touches.length){const t=e.touches[0];scrubTouchId=t.identifier;"
+                      "scrubTouchY=t.clientY;scrubTouchT=e.timeStamp;scrubFlingV=0;return;}", ui)
+        self.assertNotIn("scrubTouchT=performance.now()", ui)                # not when a busy page got to it
+        shell = self.client.get("/phone").get_data(as_text=True)
+        self.assertIn("t:e.timeStamp", shell)                                # the turned stage glides the same way
+        self.assertIn("if(e.timeStamp-drag.t>90)vx=vy=0;", shell)
+
     def test_rotate_views_give_up_down_drags_to_the_page(self):
         css = self.ns["GLOBAL_CSS"] if "GLOBAL_CSS" in self.ns else (ROOT / "studio" / "theme.py").read_text(encoding="utf-8")
         self.assertIn("html.phone-stage .i3-tab-board canvas", css)
