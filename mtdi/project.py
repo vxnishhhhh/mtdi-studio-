@@ -209,7 +209,12 @@ def _channel(ch, where, default_source, source_ids):
     rate = ch.get("expected_rate")
     _require(rate is None or rate > 0, f"{where}.expected_rate must be > 0")
     ch.setdefault("stale_after", max(2.0, 5.0 / rate) if rate else 4.0)
-    ch.setdefault("alert_change", floor * 20)
+    alert = ch.setdefault("alert_change", floor * 20)
+    _require(_finite(alert) and alert > 0, f"{where}.alert_change must be a finite number > 0")
+    way = ch.setdefault("alert_direction", "both")
+    _require(way in ("both", "up", "down"), f"{where}.alert_direction must be \"both\", \"up\" or \"down\"")
+    _require(way == "both" or ch["kind"] == "scalar",
+             f"{where}.alert_direction: only a scalar channel has a sign (a vector's change is a length)")
     ch.setdefault("optional", False)
     cal = ch.get("calibration")
     if cal is not None:

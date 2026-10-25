@@ -293,7 +293,15 @@
             "type": "number"
           },
           "alert_change": {
-            "type": "number"
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "alert_direction": {
+            "enum": [
+              "both",
+              "up",
+              "down"
+            ]
           },
           "optional": {
             "type": "boolean"

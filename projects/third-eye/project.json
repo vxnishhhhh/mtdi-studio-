@@ -20,11 +20,11 @@
   "channels": [
     {"id": "left", "label": "Left distance", "domain": "ultrasonic", "kind": "scalar",
      "keys": ["LEFT_CM"], "unit": "cm", "raw_range": [2, 400],
-     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "expected_rate": 12,
+     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "alert_direction": "down", "expected_rate": 12,
      "simulate": {"mean": 150.0, "noise": 0.5}},
     {"id": "right", "label": "Right distance", "domain": "ultrasonic", "kind": "scalar",
      "keys": ["RIGHT_CM"], "unit": "cm", "raw_range": [2, 400],
-     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "expected_rate": 12,
+     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "alert_direction": "down", "expected_rate": 12,
      "simulate": {"mean": 150.0, "noise": 0.5}},
     {"id": "buzzer", "label": "Buzzer", "domain": "actuator", "kind": "scalar",
      "keys": ["BUZZ"], "unit": "", "noise_floor": 0.5,

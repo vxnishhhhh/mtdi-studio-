@@ -44,6 +44,7 @@ class _Channel:
         self.history = deque(maxlen=600)      # (t, deviation) for correlation and sparklines
         self.value = None                     # latest physical value (scalar or vector)
         self.raw = None
+        self.alerting = False                 # past alert_change and not yet back under half of it
 
 
 class Engine:
@@ -114,6 +115,7 @@ class Engine:
                     phys = [ch.cal.apply(phys[0], temperature)]
                 state = ch.env.update(phys, t, valid=not clip)
                 ch.evidence.record(t, wall, clip, data_source, values.get("_SEQ"))
+                self._check_alert(ch, state, data_source)
                 ch.value = phys if len(phys) > 1 else phys[0]
                 ch.raw = raw
                 if not ch.history or t - ch.history[-1][0] >= 0.09:
@@ -138,6 +140,7 @@ class Engine:
         with self.lock:
             for ch in self._targets(channel):
                 ch.env.learn()
+                ch.alerting = False              # a new baseline: an alert against the old one no longer holds
             self._event("environment", f"Re-learning baseline: {channel or 'all channels'}")
 
     def check_calibration(self, channel, reference):
@@ -199,6 +202,7 @@ class Engine:
             for cid, ref in record["channels"].items():
                 if cid in self.channels and len(ref["baseline"]) == len(self.channels[cid].env.axes):
                     self.channels[cid].env.pin(ref)
+                    self.channels[cid].alerting = False
             self._event("environment", f"Comparing against saved environment '{name}'"
                         + (f" (not in it: {', '.join(missing)})" if missing else ""))
             return record
@@ -240,6 +244,26 @@ class Engine:
     def _event(self, kind, message):
         self.events.append({"t": time.time(), "kind": kind, "message": message})
 
+    def _check_alert(self, ch, state, data_source):
+        """One "alert" event when a settled channel moves at least alert_change from its baseline
+        (in the direction asked). It re-arms once the change is back under half that, so a reading
+        sitting on the line does not repeat the event every sample."""
+        spec = ch.spec
+        if state["settling"]:
+            return
+        dev = state["deviation"]
+        measure = {"up": dev, "down": -dev}.get(spec["alert_direction"], abs(dev))
+        limit = spec["alert_change"]
+        if not ch.alerting and measure >= limit:
+            ch.alerting = True
+            unit = f" {spec['unit']}" if spec["unit"] else ""
+            word = "from" if spec["kind"] == "vector" else ("below" if dev < 0 else "above")
+            note = " (SIMULATED)" if data_source == "SIMULATED" else ""
+            self._event("alert", f"{spec['label']}: {abs(dev):.3g}{unit} {word} its baseline "
+                                 f"(alerts at {limit:g}{unit}){note}")
+        elif ch.alerting and measure < limit / 2:
+            ch.alerting = False
+
     # ── output ───────────────────────────────────────────────────────────────
     def snapshot(self):
         now = self.clock()
@@ -258,6 +282,7 @@ class Engine:
                 env = ch.env.snapshot(now)
                 if relock and env["stale"] and env["stale_for"] >= relock and not env["frozen"]:
                     ch.env.learn()
+                    ch.alerting = False
                     self._event("environment", f"{spec['label']}: quiet level moved, baseline re-learned")
                     env = ch.env.snapshot(now)
                 evidence = ch.evidence.snapshot(now, env.get("noise"))
@@ -269,7 +294,7 @@ class Engine:
                     "id": cid, "label": spec["label"], "unit": spec["unit"], "domain": spec["domain"],
                     "kind": spec["kind"], "axes": spec["axes"], "optional": spec["optional"],
                     "value": value, "magnitude": magnitude, "raw": ch.raw,
-                    "evidence": evidence, "environment": env,
+                    "evidence": evidence, "environment": env, "alert": ch.alerting,
                     "terms": {k: v * 100 for k, v in terms.items()},
                     "score": core.score(terms, self.weights, active),
                     "spark": [round(d, 6) for _, d in list(ch.history)[-SPARK_POINTS:]],
