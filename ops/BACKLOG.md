@@ -68,6 +68,8 @@ studio words); firmware compiles for arduino:avr:uno with arduino-cli 1.5.2 (5,7
 run locally; `tests/test_third_eye.py` drives the engine with firmware lines. Open: the CI compile
 needs a workflow file (owner review, ADR 0002; it belongs with S1-05's Arduino builds), and replay
 waits for a real recording (`recordings/README.md` says so).
+Merged as #48. Review found that the unsigned SNR made "moving away" match the "closer" rules;
+NVTRA rules now take `direction` (`up`/`down`, scalar channels), validated by `mtdi check`.
 
 ### S1-08 · Reference project: space weather (software only) · ready
 `projects/space-weather`: a collector for NOAA SWPC planetary K-index (public JSON), run by a
@@ -119,3 +121,5 @@ questions through the same framework code paths, with no project-specific code i
 - S1-16 (in progress: docs/PI_BUDGET.md, tools/pi/measure.py, a cloud reference run, install.sh, `mtdi doctor` (measures the machine it is installed on) and `mtdi update` done; a real Pi run is the owner's and nothing waits on it) Pi 5 budget: what runs on the device and what runs in the cloud, measured.
 - S1-16b (in progress: shared-clock fast path and per-sequence cache took 128 channels with a fresh packet from 1245 to ~116 ms in the cloud; the check asks for well under 100 ms, so not done. `mtdi doctor` now measures this case on each install) Correlation cost: `core.correlation` is O(channels²) per snapshot (691 ms at 128 channels in the cloud reference). Cache, cap or compute incrementally without changing small-project results.
   **Check:** `tools/pi/measure.py` shows the 128-channel snapshot well under 100 ms with a fresh packet before each snapshot, and a test compares old and new correlation on random histories with identical results for small projects.
+- S1-17 (ready, found 2026-10-25) `alert_change`: documented in MANIFEST.md as "smallest change a person would call an event" and defaulted to 20 × the noise floor, but nothing in `mtdi/` or `studio/` reads it. Make it a real per-channel event threshold (with the rule `direction` sign, so a project can alert on a drop only), or remove it from the manifest and docs.
+  **Check:** a test where a change above `alert_change` raises an event and one below it does not; `direction` respected; or the field is gone from the schema, MANIFEST.md and every bundled project.
