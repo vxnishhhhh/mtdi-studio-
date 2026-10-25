@@ -4,7 +4,7 @@ Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 213 tests, MATLAB parity in GNU Octave)
-* **Open PRs:** none
+* **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
 * **Next item:** S1-05 Compatibility Lab with an arduino-cli compile job for every firmware (needs a workflow file: owner review per ADR 0002); S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings); S1-17 `alert_change` (nothing reads it).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
@@ -12,7 +12,7 @@ Updated by every session. Newest first.
 
 ## Log
 
-* 2026-10-25 early · Merged #48 (S1-07 Third Eye; NVTRA rules take `direction`, since the unsigned SNR made "moving away" match the "closer" rules) and #49 (studio names the fed sender and says SIMULATED; channel 2 crash on fed data fixed; bridge retries a failed push). CodeRabbit: 10 findings, 9 fixed with tests, 1 declined with reasons. Found S1-17: `alert_change` is read by nothing. Report: ops/reports/2026-10-25-night.md.
+* 2026-10-25 early · Merged #48 (S1-07 Third Eye; NVTRA rules take `direction`, since the unsigned SNR made "moving away" match the "closer" rules) and #49 (studio names the fed sender and says SIMULATED; channel 2 crash on fed data fixed; bridge retries a failed push). CodeRabbit: 10 findings, 9 fixed with tests, 1 declined with reasons. Found S1-17: `alert_change` is read by nothing. Report: ops/reports/2026-10-25-night.md. Then #51 (pinned install, `MTDI_REF`).
 
 * 2026-10-25 night · S1-07 Third Eye project in review: manifest, firmware (compiles for Uno locally), tests. Found: a 0/1 state channel with raw_range never settles and holds NVTRA at Baseline settling (documented); studio Page 1 status mislabels fed data (next PR).
 
