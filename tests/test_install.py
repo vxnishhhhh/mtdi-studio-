@@ -134,6 +134,13 @@ class PinnedInstall(unittest.TestCase):
             update.update(self.home, home=self.tmp / "home")
         self.assertEqual(_git(self.home, "rev-parse", "HEAD"), self.revs[0])
 
+    def test_a_pinned_install_says_so_without_the_network(self):
+        from mtdi import update
+        self.assertEqual(self.get_code(self.revs[0]).returncode, 0)
+        shutil.rmtree(self.upstream)                       # the remote is gone: no fetch can work
+        with self.assertRaisesRegex(update.UpdateError, "pinned to"):
+            update.update(self.home, check_only=True, home=self.tmp / "home")
+
     def test_pinning_an_existing_shallow_install_reaches_an_older_revision(self):
         res = self.get_code()                              # the default install: newest, shallow
         self.assertEqual(res.returncode, 0, res.stderr)
