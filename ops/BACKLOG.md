@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–3: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words)
+### S1-06 · Project-driven studio words · in progress (slices 1–4: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; the channel charts' words)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
@@ -58,8 +58,13 @@ units from the project's channels. Slice 3: channel 3's sweep units. A fed sweep
 `/api/ingest`) was drawn as a radio spectrum: x divided by 10^6 and labelled MHz, FM and Wi-Fi bands
 shaded, radio band names on its peaks. Now it keeps its own x, labelled `ch3.axis_unit` ("sample"
 from a project), with no radio bands; the radio sweep is unchanged. The PDF report takes the channel
-names and units and `report.title`/`report.subtitle`. Next slices: section heads and cards on each
-page, tab and button labels, typewriter lines, constellation and globe words, and the other charts' axis titles (still the placeholder "Text"; the channel 3 sweep chart titles its axes since slice 3).
+names and units and `report.title`/`report.subtitle`. Slice 4: the channel 1–3 charts and the
+cross-channel views say what they plot. Axis titles, legend names, colour bars and empty-state notes
+were the placeholders "Text", "Title" and "Label", and hover text said a literal "unit". They now
+name the axis (sample order, window, direction, sweep time) in the project's channel names and units.
+Next slices: the radio, Wi-Fi, BLE and line-frequency charts and the peak and scan tables (still
+placeholders); section heads and cards on each page, tab and button labels, typewriter lines,
+constellation and globe words.
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

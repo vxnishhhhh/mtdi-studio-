@@ -51,6 +51,24 @@ out["sweeps"] = {"radio_x": list(radio.data[-1].x), "radio_hover": radio.data[-1
                  "bands": [p["band"] for p in s3["peaks"]], "at": ns["_ch3_at"](2.0),
                  "span": ns["_ch3_span"](1.0, 5.0),
                  "bar_rows": list(ns["fig_ch3_bands"](s3["peaks"]).data[0].y)}
+# the channel charts (slice 4): each built with data and empty, so both states are read
+xyz = [(1.0, 2.0, 2.0), (2.0, 1.0, 2.0), (2.0, 2.0, 1.0)] * 4
+hist = [1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0]
+rows = [[1.0, 2.0, 3.0, 4.0, 5.0], [2.0, 3.0, 4.0, 5.0, 6.0]]
+charts = {
+    "axis": ns["fig_axis"](xyz), "bar": ns["fig_bar"](1.0, 2.0, 3.0), "gauge": ns["fig_gauge"](None),
+    "terrain": ns["fig_3d_terrain"](xyz), "plane": ns["fig_3d_error_plane"](xyz),
+    "dipole": ns["fig_3d_dipolch2f"](xyz), "c2gauge": ns["fig_c2_gauge"](None),
+    "basebar": ns["fig_c2_basebar"](1.0, 2.0, 3.0), "corr": ns["fig_c2_b_correlation"](hist, hist),
+    "proxy": ns["fig_c2_induction_proxy"](hist, hist), "overlay": ns["fig_p1_overlay"](hist, hist),
+    "normalised": ns["fig_p1_normalized_overlay"](hist, hist),
+    "vectors": ns["fig_p1_vector_overlay_3d"](xyz, xyz), "cross": ns["fig_p1_cross_proxy_3d"](xyz, xyz),
+    "trajectory": ns["fig_p1_trajectory_3d"](hist, hist), "trajectory_empty": ns["fig_p1_trajectory_3d"]([], []),
+    "sweep": fed, "waterfall": ns["fig_waterfall"](rows, s3["freqs"]), "trend": ns["fig_ch3_trend"](hist),
+    "focus_empty": ns["fig_focus_bands"]({}), "ch3_terrain": ns["fig_ch3_terrain"](rows, s3["freqs"]),
+    "ch3_terrain_empty": ns["fig_ch3_terrain"]([], []),
+}
+out["charts"] = {name: dump(fig) for name, fig in charts.items()}
 print(json.dumps(out))
 '''
 
@@ -141,6 +159,18 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual(sw["span"], f"1 – 5 {xu}")
         self.assertEqual(sw["axes"], ["MHz", xu, lu])                  # the sweep chart titles its own axes
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
+        # the channel charts say what they plot, in the project's words: no placeholder and no bare "unit"
+        placeholder = re.compile(r'"(Text|TEXT|Title|Label|LABEL)"|\bunit\b')
+        for name, chart in rendered["charts"].items():
+            self.assertIsNone(placeholder.search(chart), f"{name}: {placeholder.search(chart)}")
+        n1, n2 = words["ch1.name"], words["ch2.name"]
+        for name in ("plane", "corr", "proxy", "overlay", "normalised", "vectors", "trajectory"):
+            self.assertIn(n1.lower(), rendered["charts"][name].lower(), name)   # some say it in capitals
+        for name in ("corr", "proxy", "overlay", "normalised", "vectors", "trajectory"):
+            self.assertIn(n2, rendered["charts"][name], name)
+        self.assertIn(words["ch1.unit"], rendered["charts"]["overlay"])
+        self.assertIn(words["ch2.unit"], rendered["charts"]["overlay"])
+        self.assertIn(words["ch3.unit"], rendered["charts"]["waterfall"])
         # the archive headings carry the channel names, and the bound report still marks them raw
         report = json.loads(rendered["report"])
         heads = [b[1] for b in report if b[0] == "h" and "ARCHIVE" in b[1]]
