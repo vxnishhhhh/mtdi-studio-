@@ -158,12 +158,22 @@ def parse_unittest(text):
 def run_core(label, root=ROOT, run=subprocess.run):
     done = run([sys.executable, "-m", "unittest", "discover", "tests", "-v"], cwd=root,
                capture_output=True, text=True, timeout=3600)
-    parsed = parse_unittest(done.stderr + done.stdout)
+    output = done.stderr + done.stdout
+    parsed = parse_unittest(output)
     failed = sorted(t for t, o in parsed["tests"].items() if o in ("FAIL", "ERROR", "unexpected success"))
-    return {"kind": "core", "target": label, "evidence": "ran", "python": platform.python_version(),
-            "ran": parsed["ran"], "ok": parsed["ok"] and done.returncode == 0, "failed": failed,
-            "skipped": parsed["skipped"], "checks": {k: parsed["tests"].get(v, "not run") for k, v in CHECKS.items()},
-            **provenance()}
+    result = {"kind": "core", "target": label, "evidence": "ran", "python": platform.python_version(),
+              "ran": parsed["ran"], "ok": parsed["ok"] and done.returncode == 0, "failed": failed,
+              "skipped": parsed["skipped"], "checks": {k: parsed["tests"].get(v, "not run") for k, v in CHECKS.items()},
+              **provenance()}
+    if not result["ok"]:
+        result["output"] = failure_text(output)
+    return result
+
+
+def failure_text(output, limit=6000):
+    """The tracebacks unittest prints after the run (or the tail, if it never got that far)."""
+    start = output.find("\n======")
+    return (output[start:] if start >= 0 else output)[-limit:].strip()
 
 
 # The tests that prove a target-specific claim; the report names them per machine.
@@ -414,6 +424,8 @@ def main(argv=None):
     if args.command == "core":
         result = run_core(args.label)
         print(write(result, args.out, f"core-{args.label}.json"))
+        if not result["ok"]:
+            print(result["output"], file=sys.stderr)      # so the CI log shows why
         return 0 if result["ok"] else 1
     if args.command == "serverless":
         result = run_serverless()

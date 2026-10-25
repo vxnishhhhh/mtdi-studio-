@@ -86,6 +86,13 @@ class CoreSuite(unittest.TestCase):
         self.assertEqual(parsed["tests"]["test_x.X.test_broken"], "FAIL")
         self.assertEqual(parsed["skipped"], {"test_sdks.SDKs.test_matlab_in_octave": "octave not installed"})
 
+    def test_a_failing_run_keeps_the_tracebacks(self):
+        text = VERBOSE.replace("\n----", "\n======================================================================\n"
+                               "FAIL: test_broken (test_x.X.test_broken)\nAssertionError: 1 != 2\n----", 1)
+        self.assertTrue(lab.failure_text(text).startswith("======"))
+        self.assertIn("AssertionError: 1 != 2", lab.failure_text(text))
+        self.assertEqual(lab.failure_text("boom" * 5000)[-4:], "boom")       # no tracebacks: the tail
+
     def test_named_checks_exist_in_the_suite(self):
         for check, test_id in lab.CHECKS.items():
             module, cls, name = test_id.split(".")
