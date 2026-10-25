@@ -255,10 +255,10 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
         b += [("dim", f"Status: OFFLINE  -  {s['error'] or 'no sweep yet'}")]
     else:
         b += [("kv", "Device / Port", f"{s['device']}  /  {s['port']}"),
-              ("kv", "Span", _span_label(s["span_start"], s["span_stop"])),
+              ("kv", "Span", _ch3_span(s["span_start"], s["span_stop"])),
               ("kv", "Points / Sweeps", f"{s['points']}  /  {s['sweeps']}"),
               ("kv", "Level offset", str(s["leveloffset"])),
-              ("kv", "Noise floor", f"{s['floor']:+.1f} unit  ({'plausible' if s['level_sane'] else 'untrusted - verify setup'})"),
+              ("kv", "Noise floor", f"{s['floor']:+.1f} {u3}  ({'plausible' if s['level_sane'] else 'untrusted - verify setup'})"),
               ("kv", "Strongest peak", f"{_ch3_at(s['peak_freq'])} at {s['peak_level']:+.1f} {u3}"),
               ("dim", "Tracked peaks (rank, frequency, level, possible allocation):")]
         for i, p in enumerate(peaks[:8], 1):
@@ -301,16 +301,18 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     # ── CH3 archive ──
     with ch3_archive_lock:
         rfa = list(ch3_archive); rfs = dict(ch3_stats)
+    # Only the studio's radio reader archives peaks (sensors.py); a fed sweep never does. So the
+    # archive is always read as radio: frequencies and the radio's level, whatever sweep is current.
     b += [("h", f"{T('ch3.name').upper()} PEAK ARCHIVE")]
     if rfs["count"]:
         ravg = rfs["sum"] / rfs["count"]; st = rfs["strongest"]
         b += [("kv", "Sweeps stored", f"{rfs['count']}"),
-              ("kv", "Min / Avg / Max peak", f"{rfs['min']:+.1f} / {ravg:+.1f} / {rfs['max']:+.1f} {u3}"),
-              ("kv", "Strongest overall", f"{_ch3_at(st['freq'])} at {st['level']:+.1f} {u3} ({st['band']})"),
+              ("kv", "Min / Avg / Max peak", f"{rfs['min']:+.1f} / {ravg:+.1f} / {rfs['max']:+.1f} unit"),
+              ("kv", "Strongest overall", f"{_freq_label(st['freq'])} at {st['level']:+.1f} unit ({st['band']})"),
               ("dim", "Recent strongest-per-sweep (time, frequency, level, band):")]
         for a in rfa[-60:]:
             ts = _t.strftime("%H:%M:%S", _t.localtime(a["t"]))
-            b += [("line", f"   {ts}   {_ch3_at(a['freq']):>14}   {a['level']:+7.1f} {u3}   {a['band']}")]
+            b += [("line", f"   {ts}   {_freq_label(a['freq']):>14}   {a['level']:+7.1f} unit   {a['band']}")]
     else:
         b += [("dim", f"No {T('ch3.name')} sweeps recorded (Source 3 offline).")]
     b += [("space", "")]
