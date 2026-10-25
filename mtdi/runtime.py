@@ -37,6 +37,7 @@ class Runner:
             self.engine.recorders.append(Recorder(record))
         self.adapters = [build(self.engine, s, simulate) for s in self.project["sources"]]
         self._ask = ask
+        self.stopped = False
         if start:
             for adapter in self.adapters:
                 adapter.start()
@@ -102,6 +103,8 @@ class Runner:
             Only sources declared with adapter "http" accept posts."""
             body = request.get_json(silent=True) or {}
             sid = body.get("source")
+            if self.stopped:                     # the route outlives the project; nothing ingested now is kept
+                return jsonify({"ok": False, "message": "this project has stopped"}), 409
             if sid not in http_sources:
                 return jsonify({"ok": False, "message": "source is not an http source in this project"}), 400
             if self.simulate_all:
@@ -147,6 +150,7 @@ class Runner:
         return self.register(server)
 
     def stop(self):
+        self.stopped = True
         for adapter in self.adapters:
             adapter.stop()
         for recorder in self.engine.recorders:

@@ -47,6 +47,21 @@ class Cli(unittest.TestCase):
             cp1252.flush()
         self.assertEqual(cp1252.buffer.getvalue(), b"? project\n")
 
+    def test_a_stopped_project_refuses_ingest_instead_of_dropping_it_quietly(self):
+        from flask import Flask
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        runner = Runner(normalise({"project": {"id": "h"}, "sources": [{"id": "s", "adapter": "http"}],
+                                   "channels": [{"id": "a", "keys": ["A"]}]}), start=False)
+        server = Flask("t")
+        runner.register(server)
+        client = server.test_client()
+        post = lambda: client.post("/mtdi/ingest", json={"source": "s", "values": {"A": 1}})   # noqa: E731
+        self.assertEqual(post().status_code, 200)
+        runner.stop()
+        reply = post()
+        self.assertEqual((reply.status_code, reply.get_json()["message"]), (409, "this project has stopped"))
+
     def test_recording_files_are_closed_when_a_project_stops(self):
         import tempfile
         from mtdi.runtime import Runner
