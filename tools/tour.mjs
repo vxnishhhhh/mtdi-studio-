@@ -162,7 +162,7 @@ const swipeReport = { swipes: null, scrolled: null };
     await stage.locator("#nav-em").tap({ timeout: 15000 });
     await ready(stage, "/page-1");
     await phone.waitForTimeout(1500);
-    const heroDone = () => stage.evaluate(() => { const h = document.querySelector(".i3-scrub-hero"); return !h || h.classList.contains("i3-hero-hidden"); });
+    const heroDone = () => stage.evaluate(() => { const h = document.querySelector(".i3-scrub-hero"); return !!h && h.classList.contains("i3-hero-hidden"); });   // no hero is a failure, not a pass
     let swipes = 0;
     // a flick glides on after the finger lifts; software GL draws it slowly, so give it time to land
     while (!(await heroDone()) && swipes < 4) { await swipe(0.5); await phone.waitForTimeout(1500); swipes++; }
