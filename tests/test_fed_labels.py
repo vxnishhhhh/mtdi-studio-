@@ -58,6 +58,15 @@ class StudioStatus(unittest.TestCase):
         self.ns["feed_ch1"]([150.0], unit="cm", source="SIMULATED MTDI:third-eye")
         self.assertIn("SIMULATED DATA · SIMULATED MTDI:third-eye", self.status("update_numbers"))
 
+    def test_only_a_leading_simulated_marks_the_data_simulated(self):
+        self.ns["feed_ch1"]([150.0], unit="cm", source="MTDI:SIMULATED-annealing-rig")
+        shown = self.status("update_numbers")
+        self.assertIn("SOURCE ONLINE · MTDI:SIMULATED-annealing-rig", shown)
+        self.assertNotIn("SIMULATED DATA", shown)
+        is_simulated = self.ns["_simulated_label"]
+        self.assertEqual([is_simulated(x) for x in ("SIMULATED", "SIMULATED MTDI:x", "MTDI:SIMULATED", None)],
+                         [True, True, False, False])
+
     def test_fed_channel_2_renders_without_crashing_and_names_the_sender(self):
         """update_ch2f_numbers raised UnboundLocalError for every non-Uno source with data (fixed here)."""
         for _ in range(3):
@@ -140,11 +149,9 @@ class BridgeMarksSimulated(unittest.TestCase):
         bridge = StudioBridge(engine, "http://127.0.0.1:9")
         with mock.patch("urllib.request.urlopen", fake_open):
             bridge.push(bridge.collect())
-        self.assertEqual(sent["source"], "MTDI:s")
+        self.assertEqual([s["source"] for s in sent["samples"]], ["MTDI:s"])
 
-    def test_mixed_samples_go_over_http_as_one_request_per_label(self):
-        """One request carries one label for every slot, so real and simulated slots are sent apart."""
-        from mtdi.bridge import StudioBridge
+    def mixed(self):
         from mtdi.engine import Engine
         from mtdi.project import normalise
         engine = Engine(normalise({"project": {"id": "s"},
@@ -153,6 +160,13 @@ class BridgeMarksSimulated(unittest.TestCase):
                                                 {"id": "b", "keys": ["B"], "source": "sim", "noise_floor": 0.1}]}))
         engine.ingest_values("hw", {"A": 1.0}, "HARDWARE")
         engine.ingest_values("sim", {"B": 2.0}, "SIMULATED")
+        return engine
+
+    def test_mixed_samples_go_over_http_with_a_label_each(self):
+        """The ingest route applies a sample's label to every slot in it, so real and simulated slots
+        travel as separate samples: one request, one label per sample."""
+        from mtdi.bridge import StudioBridge
+        engine = self.mixed()
         sent = []
 
         class Response:
@@ -166,8 +180,50 @@ class BridgeMarksSimulated(unittest.TestCase):
         bridge = StudioBridge(engine, "http://127.0.0.1:9")
         with mock.patch("urllib.request.urlopen", fake_open):
             self.assertEqual(bridge.push(bridge.collect()), 2)
-        by_source = {body["source"]: set(body) - {"source", "unit"} for body in sent}
+        self.assertEqual(len(sent), 1)
+        by_source = {s["source"]: set(s) - {"source", "unit"} for s in sent[0]["samples"]}
         self.assertEqual(by_source, {"MTDI:s": {"ch1"}, "SIMULATED MTDI:s": {"ch2"}})
+
+    def test_a_failed_push_is_sent_again_on_the_next_tick(self):
+        """collect() used to mark a sample seen before it was delivered, so a failed request lost it."""
+        from mtdi.bridge import StudioBridge
+        engine = self.mixed()
+        sent = []
+
+        class Response:
+            def read(self): return b'{"ok": true}'
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def down(request, timeout=None):
+            raise OSError("studio restarting")
+
+        def up(request, timeout=None):
+            sent.append(json.loads(request.data))
+            return Response()
+        bridge = StudioBridge(engine, "http://127.0.0.1:9")
+        with mock.patch("urllib.request.urlopen", down):
+            self.assertEqual(bridge.tick(), 0)                 # tick() reports the failure, never raises
+        with mock.patch("urllib.request.urlopen", up):
+            bridge.tick()                                       # no new readings since: the same two go out
+            bridge.tick()                                       # delivered once, never again
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sorted(k for s in sent[0]["samples"] for k in s if k.startswith("ch")), ["ch1", "ch2"])
+
+    def test_a_failed_in_process_feed_is_retried_and_delivered_slots_are_not(self):
+        from mtdi.bridge import StudioBridge
+        engine = self.mixed()
+        calls, broken = [], [True]
+
+        def feed_ch2(v, **kw):
+            if broken[0]:
+                raise RuntimeError("channel 2 busy")
+            calls.append("ch2")
+        bridge = StudioBridge(engine, {"feed_ch1": lambda v, **kw: calls.append("ch1"), "feed_ch2": feed_ch2})
+        bridge.tick()
+        broken[0] = False
+        bridge.tick()
+        self.assertEqual(calls, ["ch1", "ch2"])                 # ch1 once, ch2 on the retry
 
 
 if __name__ == "__main__":

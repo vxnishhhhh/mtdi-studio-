@@ -80,6 +80,7 @@ class StudioBridge:
         self.units = {slot: str(by_id[cid].get("unit")).strip() for slot, cid in self.mapping.items()
                       if cid in by_id and str(by_id[cid].get("unit") or "").strip()}
         self._seen = {}
+        self._pending = {}                       # slot -> marker collected but not yet delivered
         self._simulated = {}                     # slot -> True while that channel's data is SIMULATED
         self._stop = threading.Event()
         self._thread = None
@@ -102,8 +103,12 @@ class StudioBridge:
             sample = sample_for(slot, channel)
             if sample is not None:
                 out[slot] = sample
-                self._seen[slot] = marker
+                self._pending[slot] = marker     # seen only once delivered, so a failed push retries
         return out
+
+    def _delivered(self, slot):
+        if slot in self._pending:
+            self._seen[slot] = self._pending.pop(slot)
 
     def _source(self, slot):
         """The source label the studio shows: marked SIMULATED while that slot's data is simulated."""
@@ -119,18 +124,24 @@ class StudioBridge:
             feeds = self.target if isinstance(self.target, dict) else self.target()
             if "ch1" in sample:
                 feeds["feed_ch1"](sample["ch1"], source=self._source("ch1"), **self._unit("ch1"))
+                self._delivered("ch1")
             if "ch2" in sample:
                 feeds["feed_ch2"](sample["ch2"], source=self._source("ch2"), **self._unit("ch2"))
+                self._delivered("ch2")
             if "ch3" in sample:
                 feeds["feed_ch3"](sample["ch3"]["x"], sample["ch3"]["y"], source=self._source("ch3"))
+                self._delivered("ch3")
         else:
-            # The ingest route gives one source label to every slot in a request, so simulated and
-            # real slots go in separate requests: a hardware reading is never labelled SIMULATED.
+            # One sample object per source label, all in one request: a hardware reading is never
+            # labelled SIMULATED because a simulated slot travelled with it, and the request either
+            # lands whole or is retried whole on the next tick.
             groups = {}
             for slot, value in sample.items():
                 groups.setdefault(self._source(slot), {})[slot] = value
-            for source, slots in groups.items():
-                self._post(dict(slots, source=source, **({"unit": self.units} if self.units else {})))
+            unit = {"unit": self.units} if self.units else {}
+            self._post({"samples": [dict(slots, source=source, **unit) for source, slots in groups.items()]})
+            for slot in sample:
+                self._delivered(slot)
         self.sent += len(sample)
         return len(sample)
 

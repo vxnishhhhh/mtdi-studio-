@@ -14,6 +14,13 @@ def _slot_words(text):
     return re.sub(r"\b([Cc])hannel ([123])\b", name, text)
 
 
+def _simulated_label(label):
+    """Fed data is simulated when its sender label says so up front ("SIMULATED MTDI:x"), the way the
+    bridge marks it. A real sender whose name merely contains the word stays a real sender."""
+    label = str(label or "")
+    return label == "SIMULATED" or label.startswith("SIMULATED ")
+
+
 # ════════════════════════════════════════════════════════
 #  ROUTING / NAV
 #
@@ -165,7 +172,7 @@ def update_numbers(n, _refresh):
     if online and m.get("fed_source"):
         # Data fed in (an MTDI project, /api/ingest): name the sender, never the studio's own sensor.
         age = time.time() - m["last_rx"]
-        simulated = "SIMULATED" in m["fed_source"]
+        simulated = _simulated_label(m["fed_source"])
         status = f"{'SIMULATED DATA' if simulated else 'SOURCE ONLINE'} · {m['fed_source']} · {age:.1f}s ago"
         stcol = AMBER if simulated else GREEN
         dot = "online-dot warn" if simulated else "online-dot on"
@@ -417,7 +424,7 @@ def update_ch2f_numbers(n, _refresh):
             wiring = "probe input"
         st = f"{T('ch2.name').upper()} ONLINE · Source 2 {wiring} @ 0x48 · {age:.1f}s ago"; sc = GREEN; dot = "online-dot on"
         if e.get("fed_source"):                        # fed data: name the sender, not the studio's ADC
-            simulated = "SIMULATED" in e["fed_source"]
+            simulated = _simulated_label(e["fed_source"])
             st = (f"{T('ch2.name').upper()} {'SIMULATED DATA' if simulated else 'ONLINE'} · {e['fed_source']} · {age:.1f}s ago")
             sc, dot = (AMBER, "online-dot warn") if simulated else (GREEN, "online-dot on")
     warning_text = (
@@ -1231,9 +1238,9 @@ def update_mtdi(n, _refresh):
         if sub: ch.append(html.Div(sub, className="sys-sub"))
         return html.Div(ch, className="sys-card")
     sensor_side = [
-        _card('SOURCE LINK', ("SIMULATED" if "SIMULATED" in (md.get("fed_source") or "") else "ONLINE") if mo_ else "OFFLINE",
+        _card('SOURCE LINK', ("SIMULATED" if _simulated_label(md.get("fed_source")) else "ONLINE") if mo_ else "OFFLINE",
               (f"{md.get('fed_source') or 'Source 1 @ 0x2C'}  {ma}s ago") if ma is not None else 'Text',
-              vc=(AMBER if md["chip_warning"] or "SIMULATED" in (md.get("fed_source") or "") else GREEN) if mo_ else RED),
+              vc=(AMBER if md["chip_warning"] or _simulated_label(md.get("fed_source")) else GREEN) if mo_ else RED),
         _card("CALIBRATION", 'TITLE' if md["calibrated"] else 'TITLE',
               'Text' if md["calibrated"] else 'Text',
               vc=CYAN if md["calibrated"] else SUBTEXT),
