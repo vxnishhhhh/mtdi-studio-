@@ -50,7 +50,8 @@ Every source needs a unique `id`. `note` is free text.
 | `noise_budget` | 10 × floor | noise a healthy channel should sit under at rest (resolution credit) |
 | `expected_rate` | none | samples per second the source should deliver |
 | `stale_after` | from rate, else 4 s | seconds without a sample before the channel is stale |
-| `alert_change` | 20 × floor | smallest change a person would call an event |
+| `alert_change` | 20 × floor | smallest change from the learned baseline that a person would call an event, in `unit`. A settled channel that moves this far adds one `alert` event to the snapshot's `events` and shows `"alert": true`; it re-arms once the change is back under half of it |
+| `alert_direction` | `both` | `up` or `down` to alert only on a rise or only on a drop (scalar channels; a vector's change is a length) |
 | `optional` | false | if true and offline, it is left out of the score instead of scoring 0 |
 | `calibration` | none | scalar only: `{gain, offset, temp_coeff, temp_ref, temperature_key}` or a path to a file saved by `mtdi.fusion.Calibration.save`; applied after `scale`/`offset`, raw stays in `raw`. `temperature_key` is a protocol key in the same packet; without it in a packet, no temperature term is added |
 | `simulate` | quiet | `{"mean": n or [..], "noise": n, "wave": {"amp", "hz"}, "events": true}` in `unit` |
