@@ -115,7 +115,8 @@ class SecondContentFile(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = pathlib.Path(d, "words.json")
             path.write_text(json.dumps(words), encoding="utf-8")
-            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0")
+            # a fresh home: an empty archive, as on a new install and in CI (the report must build from nothing)
+            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d)
             res = subprocess.run([sys.executable, "-c", RENDER], cwd=ROOT, env=env,
                                  capture_output=True, text=True, timeout=300)
         self.assertEqual(res.returncode, 0, res.stderr[-2000:])

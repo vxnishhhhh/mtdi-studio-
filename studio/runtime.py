@@ -527,7 +527,10 @@ def install_reports(ns, runtime):
         # silently reverts to the module default and the ?rows= control does nothing.
         blocks = original() if row_cap is None else original(row_cap=row_cap)
         snapshot = runtime.engine.snapshot()
-        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('CH1PROBE'))
+        # The live channel sections run from channel 1's (named by the project, so found by its source)
+        # to the wireless survey. Matching 'CH1PROBE' found the archive appendix instead, and on an
+        # empty archive nothing: the report crashed (StopIteration).
+        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].endswith('(Source 1 @ bus 0x2C)'))
         last = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('WIRELESS SURVEY'))
         measured = [('h', 'MEASUREMENT DEFINITIONS'),
                     ('dim', 'Live values are deviations from Baseline Lock. Raw records below are diagnostic observations.'),
