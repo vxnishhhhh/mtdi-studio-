@@ -58,6 +58,16 @@ class Alerts(unittest.TestCase):
         self.assertEqual(len(self.alerts(engine)), 1)
         self.assertRegex(self.alerts(engine)[0], r": (2\.9\d*|3(\.0\d*)?) cm below its baseline")
 
+    def test_a_new_baseline_clears_the_alert_and_the_next_crossing_is_reported(self):
+        engine = self.engine()
+        self.feed(engine, 1, 13.0)
+        self.assertTrue(engine.snapshot()["channels"]["level"]["alert"])
+        engine.learn("level")                             # 13 is the new normal
+        self.assertFalse(engine.snapshot()["channels"]["level"]["alert"])
+        self.feed(engine, 12, 13.0)                       # settles on the new level
+        self.feed(engine, 1, 16.0)                        # +3 against the new baseline
+        self.assertEqual(len(self.alerts(engine)), 2)
+
     def test_nothing_alerts_while_the_baseline_is_still_settling(self):
         engine = Engine(project(), clock=lambda: self.clock[0])
         self.feed(engine, 1, 10.0)
@@ -72,8 +82,10 @@ class Alerts(unittest.TestCase):
 
     def test_bad_settings_name_the_problem(self):
         vector = {"keys": ["X", "Y"], "kind": "vector"}
-        for channel, needle in (({"alert_change": 0}, "alert_change must be a number > 0"),
-                                ({"alert_change": "big"}, "alert_change must be a number > 0"),
+        for channel, needle in (({"alert_change": 0}, "alert_change must be a finite number > 0"),
+                                ({"alert_change": "big"}, "alert_change must be a finite number > 0"),
+                                ({"alert_change": float("inf")}, "alert_change must be a finite number > 0"),
+                                ({"alert_change": float("nan")}, "alert_change must be a finite number > 0"),
                                 ({"alert_direction": "sideways"}, "alert_direction must be"),
                                 (dict(vector, alert_direction="down"), "only a scalar channel has a sign")):
             with self.assertRaisesRegex(ManifestError, needle):

@@ -140,6 +140,7 @@ class Engine:
         with self.lock:
             for ch in self._targets(channel):
                 ch.env.learn()
+                ch.alerting = False              # a new baseline: an alert against the old one no longer holds
             self._event("environment", f"Re-learning baseline: {channel or 'all channels'}")
 
     def check_calibration(self, channel, reference):
@@ -201,6 +202,7 @@ class Engine:
             for cid, ref in record["channels"].items():
                 if cid in self.channels and len(ref["baseline"]) == len(self.channels[cid].env.axes):
                     self.channels[cid].env.pin(ref)
+                    self.channels[cid].alerting = False
             self._event("environment", f"Comparing against saved environment '{name}'"
                         + (f" (not in it: {', '.join(missing)})" if missing else ""))
             return record
@@ -280,6 +282,7 @@ class Engine:
                 env = ch.env.snapshot(now)
                 if relock and env["stale"] and env["stale_for"] >= relock and not env["frozen"]:
                     ch.env.learn()
+                    ch.alerting = False
                     self._event("environment", f"{spec['label']}: quiet level moved, baseline re-learned")
                     env = ch.env.snapshot(now)
                 evidence = ch.evidence.snapshot(now, env.get("noise"))
