@@ -154,14 +154,22 @@ def update_numbers(n, _refresh):
         m = dict(ch1_data); h10 = list(ch1_data["history"])[-10:]
     if len(h10) >= 2:
         mean = sum(h10)/len(h10); std = (sum((v-mean)**2 for v in h10)/len(h10))**0.5
-        sig = f"{std:.2f} unit"; sc = GREEN if std < 0.5 else AMBER if std < 2.0 else RED
+        sig = f"{std:.2f} {m.get('fed_unit') or T('ch1.unit')}"; sc = GREEN if std < 0.5 else AMBER if std < 2.0 else RED
     else:
         sig = "—"; sc = SUBTEXT
     online = m["error"] is None and m["last_rx"] is not None
     # A missing calibration profile is the normal default: the sensor is fully online
     # and the readings are real, they are simply uncorrected. It is reported as a
     # neutral note, never as a fault — only a chip-ID mismatch turns the strip amber.
-    if online:
+    unit = m.get("fed_unit") or T("ch1.unit")
+    if online and m.get("fed_source"):
+        # Data fed in (an MTDI project, /api/ingest): name the sender, never the studio's own sensor.
+        age = time.time() - m["last_rx"]
+        simulated = "SIMULATED" in m["fed_source"]
+        status = f"{'SIMULATED DATA' if simulated else 'SOURCE ONLINE'} · {m['fed_source']} · {age:.1f}s ago"
+        stcol = AMBER if simulated else GREEN
+        dot = "online-dot warn" if simulated else "online-dot on"
+    elif online:
         age = time.time() - m["last_rx"]
         calibration_label = "CALIBRATED" if m["calibrated"] else "UNCALIBRATED (RAW VECTOR)"
         status = f"SOURCE ONLINE · Source 1 @ 0x2C · {calibration_label} · {age:.1f}s ago"
@@ -184,11 +192,11 @@ def update_numbers(n, _refresh):
     baseline_value = f"{m['baseline_magnitude']:.2f}" if m["baseline_calibrated"] else "—"
     delta_value = f"{m['baseline_delta']:.2f}" if m["baseline_calibrated"] else "—"
     baseline_status = (
-        f"Quiet vector learned: {m['baseline_magnitude']:.2f} unit; live change is {m['baseline_delta']:.2f} unit."
+        f"Quiet vector learned: {m['baseline_magnitude']:.2f} {unit}; live change is {m['baseline_delta']:.2f} {unit}."
         if m["baseline_calibrated"] else
         f"Learning the quiet {T('ch1.name').lower()} baseline… keep the instrument still and clear of devices (~5 s)."
     )
-    summary_c1 = f"{m['magnitude']:.2f} unit" if m["last_rx"] is not None else "—"
+    summary_c1 = f"{m['magnitude']:.2f} {unit}" if m["last_rx"] is not None else "—"
     summary_axes = (
         (
             f"CORRECTED X {m['x']:.2f}  Y {m['y']:.2f}  Z {m['z']:.2f} · "
@@ -364,6 +372,10 @@ def update_ch2f_numbers(n, _refresh):
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     lc = _c2_level_color(e["level"])
+    # Every branch's return uses shown(); it used to exist only in the Uno branch, so any other
+    # source with data (an MTDI project, /api/ingest, the studio's own probe) raised UnboundLocalError.
+    clipped_axes = e.get("axis_clipped") or {}
+    shown = lambda key, axis: (("≥ " if clipped_axes.get(axis) else "") + f"{e.get(key):.3f}") if have and e.get(key) is not None else "—"  # noqa: E731
     if e["error"] and not (e["last_rx"] is None and e["error"] == "Waiting for Ch2 sensor"):
         st = f"{T('ch2.name').upper()} OFFLINE · {e['error'][:64]}"; sc = RED; dot = "online-dot off"
     elif e["error"]:
@@ -373,8 +385,6 @@ def update_ch2f_numbers(n, _refresh):
         st = f"{T('ch2.name').upper()} ONLINE · SOURCE 6 UNO USB · {e['sample_rate']:.1f} SPS · {age:.1f}s ago"
         sc = GREEN; dot = "online-dot on"
         warn = None
-        clipped_axes = e.get("axis_clipped") or {}
-        shown = lambda key, axis: (("≥ " if clipped_axes.get(axis) else "") + f"{e.get(key):.3f}") if have and e.get(key) is not None else "—"
         return (shown("ex_vu", "x"), f"metric-value {_cls(lc)}",
                 shown("ey_vu", "y"), shown("ez_vu", "z"),
                 (("≥ " if e.get("clipped") else "") + f"{e.get('e_magnitude_vu'):.3f}") if have and e.get("e_magnitude_vu") is not None else "—",
@@ -406,6 +416,10 @@ def update_ch2f_numbers(n, _refresh):
         except Exception:
             wiring = "probe input"
         st = f"{T('ch2.name').upper()} ONLINE · Source 2 {wiring} @ 0x48 · {age:.1f}s ago"; sc = GREEN; dot = "online-dot on"
+        if e.get("fed_source"):                        # fed data: name the sender, not the studio's ADC
+            simulated = "SIMULATED" in e["fed_source"]
+            st = (f"{T('ch2.name').upper()} {'SIMULATED DATA' if simulated else 'ONLINE'} · {e['fed_source']} · {age:.1f}s ago")
+            sc, dot = (AMBER, "online-dot warn") if simulated else (GREEN, "online-dot on")
     warning_text = (
         "SIGNAL ABOVE ADC RANGE — live value is streaming, but is only a lower bound while clipped"
         if e["clipped"] and e["calibrated"] else e["warning"]
@@ -1217,9 +1231,9 @@ def update_mtdi(n, _refresh):
         if sub: ch.append(html.Div(sub, className="sys-sub"))
         return html.Div(ch, className="sys-card")
     sensor_side = [
-        _card('SOURCE LINK', "ONLINE" if mo_ else "OFFLINE",
-              f"Source 1 @ 0x2C  {ma}s ago" if ma is not None else 'Text',
-              vc=(AMBER if md["chip_warning"] else GREEN) if mo_ else RED),
+        _card('SOURCE LINK', ("SIMULATED" if "SIMULATED" in (md.get("fed_source") or "") else "ONLINE") if mo_ else "OFFLINE",
+              (f"{md.get('fed_source') or 'Source 1 @ 0x2C'}  {ma}s ago") if ma is not None else 'Text',
+              vc=(AMBER if md["chip_warning"] or "SIMULATED" in (md.get("fed_source") or "") else GREEN) if mo_ else RED),
         _card("CALIBRATION", 'TITLE' if md["calibrated"] else 'TITLE',
               'Text' if md["calibrated"] else 'Text',
               vc=CYAN if md["calibrated"] else SUBTEXT),

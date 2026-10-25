@@ -990,6 +990,7 @@ def install(ns, engine):
             data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=vector[0], raw_y=vector[1],
                         raw_z=vector[2], raw_magnitude=size, error=None, warning=None, chip_warning=None,
                         chip_id=source, calibrated=False, calibration_warning=None, last_rx=now,
+                        fed_source=str(source), fed_unit=str(unit),
                         baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
                         baseline_magnitude=math.sqrt(sum(v * v for v in c1["baseline_vector"])))
             data["history"].append(c1["deviation"])
@@ -1020,7 +1021,7 @@ def install(ns, engine):
                         field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
-                        probe_calibrated=False, unit=ch2["unit"])
+                        probe_calibrated=False, unit=ch2["unit"], fed_source=str(source))
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)
             data["min_rms"] = min(data["min_rms"], value)

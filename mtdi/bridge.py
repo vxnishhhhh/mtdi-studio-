@@ -80,6 +80,7 @@ class StudioBridge:
         self.units = {slot: str(by_id[cid].get("unit")).strip() for slot, cid in self.mapping.items()
                       if cid in by_id and str(by_id[cid].get("unit") or "").strip()}
         self._seen = {}
+        self._simulated = {}                     # slot -> True while that channel's data is SIMULATED
         self._stop = threading.Event()
         self._thread = None
         self.sent = 0
@@ -94,6 +95,7 @@ class StudioBridge:
             channel = packet["channels"].get(cid)
             if not channel:
                 continue
+            self._simulated[slot] = channel["evidence"].get("data_source") == "SIMULATED"
             marker = channel["evidence"].get("samples")
             if self._seen.get(slot) == marker:
                 continue
@@ -102,6 +104,10 @@ class StudioBridge:
                 out[slot] = sample
                 self._seen[slot] = marker
         return out
+
+    def _source(self, slot):
+        """The source label the studio shows: marked SIMULATED while that slot's data is simulated."""
+        return ("SIMULATED " + self.source)[:40] if self._simulated.get(slot) else self.source
 
     def _unit(self, slot):
         return {"unit": self.units[slot]} if slot in self.units else {}
@@ -112,13 +118,15 @@ class StudioBridge:
         if callable(self.target) or isinstance(self.target, dict):
             feeds = self.target if isinstance(self.target, dict) else self.target()
             if "ch1" in sample:
-                feeds["feed_ch1"](sample["ch1"], source=self.source, **self._unit("ch1"))
+                feeds["feed_ch1"](sample["ch1"], source=self._source("ch1"), **self._unit("ch1"))
             if "ch2" in sample:
-                feeds["feed_ch2"](sample["ch2"], source=self.source, **self._unit("ch2"))
+                feeds["feed_ch2"](sample["ch2"], source=self._source("ch2"), **self._unit("ch2"))
             if "ch3" in sample:
-                feeds["feed_ch3"](sample["ch3"]["x"], sample["ch3"]["y"], source=self.source)
+                feeds["feed_ch3"](sample["ch3"]["x"], sample["ch3"]["y"], source=self._source("ch3"))
         else:
-            body = json.dumps(dict(sample, source=self.source, **({"unit": self.units} if self.units else {}))).encode()
+            simulated = any(self._simulated.get(slot) for slot in sample)
+            source = ("SIMULATED " + self.source)[:40] if simulated else self.source
+            body = json.dumps(dict(sample, source=source, **({"unit": self.units} if self.units else {}))).encode()
             headers = {"Content-Type": "application/json"}
             if self.token:
                 headers["Authorization"] = "Bearer " + self.token
