@@ -31,6 +31,11 @@ SCRUB_JS = r"""
   var COARSE_DEVICE=false;
   try{COARSE_DEVICE=matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0;}catch(e){}
   var FRAME_INTERVAL=1000/144;
+  // Phone stage (/phone): a phone's own refresh rate is the ceiling, and the decorative
+  // backgrounds render small and slow; they sit at a third of full opacity behind the
+  // instrument, where a softer, slower glow costs nothing to the eye and most of the GPU.
+  var LITE=document.documentElement.classList.contains('phone-stage');
+  if(LITE)FRAME_INTERVAL=1000/60;
   function attached(el){ return !!(el && el.isConnected); }
   // The startup intro is a fixed overlay, never part of document flow. Therefore
   // every routed module has one stable top: document scroll position zero.
@@ -339,7 +344,7 @@ SCRUB_JS = r"""
     // Long-edge caps in device pixels. 4096 covers a 3024 px Retina panel at DPR 2 with no
     // upscaling; the lower rungs exist for this host's own screen and loaded machines.
     var CAPS=[4096,3072,2048,1536,1152,864], capIndex=0, badWindows=0, cleanSince=0;
-    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var dpr=LITE?0.6:Math.min(window.devicePixelRatio||1,2);
     function resize(){
       var w=window.innerWidth*dpr,h=window.innerHeight*dpr;
       var m=Math.max(w,h),cap=CAPS[capIndex];
@@ -350,7 +355,7 @@ SCRUB_JS = r"""
     }
     window.addEventListener('resize',resize,{passive:true});
     resize();
-    var _last=0,slow=0,drawn=0,TARGET=FRAME_INTERVAL,fastestGap=1000/60;
+    var _last=0,slow=0,drawn=0,TARGET=LITE?1000/30:FRAME_INTERVAL,fastestGap=1000/60;
     (function frame(ts){
       if(!attached(canvas))return;         // settings toggled it off -> stop for good
       requestAnimationFrame(frame);
@@ -2196,7 +2201,7 @@ void main(){
         // Adaptive pixel budget keeps this host smooth while retaining supersampling
         // on laptops. The visual speed is independent of this render resolution.
         var w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);
-        var scale=Math.min(devicePixelRatio||1,1.75);
+        var scale=LITE?0.75:Math.min(devicePixelRatio||1,1.75);
         var pixelBudget=2200000;
         if(w*h*scale*scale>pixelBudget){
           scale=Math.sqrt(pixelBudget/(w*h));

@@ -1804,16 +1804,12 @@ def run_self_test():
     except Exception as exc:
         failures.append(f"telemetry/interference software checks: {exc}")
 
-    # Phone contract: the instrument is a fixed landscape view of the same 1180 px
-    # desktop composition, with no portrait layout. Either the browser locks the
-    # orientation or the page is rotated a quarter turn; nothing reflows between the
-    # two. Mobile data timers yield to the fixed manual-refresh control.
-    for marker in (
-        "phone-desktop", "force-landscape", "requestLandscapeLock",
-        'Text', "/manifest.webmanifest",
-    ):
+    # Phone contract: a phone gets the same 1180 px desktop composition as a fixed
+    # landscape stage (/phone holds the page in an iframe and turns it when the phone is
+    # upright); nothing reflows between orientations.
+    for marker in ("phone-stage", "location.replace('/phone'", "/manifest.webmanifest"):
         if marker not in app.index_string:
-            failures.append(f"fixed-landscape phone bootstrap is missing {marker}")
+            failures.append(f"phone stage bootstrap is missing {marker}")
     if "phone-portrait" in app.index_string or "phone-portrait" in GLOBAL_CSS:
         failures.append("a portrait phone layout has reappeared; the view is landscape only")
     layout_markup = str(app.layout)
@@ -1863,8 +1859,12 @@ def run_self_test():
             gzip.decompress(compressed.data)
         manifest_response = client.get("/manifest.webmanifest")
         manifest = manifest_response.get_json()
-        if manifest_response.status_code != 200 or manifest.get("orientation") != "any":
-            failures.append("installed-app manifest does not permit both phone orientations")
+        if manifest_response.status_code != 200 or manifest.get("orientation") != "landscape":
+            failures.append("installed-app manifest does not ask for landscape")
+        stage = client.get("/phone")
+        stage_html = stage.get_data(as_text=True)
+        if stage.status_code != 200 or 'src="/?stage=phone"' not in stage_html or "camera; microphone" not in stage_html:
+            failures.append("the /phone stage shell is missing or cannot use the camera and microphone")
         system_response = client.get("/api/system")
         system_payload = system_response.get_json()
         if system_response.status_code != 200:
