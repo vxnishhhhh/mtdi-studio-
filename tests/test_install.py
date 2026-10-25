@@ -97,6 +97,41 @@ class Cli(unittest.TestCase):
             self.assertEqual(len(pathlib.Path(d, "rec.jsonl").read_text().splitlines()), 1)   # it was recorded
             self.assertTrue(runner.stopped)
 
+    def test_stop_lets_an_ingest_inside_the_engine_finish_its_row(self):
+        import tempfile
+        import threading
+        from mtdi.project import normalise
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            runner = Runner(normalise({"project": {"id": "h"}, "sources": [{"id": "s", "adapter": "http"}],
+                                       "channels": [{"id": "a", "keys": ["A"]}]}),
+                            record=pathlib.Path(d, "rec.jsonl"), start=False)
+            inside, release = threading.Event(), threading.Event()
+
+            class Slow:                                   # an ingest held inside the engine, before its row is written
+                def __init__(self, real):
+                    self.real = real
+
+                def __call__(self, *args):
+                    inside.set()
+                    release.wait(5)
+                    self.real(*args)
+
+                def close(self):
+                    self.real.close()
+            runner.engine.recorders[0] = Slow(runner.engine.recorders[0])
+            worker = threading.Thread(target=runner.engine.ingest_values, args=("s", {"A": 1.0}, "HARDWARE"))
+            worker.start()
+            self.assertTrue(inside.wait(5))
+            stopper = threading.Thread(target=runner.stop)
+            stopper.start()
+            stopper.join(0.3)
+            self.assertTrue(stopper.is_alive())            # stop() waits for the ingest holding the engine
+            release.set()
+            worker.join(5)
+            stopper.join(5)
+            self.assertEqual(len(pathlib.Path(d, "rec.jsonl").read_text().splitlines()), 1)   # its row was kept
+
     def test_recording_files_are_closed_when_a_project_stops(self):
         import tempfile
         from mtdi.runtime import Runner

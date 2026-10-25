@@ -162,8 +162,9 @@ class Runner:
             self.stopped = True
         for adapter in self.adapters:
             adapter.stop()
-        for recorder in self.engine.recorders:
-            recorder.close()
+        with self.engine.lock:                   # an ingest already inside the engine writes its row first
+            for recorder in self.engine.recorders:
+                recorder.close()
         for server in getattr(self, "_servers", []):    # a stopped project must not keep showing in the studio
             if server.config.get("MTDI_RUNNER") is self:
                 server.config.pop("MTDI_RUNNER")
