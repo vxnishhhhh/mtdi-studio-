@@ -35,6 +35,7 @@ BOARDS = {"arduino-uno": {"fqbn": "arduino:avr:uno", "core": "arduino:avr", "ind
 FLASH_WARN, RAM_WARN = 0.90, 0.75     # arduino-cli itself warns about stability above 75 % RAM
 SKETCH_ROOTS = ("projects", "firmware", "sdk")
 HARDWARE_FIELDS = ("target", "check", "result", "date", "by")
+COMPILE_SECONDS, SUITE_SECONDS, SMOKE_SECONDS = 900, 3600, 600
 # Which capability records (mtdi/targets/) a hardware record can name for each ADR 0006 row.
 ROW_TARGETS = {"Arduino-class (AVR)": ["arduino-uno"], "ESP32 + edge processing": ["esp32"],
                "Raspberry Pi + local AI": ["raspberry-pi-5", "raspberry-pi-4"],
@@ -97,7 +98,12 @@ def build_firmware(board, cli="arduino-cli", root=ROOT, run=subprocess.run):
             cmd = [cli, "compile", "--fqbn", spec["fqbn"], "--format", "json", str(folder)]
             if spec["index"]:
                 cmd += ["--additional-urls", spec["index"]]
-            done = run(cmd, capture_output=True, text=True, timeout=900)
+            try:
+                done = run(cmd, capture_output=True, text=True, timeout=COMPILE_SECONDS)
+            except subprocess.TimeoutExpired:      # a hung build is a failed build, and the others still run
+                rows.append({"sketch": rel.as_posix(), "status": "failed",
+                             "error": f"the compile gave no answer in {COMPILE_SECONDS} s"})
+                continue
             try:
                 result = json.loads(done.stdout or "{}")
             except ValueError:
@@ -155,9 +161,20 @@ def parse_unittest(text):
             "tests": tests, "skipped": skipped}
 
 
+def _text(value):
+    return value.decode("utf-8", "replace") if isinstance(value, bytes) else (value or "")
+
+
 def run_core(label, root=ROOT, run=subprocess.run):
-    done = run([sys.executable, "-m", "unittest", "discover", "tests", "-v"], cwd=root,
-               capture_output=True, text=True, timeout=3600)
+    try:
+        done = run([sys.executable, "-m", "unittest", "discover", "tests", "-v"], cwd=root,
+                   capture_output=True, text=True, timeout=SUITE_SECONDS)
+    except subprocess.TimeoutExpired as error:
+        output = _text(error.stderr) + _text(error.output)
+        return {"kind": "core", "target": label, "evidence": "ran", "python": platform.python_version(),
+                "ran": parse_unittest(output)["ran"], "ok": False, "failed": [], "skipped": {},
+                "checks": {k: "not run" for k in CHECKS}, "error": f"the suite gave no answer in {SUITE_SECONDS} s",
+                "output": failure_text(output), **provenance()}
     output = done.stderr + done.stdout
     parsed = parse_unittest(output)
     failed = sorted(t for t, o in parsed["tests"].items() if o in ("FAIL", "ERROR", "unexpected success"))
@@ -214,7 +231,13 @@ def run_serverless(root=ROOT, run=subprocess.run):
     with tempfile.TemporaryDirectory() as home:
         env = dict(os.environ, STUDIO_SERVERLESS="1", STUDIO_INGEST_TOKEN="compat-lab", HOME=home,
                    STUDIO_STATE_DIR=str(pathlib.Path(home, "state")), STUDIO_HTTPS_PORT="0")
-        done = run([sys.executable, "-c", SMOKE], cwd=root, env=env, capture_output=True, text=True, timeout=600)
+        try:
+            done = run([sys.executable, "-c", SMOKE], cwd=root, env=env, capture_output=True, text=True,
+                       timeout=SMOKE_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            return {"kind": "serverless", "target": "cloud", "evidence": "ran", "checks": {}, "ok": False,
+                    "error": f"the smoke check gave no answer in {SMOKE_SECONDS} s. "
+                             + (_text(error.stderr) + _text(error.output))[-1200:].strip(), **provenance()}
     lines = [line for line in done.stdout.splitlines() if line.startswith("SMOKE ")]
     smoke = json.loads(lines[-1][6:]) if lines else {}
     checks = smoke.get("checks", {})

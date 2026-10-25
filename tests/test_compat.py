@@ -63,6 +63,19 @@ class Firmware(unittest.TestCase):
         compiles = [c for c in calls if c[1] == "compile"]
         self.assertTrue(all("--additional-urls" in c and lab.ESP32_INDEX in c for c in compiles))
 
+    def test_a_hung_compile_is_a_failure_and_the_other_sketches_still_build(self):
+        def fake(cmd, **kw):
+            if cmd[1] == "version":
+                return subprocess.CompletedProcess(cmd, 0, "test", "")
+            if any("third_eye" in str(part) for part in cmd):
+                raise subprocess.TimeoutExpired(cmd, kw["timeout"])
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(compile_json(2000, 200)), "")
+        rows = {r["sketch"]: r for r in lab.build_firmware("arduino-uno", run=fake)["sketches"]}
+        hung = rows.pop("projects/third-eye/firmware/third_eye/third_eye.ino")
+        self.assertEqual(hung["status"], "failed")
+        self.assertIn(f"no answer in {lab.COMPILE_SECONDS} s", hung["error"])
+        self.assertTrue(rows and all(r["status"] == "ok" for r in rows.values()))
+
 
 VERBOSE = """test_cpp (test_sdks.SDKs.test_cpp) ... ok
 test_matlab_in_octave (test_sdks.SDKs.test_matlab_in_octave) ... skipped 'octave not installed'
@@ -92,6 +105,19 @@ class CoreSuite(unittest.TestCase):
         self.assertTrue(lab.failure_text(text).startswith("======"))
         self.assertIn("AssertionError: 1 != 2", lab.failure_text(text))
         self.assertEqual(lab.failure_text("boom" * 5000)[-4:], "boom")       # no tracebacks: the tail
+
+    def test_a_hung_suite_or_smoke_check_is_a_failure_not_a_missing_result(self):
+        def hang(cmd, **kw):
+            raise subprocess.TimeoutExpired(cmd, kw["timeout"], output=b"Ran 3 tests", stderr="partial")
+        core = lab.run_core("linux-x64", run=hang)
+        self.assertFalse(core["ok"])
+        self.assertIn("no answer", core["error"])
+        smoke = lab.run_serverless(run=hang)
+        self.assertFalse(smoke["ok"])
+        self.assertIn("no answer", smoke["error"])
+        text = lab.report([core, smoke], [], RUNTIMES)
+        self.assertIn("linux-x64: FAILED", text)
+        self.assertIn("serverless studio: FAILED", text)
 
     def test_named_checks_exist_in_the_suite(self):
         for check, test_id in lab.CHECKS.items():
