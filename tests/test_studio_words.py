@@ -15,12 +15,13 @@ from studio import content  # noqa: E402
 
 # Which surface must show each key. Brand, nav, boot and intro live in the shell. Channel words show
 # offline on page 1 (tabs, axis titles) and Home (channel 3's card); the channel 2 and 3 units are
-# read by the browser layer, so their surface is the served window.I3_WORDS.
+# read by the browser layer, so their surface is the served window.I3_WORDS. Channel 3's x unit only
+# shows once a sweep is fed ("fed": channel 3's chart after one), the report words in the PDF report.
 SURFACES = {"brand.": "layout", "nav.": "layout", "intro.": "layout", "boot.": "boot",
             "home.": "/", "page1.": "/page-1", "page2.": "/page-2", "mtdi.": "/mtdi",
             "page3.": "/page-3", "settings.": "/settings",
             "ch1.name": "/page-1", "ch2.name": "/page-1", "ch3.name": "/", "ch1.unit": "/page-1",
-            "ch2.unit": "words", "ch3.unit": "words"}
+            "ch2.unit": "words", "ch3.unit": "words", "ch3.axis_unit": "fed", "report.": "report"}
 
 
 def surface_for(key):
@@ -37,6 +38,18 @@ dump = lambda c: json.dumps(c, cls=plotly.utils.PlotlyJSONEncoder)
 ui = sys.modules["studio.ui"]
 out = {"layout": dump(ns["app"].layout), "boot": ui.boot_html(), "words": ui.words_script()}
 out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
+out["report"] = json.dumps(sys.modules["studio.reports"]._gather_report_blocks(row_cap=3), default=str)
+s3, fig = ns["sweep3_data"], ns["fig_sweep3"]
+radio = fig([88.0e6, 98.0e6, 108.0e6], [-60.0, -30.0, -60.0], [], [], -60.0)    # the radio's own sweep
+ns["feed_ch3"]([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 4.0, 2.0, 6.0, 1.0], source="TEST")
+fed = fig(s3["freqs"], s3["levels"], s3["maxhold"], s3["peaks"], s3["floor"])
+out["fed"] = dump(fed)
+out["sweeps"] = {"radio_x": list(radio.data[-1].x), "radio_hover": radio.data[-1].hovertemplate,
+                 "radio_shapes": len(radio.layout.shapes),
+                 "fed_x": list(fed.data[0].x), "fed_shapes": len(fed.layout.shapes),
+                 "bands": [p["band"] for p in s3["peaks"]], "at": ns["_ch3_at"](2.0),
+                 "span": ns["_ch3_span"](1.0, 5.0),
+                 "bar_rows": list(ns["fig_ch3_bands"](s3["peaks"]).data[0].y)}
 print(json.dumps(out))
 '''
 
@@ -112,6 +125,19 @@ class SecondContentFile(unittest.TestCase):
         for key, word in words.items():
             surface = surface_for(key)            # headings upper-case some words, so compare without case
             self.assertIn(word.lower(), rendered[surface].lower(), f"{key} not shown on {surface}")
+        # Channel 3 (slice 3): a radio sweep stays in MHz with its services shaded; a fed sweep keeps
+        # its own x, in the content file's unit, with no radio band names on its peaks.
+        sw, xu, lu = rendered["sweeps"], words["ch3.axis_unit"], words["ch3.unit"]
+        self.assertEqual(sw["radio_x"], [88.0, 98.0, 108.0])
+        self.assertIn(" MHz · ", sw["radio_hover"])
+        self.assertIn(lu, sw["radio_hover"])
+        self.assertGreater(sw["radio_shapes"], 0)
+        self.assertEqual(sw["fed_x"], [1.0, 2.0, 3.0, 4.0, 5.0])
+        self.assertEqual(sw["fed_shapes"], 1)                 # the noise floor line only, no radio bands
+        self.assertTrue(sw["bands"] and all(b == "—" for b in sw["bands"]))
+        self.assertEqual(sw["at"], f"2 {xu}")
+        self.assertEqual(sw["span"], f"1 – 5 {xu}")
+        self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
 
 
 class ManifestInterface(unittest.TestCase):
@@ -158,6 +184,7 @@ class ChannelWords(unittest.TestCase):
         self.assertEqual(words["ch1.unit"], "°C")
         self.assertEqual(words["ch2.unit"], "%")
         self.assertNotIn("ch3.unit", words)                       # no unit given: the studio keeps its default
+        self.assertEqual(words["ch3.axis_unit"], "sample")        # channel 3 is fed as its recent history
         swapped = words_for(self.project(studio={"ch1": "soil", "ch2": "air"}))
         self.assertEqual((swapped["ch1.name"], swapped["ch2.unit"]), ("Soil moisture", "°C"))
 

@@ -12,6 +12,8 @@ import socket
 import threading
 import time
 
+from .content import T
+
 # SRC1 Rev E sections 7 and 9 define these addresses and normal mode.
 SRC1_ADDRESS = 0x2C
 SRC1_NORMAL_50_HZ = 0xC5
@@ -1057,6 +1059,8 @@ def install(ns, engine):
         started = time.monotonic()
         floor = statistics.median(ys)
         peaks = ns["_s3_peaks"](xs, ys, floor)
+        for p in peaks:
+            p["band"] = "—"          # radio band names mean nothing on a fed x axis
         peak_index = ys.index(max(ys))
         item = publish_sweep(xs, ys, started, source=source)
         duration = time.monotonic() - started
@@ -1064,7 +1068,7 @@ def install(ns, engine):
             sweep3 = ns["sweep3_data"]
             previous = sweep3["maxhold"]
             hold = [max(a, b) for a, b in zip(previous, ys)] if len(previous) == len(ys) else list(ys)
-            sweep3.update(freqs=xs, levels=ys, maxhold=hold, peaks=peaks, floor=floor,
+            sweep3.update(freqs=xs, levels=ys, maxhold=hold, peaks=peaks, floor=floor, x_unit=T("ch3.axis_unit"),
                           peak_level=ys[peak_index], peak_freq=xs[peak_index], sweep_s=duration,
                           sweeps=sweep3["sweeps"] + 1, device=source, device_info=source,
                           help_summary="External feed", port=source, leveloffset="Not applicable", level_sane=True,

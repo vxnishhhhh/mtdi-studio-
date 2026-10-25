@@ -1,6 +1,19 @@
 """Self contained PDF report writer and Notion upload."""
 from ._shared import inherit
 inherit(globals(), 'common', 'sensors', 'intelligence', 'system', 'tokens', 'theme', 'browser', 'webapp')
+from .content import T  # studio words (S1-06): report title, channel names and units
+
+
+def _ch3_at(x):
+    """A channel 3 position: a radio frequency, or a fed sweep's x in its own unit (S1-06)."""
+    unit = sweep3_data.get("x_unit")
+    return _freq_label(x) if unit is None else f"{x:g} {unit}"
+
+
+def _ch3_span(start, stop):
+    """Channel 3's span as words, in the same terms as _ch3_at."""
+    unit = sweep3_data.get("x_unit")
+    return _span_label(start, stop) if unit is None else f"{start:g} – {stop:g} {unit}"
 
 # ════════════════════════════════════════════════════════
 #  DATA EXPORT  —  self-contained PDF (no external libraries)
@@ -171,8 +184,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     sh, rem = divmod(sess_secs, 3600); sm, sc = divmod(rem, 60)
     sess_str = (f"{sh}h {sm}m {sc}s" if sh else f"{sm}m {sc}s")
 
-    b = [("band", "MTDI STUDIO"),
-         ("sub", 'SCIENTIFIC SIGNAL FIELD REPORT'),
+    u1, u3 = T("ch1.unit"), T("ch3.unit")
+    b = [("band", T("report.title")),
+         ("sub", T("report.subtitle")),
          ("space", ""),
          ("h", "REPORT IDENTITY"),
          ("kv", "Generated", now),
@@ -186,9 +200,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
          ("page", ""),
          ("band", "REPORT INDEX"),
          ("line", '01  Session and source summary'),
-         ("line", '02  Channel 1-field status and readings'),
-         ("line", '03  Channel 2 status and readings'),
-         ("line", '04  channel 3 and wireless discovery'),
+         ("line", f"02  {T('ch1.name')}-field status and readings"),
+         ("line", f"03  {T('ch2.name')} status and readings"),
+         ("line", f"04  {T('ch3.name')} and wireless discovery"),
          ("line", "05  MTDI health and host computer telemetry"),
          ("line", "06  Complete archive record ledger"),
          ("line", "07  Lossless raw-data appendix"),
@@ -199,27 +213,27 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     # ── ch1probe ──
     with c1_lock:
         m = dict(ch1_data); mhist = list(ch1_data["xyz_history"]); mmag = list(ch1_data["history"])
-    b += [("h", 'CHANNEL 1   (Source 1 @ bus 0x2C)')]
+    b += [("h", f"{T('ch1.name').upper()}   (Source 1 @ bus 0x2C)")]
     if m["error"]:
         b += [("dim", f"Status: OFFLINE  -  {m['error']}")]
     else:
         mn = 0.0 if m["min_c1"] == float("inf") else m["min_c1"]
-        b += [("kv", "Magnitude", f"{m['magnitude']:.2f} unit"),
-              ("kv", "Vector X / Y / Z", f"{m['x']:.2f} / {m['y']:.2f} / {m['z']:.2f} unit"),
-              ("kv", "Session min / max", f"{mn:.2f} / {m['max_c1']:.2f} unit"),
+        b += [("kv", "Magnitude", f"{m['magnitude']:.2f} {u1}"),
+              ("kv", "Vector X / Y / Z", f"{m['x']:.2f} / {m['y']:.2f} / {m['z']:.2f} {u1}"),
+              ("kv", "Session min / max", f"{mn:.2f} / {m['max_c1']:.2f} {u1}"),
               ("kv", "Calibration", "hard/soft-iron profile applied" if m["calibrated"]
                                     else "none configured (readings are uncorrected)"),
               ("kv", "Rolling samples", f"{len(mhist)}")]
         if len(mmag) >= 2:
             mean = sum(mmag) / len(mmag)
             sd_ = (sum((v - mean) ** 2 for v in mmag) / len(mmag)) ** 0.5
-            b += [("kv", "Noise sigma", f"{sd_:.2f} unit")]
+            b += [("kv", "Noise sigma", f"{sd_:.2f} {u1}")]
     b += [("space", "")]
 
     # ── ch2 ──
     with ch2f_lock:
         e = dict(ch2f_data)
-    b += [("h", 'CHANNEL 2   (Source 2 @ bus 0x48, differential A0-A1)')]
+    b += [("h", f"{T('ch2.name').upper()}   (Source 2 @ bus 0x48, differential A0-A1)")]
     if e["error"]:
         b += [("dim", f"Status: OFFLINE  -  {e['error']}")]
     elif not e["calibrated"]:
@@ -236,7 +250,7 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     # ── sweep3 ──
     with sweep3_lock:
         s = dict(sweep3_data); peaks = list(sweep3_data["peaks"])
-    b += [("h", 'CHANNEL 3 ANALYSER   (Source 3, USB)')]
+    b += [("h", f"{T('ch3.name').upper()} ANALYSER   (Source 3, USB)")]
     if s["error"] or s["last_rx"] is None:
         b += [("dim", f"Status: OFFLINE  -  {s['error'] or 'no sweep yet'}")]
     else:
@@ -245,10 +259,10 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
               ("kv", "Points / Sweeps", f"{s['points']}  /  {s['sweeps']}"),
               ("kv", "Level offset", str(s["leveloffset"])),
               ("kv", "Noise floor", f"{s['floor']:+.1f} unit  ({'plausible' if s['level_sane'] else 'untrusted - verify setup'})"),
-              ("kv", "Strongest peak", f"{_freq_label(s['peak_freq'])} at {s['peak_level']:+.1f} unit"),
+              ("kv", "Strongest peak", f"{_ch3_at(s['peak_freq'])} at {s['peak_level']:+.1f} {u3}"),
               ("dim", "Tracked peaks (rank, frequency, level, possible allocation):")]
         for i, p in enumerate(peaks[:8], 1):
-            b += [("line", f"   {i:>2}.  {_freq_label(p['freq']):>14}   {p['level']:+7.1f} unit   {p['band']}")]
+            b += [("line", f"   {i:>2}.  {_ch3_at(p['freq']):>14}   {p['level']:+7.1f} {u3}   {p['band']}")]
     b += [("space", "")]
 
     # ── WiFi / Bluetooth ──
@@ -275,9 +289,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     # ── ch1 archive ──
     avg = ss["sum"] / ss["count"] if ss["count"] else 0.0
     amn = 0.0 if ss["min"] == float("inf") else ss["min"]
-    b += [("h", 'CHANNEL 1 SIGNAL ARCHIVE'),
+    b += [("h", f"{T('ch1.name').upper()} SIGNAL ARCHIVE"),
           ("kv", "Stored samples", f"{ss['count']}"),
-          ("kv", "Min / Avg / Max", f"{amn:.2f} / {avg:.2f} / {ss['max']:.2f} unit"),
+          ("kv", "Min / Avg / Max", f"{amn:.2f} / {avg:.2f} / {ss['max']:.2f} {u1}"),
           ("dim", 'Recent samples (time, magnitude unit, X, Y, Z):')]
     for a in arch[-60:]:
         ts = _t.strftime("%H:%M:%S", _t.localtime(a["t"]))
@@ -287,18 +301,18 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     # ── CH3 archive ──
     with ch3_archive_lock:
         rfa = list(ch3_archive); rfs = dict(ch3_stats)
-    b += [("h", 'CH 3 PEAK ARCHIVE')]
+    b += [("h", f"{T('ch3.name').upper()} PEAK ARCHIVE")]
     if rfs["count"]:
         ravg = rfs["sum"] / rfs["count"]; st = rfs["strongest"]
         b += [("kv", "Sweeps stored", f"{rfs['count']}"),
-              ("kv", "Min / Avg / Max peak", f"{rfs['min']:+.1f} / {ravg:+.1f} / {rfs['max']:+.1f} unit"),
-              ("kv", "Strongest overall", f"{_freq_label(st['freq'])} at {st['level']:+.1f} unit ({st['band']})"),
+              ("kv", "Min / Avg / Max peak", f"{rfs['min']:+.1f} / {ravg:+.1f} / {rfs['max']:+.1f} {u3}"),
+              ("kv", "Strongest overall", f"{_ch3_at(st['freq'])} at {st['level']:+.1f} {u3} ({st['band']})"),
               ("dim", "Recent strongest-per-sweep (time, frequency, level, band):")]
         for a in rfa[-60:]:
             ts = _t.strftime("%H:%M:%S", _t.localtime(a["t"]))
-            b += [("line", f"   {ts}   {_freq_label(a['freq']):>14}   {a['level']:+7.1f} unit   {a['band']}")]
+            b += [("line", f"   {ts}   {_ch3_at(a['freq']):>14}   {a['level']:+7.1f} {u3}   {a['band']}")]
     else:
-        b += [("dim", 'No CH 3 sweeps recorded (Source 3 offline).')]
+        b += [("dim", f"No {T('ch3.name')} sweeps recorded (Source 3 offline).")]
     b += [("space", "")]
 
     # ── MTDI + host ──
@@ -309,9 +323,9 @@ def _gather_report_blocks(row_cap=REPORT_ROW_CAP):
     b += [("h", "MTDI HEALTH AND COMPLETENESS"),
           ("kv", 'Active source health', f"{md['active_health']:.0f}%"),
           ("kv", "System completeness", f"{md['completeness']:.0f}%"),
-          ("kv", 'Channel 1', f"{md['c1_health']:.0f}%  ({md['c1_note']})"),
-          ("kv", 'Channel 2', f"{md['ch2f_health']:.0f}%  ({md['ch2f_note']})"),
-          ("kv", 'Channel 3', f"{md['ch3_health']:.0f}%  ({md['ch3_note']})"),
+          ("kv", T('ch1.name'), f"{md['c1_health']:.0f}%  ({md['c1_note']})"),
+          ("kv", T('ch2.name'), f"{md['ch2f_health']:.0f}%  ({md['ch2f_note']})"),
+          ("kv", T('ch3.name'), f"{md['ch3_health']:.0f}%  ({md['ch3_note']})"),
           ("space", ""),
           ("h", "HOST TELEMETRY   (host computer)"),
           ("kv", "LAN address", str(sd["wifi_ip"])),

@@ -870,9 +870,29 @@ def fig_p1_cross_proxy_3d(ch1_xyz, ch2_xyz, height=470):
 
 
 # ── sweep3 visualisations (sweep / waterfall / peak trend) ──
+def _ch3_fed():
+    """True when channel 3 holds a fed sweep (a project, /api/ingest): its x is whatever the feed
+    measures (a profile, a histogram, sample numbers), not radio hertz. S1-06."""
+    return sweep3_data.get("x_unit") is not None
+
+
 def _ch3_x(freqs):
-    """Plot in MHz — raw Hz on the axis is unreadable across a 6 GHz span."""
-    return [f / 1e6 for f in freqs]
+    """Radio sweeps plot in MHz (raw Hz is unreadable across a 6 GHz span); a fed sweep plots its own x."""
+    return list(freqs) if _ch3_fed() else [f / 1e6 for f in freqs]
+
+
+def _ch3_xunit():
+    return sweep3_data["x_unit"] if _ch3_fed() else "MHz"
+
+
+_ch3_pos = _ch3_at   # one x position as words (studio/reports.py)
+
+
+def _ch3_hover(*parts):
+    """Plotly hover text for channel 3: XU becomes x's own unit, LU channel 3's level unit, in one
+    pass, so a unit that itself contains XU or LU is left as it is."""
+    units = {"XU": _ch3_xunit(), "LU": T("ch3.unit")}
+    return re.sub(r"\b(XU|LU)\b", lambda m: units[m.group(1)], " · ".join(parts)) + "<extra></extra>"
 
 
 def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, bands=True):
@@ -882,7 +902,7 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
         # Shade the named services behind the trace so a peak can be read without
         # doing frequency arithmetic. Only bands that occupy a visible slice of the
         # current span are drawn, otherwise a wide sweep turns into stripes.
-        if bands:
+        if bands and not _ch3_fed():          # radio services: only on a radio sweep
             lo_hz, hi_hz = freqs[0], freqs[-1]
             span = hi_hz - lo_hz
             for i, (b_lo, b_hi, name) in enumerate(BAND_PLAN):
@@ -897,7 +917,7 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
         if maxhold and len(maxhold) == len(freqs):
             fig.add_trace(go.Scatter(x=x, y=maxhold, mode="lines", name='LABEL',
                 line=dict(color=PURPLE, width=1.2, dash="dot"),
-                hovertemplate="%{x:.3f} MHz · %{y:.1f} unit (hold)<extra></extra>"))
+                hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y:.1f} LU (hold)")))
         trace_color = AMBER if RUNTIME["demo"] else CYAN
         fig.add_trace(go.Scatter(
             x=x, y=levels, mode="lines",
@@ -909,17 +929,17 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
             ),
             fill="tozeroy",
             fillcolor="rgba(255,171,64,0.06)" if RUNTIME["demo"] else "rgba(0,229,255,0.07)",
-            hovertemplate="%{x:.3f} MHz · %{y:.1f} unit<extra></extra>"))
+            hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y:.1f} LU")))
         if peaks:
-            fig.add_trace(go.Scatter(x=[p["freq"]/1e6 for p in peaks], y=[p["level"] for p in peaks],
+            fig.add_trace(go.Scatter(x=_ch3_x([p["freq"] for p in peaks]), y=[p["level"] for p in peaks],
                 mode="markers+text", name='LABEL',
                 marker=dict(color=AMBER, size=8, symbol="triangle-down",
                             line=dict(color=WHITE, width=1)),
-                text=[_freq_label(p["freq"]) for p in peaks], textposition="top center",
+                text=[_ch3_pos(p["freq"]) for p in peaks], textposition="top center",
                 textfont=dict(family=FONT, color=AMBER, size=9),
-                hovertemplate="%{text} · %{y:.1f} unit<extra></extra>"))
+                hovertemplate=_ch3_hover("%{text}", "%{y:.1f} LU")))
         fig.add_hline(y=floor, line=dict(color=SUBTEXT, width=1, dash="dash"),
-                      annotation_text=f"floor {floor:+.1f} unit",
+                      annotation_text=f"floor {floor:+.1f} {T('ch3.unit')}",
                       annotation_font=dict(family=FONT, color=SUBTEXT, size=9),
                       annotation_position="bottom right")
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -967,7 +987,7 @@ def fig_waterfall(rows, freqs, times=None, height=320):
                         [0.82,"#00e5ff"],[1.0,"#ff5252"]],
             colorbar=dict(title=dict(text='Text', font=dict(color=SUBTEXT, size=9)),
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
-            hovertemplate="%{y} · %{x:.3f} MHz · %{z:.1f} unit<extra></extra>"))
+            hovertemplate=_ch3_hover("%{y}", "%{x:.3f} XU", "%{z:.1f} LU")))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=8, b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(tickfont=dict(color=SUBTEXT, size=9), zeroline=False,
@@ -1046,7 +1066,7 @@ def fig_ch3_trend(history, height=220):
     if history:
         fig.add_trace(go.Scatter(y=list(history), mode="lines",
             line=dict(color=AMBER, width=2, shape="spline", smoothing=0.4),
-            hovertemplate="%{y:.1f} unit<extra></extra>"))
+            hovertemplate=_ch3_hover("%{y:.1f} LU")))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=6, b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
@@ -1061,14 +1081,15 @@ def fig_ch3_bands(peaks, height=250):
     """Which named services the current peaks fall in — the 'what is on air' view."""
     fig = go.Figure()
     if peaks:
-        labels = [p["band"] for p in peaks]
+        # a fed sweep has no named services: each bar is labelled with where its peak is
+        labels = [_ch3_pos(p["freq"]) if _ch3_fed() else p["band"] for p in peaks]
         vals   = [p["level"] for p in peaks]
         floor_ref = min(vals) - 6
         fig.add_trace(go.Bar(x=vals, y=labels, orientation="h", base=floor_ref,
             marker=dict(color=[AMBER if v == max(vals) else BLUE for v in vals]),
-            text=[f"{v:+.1f} unit" for v in vals], textposition="outside",
+            text=[f"{v:+.1f} {T('ch3.unit')}" for v in vals], textposition="outside",
             textfont=dict(family=FONT, color=WHITE, size=9),
-            hovertemplate="%{y}: %{x:.1f} unit<extra></extra>"))
+            hovertemplate=_ch3_hover("%{y}: %{x:.1f} LU")))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=10, b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(gridcolor="rgba(128,128,128,0.12)", zeroline=False,
@@ -1089,8 +1110,8 @@ def _peak_rows(peaks, floor):
         col = AMBER if i == 0 else CYAN
         rows.append(html.Div([
             html.Div(f"{i+1:02d}", className="ch3-peak-idx"),
-            html.Div(_freq_label(p["freq"]), className=f"ch3-peak-freq {_cls(col)}"),
-            html.Div(f"{p['level']:+.1f} unit", className="ch3-peak-lvl"),
+            html.Div(_ch3_pos(p["freq"]), className=f"ch3-peak-freq {_cls(col)}"),
+            html.Div(f"{p['level']:+.1f} {T('ch3.unit')}", className="ch3-peak-lvl"),
             html.Div(f"+{delta:.1f} dB", className="ch3-peak-delta"),
             html.Div(p["band"], className="ch3-peak-band"),
         ], className="ch3-peak-row"))
@@ -1697,7 +1718,7 @@ def fig_ch3_terrain(rows, freqs, times=None, height=460):
     if rows and freqs and len(rows) >= 2:
         width = min(len(r) for r in rows)
         z = [list(r[:width]) for r in rows]
-        x = [f / 1e6 for f in freqs[:width]]
+        x = _ch3_x(freqs[:width])
         if times and len(times) == len(rows):
             base = times[-1]
             y = [round(t - base, 1) for t in times]
@@ -1713,7 +1734,7 @@ def fig_ch3_terrain(rows, freqs, times=None, height=460):
             colorbar=dict(title=dict(text='Text', font=dict(color=SUBTEXT, size=9)),
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             contours=dict(z=dict(show=True, usecolormap=True, project_z=True, width=1)),
-            hovertemplate="%{x:.3f} MHz · %{y} s · %{z:.1f} unit<extra></extra>"))
+            hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y} s", "%{z:.1f} LU")))
         fig.update_layout(**_ch3_scene(height, "Axis", ylab, "unit", eye=(1.05, -1.1, 0.62),
                                       aspect=(1.9, 1.0, 0.72)))
     else:
