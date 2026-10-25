@@ -492,7 +492,15 @@ def _studio_argv(argv):
     return argv[1:] if argv[:1] == ["studio"] else None
 
 
+def _tolerant_output():
+    """A Windows console or pipe may not be UTF-8: a ✓ or → it cannot show becomes "?" instead of a crash."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
+
 def main(argv=None):
+    _tolerant_output()
     parser = argparse.ArgumentParser(prog="mtdi", description=f"MTDI Studio {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="run a project in the studio interface")

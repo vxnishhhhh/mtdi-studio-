@@ -36,6 +36,25 @@ class Doctor(unittest.TestCase):
 
 
 class Cli(unittest.TestCase):
+    def test_a_console_that_is_not_utf8_gets_question_marks_not_a_crash(self):
+        import io
+        import sys
+        from unittest import mock
+        cp1252 = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", newline="\n")    # a Windows console or pipe
+        with mock.patch.object(sys, "stdout", cp1252), mock.patch.object(sys, "stderr", cp1252):
+            cli._tolerant_output()
+            print("\u2713 project")                                   # the line `mtdi create` crashed on
+            cp1252.flush()
+        self.assertEqual(cp1252.buffer.getvalue(), b"? project\n")
+
+    def test_recording_files_are_closed_when_a_project_stops(self):
+        import tempfile
+        from mtdi.runtime import Runner
+        with tempfile.TemporaryDirectory() as d:
+            runner = Runner("projects/host-health", record=pathlib.Path(d, "rec.jsonl"), start=False)
+            runner.stop()
+            self.assertTrue(runner.engine.recorders[0].stream.closed)
+
     def test_studio_options_pass_through(self):
         self.assertEqual(cli._studio_argv(["studio", "--port", "9000", "--lan"]), ["--port", "9000", "--lan"])
         self.assertIsNone(cli._studio_argv(["doctor"]))
@@ -49,6 +68,11 @@ class Cli(unittest.TestCase):
             os.chdir(here)
 
 
+# install.sh is for Linux and macOS; on Windows `bash` is usually WSL's launcher, often with no Linux inside.
+ON_WINDOWS = os.name == "nt"
+
+
+@unittest.skipIf(ON_WINDOWS, "install.sh is for Linux and macOS (on Windows MTDI installs inside WSL)")
 @unittest.skipUnless(shutil.which("bash"), "needs bash")
 class InstallScript(unittest.TestCase):
     def test_syntax_and_help(self):
@@ -94,6 +118,7 @@ def _git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
 
 
+@unittest.skipIf(ON_WINDOWS, "install.sh is for Linux and macOS (on Windows MTDI installs inside WSL)")
 @unittest.skipUnless(shutil.which("bash") and shutil.which("git"), "needs bash and git")
 class PinnedInstall(unittest.TestCase):
     """MTDI_REF installs one exact revision (CWE-494: the newest main is not the only choice)."""

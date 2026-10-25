@@ -55,3 +55,7 @@ class Recorder:
         self.stream.write(json.dumps({"t": wall, "source": source, "values": values,
                                       "data_source": data_source}) + "\n")
         self.stream.flush()
+
+    def close(self):
+        # Windows cannot move or delete a file another handle still holds open.
+        self.stream.close()

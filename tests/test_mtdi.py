@@ -1,5 +1,7 @@
 """MTDI core tests. Standard library only:  python -m unittest discover tests"""
+import contextlib
 import hashlib
+import io
 import json
 import pathlib
 import random
@@ -243,10 +245,12 @@ class Adapters(unittest.TestCase):
             m = manifest()
             m["_dir"] = tmp
             src = Engine(m)
-            src.recorders.append(Recorder(path))
+            recorder = Recorder(path)
+            src.recorders.append(recorder)
             src.ingest_values("s", {"A": 1.0}, "HARDWARE")
             src.ingest_values("s", {"A": 2.0}, "SIMULATED")       # never recorded
             src.ingest_values("s", {"A": 3.0}, "HARDWARE")
+            recorder.close()                                       # Windows will not delete an open file
             rows = [json.loads(x) for x in path.read_text().splitlines()]
             self.assertEqual([r["values"]["A"] for r in rows], [1.0, 3.0])
             m2 = normalise({"project": {"id": "t"}, "sources": [{"id": "s", "adapter": "replay", "file": str(path), "loop": False}],
@@ -416,7 +420,8 @@ class Integrations(unittest.TestCase):
                 target = pathlib.Path(tmp) / "rover"
                 args = Namespace(name="Rover", id=None, description="A rover.", standalone=str(target), github="rover",
                                  public=False, vercel="rover-studio", notion="env", matlab=True, yes=True, dry_run=False)
-                results = create.run(args)
+                with contextlib.redirect_stdout(io.StringIO()):    # its ✓ lines; a cp1252 console cannot encode them
+                    results = create.run(args)
             finally:
                 github.http, vercel.http, notion.http, github._gh_ready, webbrowser.open = originals
                 for k, v in saved.items():
