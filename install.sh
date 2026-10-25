@@ -6,6 +6,9 @@
 #   ./install.sh --autostart          # also start the studio at boot (systemd on Linux, launchd on macOS)
 #   ./install.sh --with-speech        # also on-device speech recognition (faster-whisper, ~300 MB)
 #   ./install.sh --uninstall          # remove the environment, launcher and autostart; keeps your projects
+#   MTDI_REF=<commit or tag>          # install exactly that revision instead of the newest; with the
+#                                     # script fetched from the same revision, nothing in it can change:
+#   curl -fsSL https://raw.githubusercontent.com/vxnishhhhh/mtdi-studio-/<commit>/install.sh | MTDI_REF=<commit> bash
 #
 # Installs into $MTDI_HOME (default ~/mtdi): the code, a private Python environment (.venv) and the
 # `mtdi` command in ~/.local/bin. Nothing paid, no accounts, no keys; it ends by running `mtdi doctor`.
@@ -14,6 +17,7 @@ set -euo pipefail
 
 REPO="${MTDI_REPO:-https://github.com/vxnishhhhh/mtdi-studio-}"
 MTDI_HOME="${MTDI_HOME:-$HOME/mtdi}"
+MTDI_REF="${MTDI_REF:-}"
 BIN="$HOME/.local/bin"
 AUTOSTART=0 SPEECH=0 UNINSTALL=0
 for arg in "$@"; do
@@ -64,10 +68,27 @@ get_code() {
   local here
   here="$(script_dir || true)"
   if [ -n "$here" ] && [ -f "$here/run.py" ] && [ -d "$here/mtdi" ]; then
-    MTDI_HOME="$here"; say "using this copy: $MTDI_HOME"; return
+    MTDI_HOME="$here"; say "using this copy: $MTDI_HOME"
+    [ -z "$MTDI_REF" ] || say "MTDI_REF ignored: this copy is installed as it is"
+    return
   fi
   command -v git >/dev/null 2>&1 || die "needs git (macOS: xcode-select --install)"
-  if [ -d "$MTDI_HOME/.git" ]; then
+  if [ -n "$MTDI_REF" ]; then
+    # A pinned install: that exact revision, detached, so `mtdi update` never moves it on its own.
+    if [ -d "$MTDI_HOME/.git" ]; then
+      say "fetching $REPO"; git -C "$MTDI_HOME" fetch -q --tags origin
+      # the default install is a shallow clone, which cannot reach an older revision
+      [ "$(git -C "$MTDI_HOME" rev-parse --is-shallow-repository)" != true ] || git -C "$MTDI_HOME" fetch -q --unshallow origin
+    else
+      say "downloading MTDI into $MTDI_HOME"; git clone -q "$REPO" "$MTDI_HOME"
+    fi
+    git -C "$MTDI_HOME" -c advice.detachedHead=false checkout -q "$MTDI_REF" \
+      || die "could not check out '$MTDI_REF' from $REPO (is the revision right? local edits in $MTDI_HOME?)"
+    say "pinned to $(git -C "$MTDI_HOME" rev-parse HEAD) ($MTDI_REF)"
+  elif [ -d "$MTDI_HOME/.git" ]; then
+    if ! git -C "$MTDI_HOME" symbolic-ref -q HEAD >/dev/null; then
+      say "this install was pinned; following main again"; git -C "$MTDI_HOME" checkout -q main
+    fi
     say "updating $MTDI_HOME"; git -C "$MTDI_HOME" pull --ff-only -q
   else
     say "downloading MTDI into $MTDI_HOME"; git clone -q --depth 1 "$REPO" "$MTDI_HOME"
@@ -181,4 +202,5 @@ main() {
   echo "    mtdi doctor                             check the machine again any time"
 }
 
-main
+# MTDI_INSTALL_NO_MAIN=1 loads the functions without running them (the tests use it).
+[ "${MTDI_INSTALL_NO_MAIN:-0}" = 1 ] || main
