@@ -1,4 +1,5 @@
 """Data fed into the studio names its sender and says SIMULATED; it never wears the studio's own sensor labels."""
+import ast
 import copy
 import json
 import os
@@ -66,6 +67,45 @@ class StudioStatus(unittest.TestCase):
         if "ONLINE" in shown or "SIMULATED DATA" in shown:     # past its settling phase
             self.assertIn("MTDI:host-health", shown)
 
+    def test_a_feed_after_the_uno_drops_the_uno_status_and_axes(self):
+        """The Uno writer leaves data_source and per-axis values behind; a fed reading must clear them."""
+        self.ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", provisional_adc=True, triaxial=True,
+                                    ex_vu=1.5, ey_vu=2.5, ez_vu=3.5, e_magnitude_vu=4.5, axes_live=3,
+                                    axis_clipped={"x": True, "y": False, "z": False}, sample_rate=10.0)
+        for _ in range(3):
+            self.ns["feed_ch2"](40.0, unit="%", source="MTDI:host-health")
+        e = self.ns["ch2f_data"]
+        self.assertIsNone(e["data_source"])
+        self.assertEqual((e["ex_vu"], e["e_magnitude_vu"], e["axes_live"], e["axis_clipped"]), (None, None, 0, {}))
+        shown = self.status("update_ch2f_numbers")
+        self.assertNotIn("UNO", shown)
+        self.assertNotIn("1.500", shown)
+
+
+class NativeWritersClearFedLabels(unittest.TestCase):
+    """After a feed, the studio's own sensors must not keep showing the fed sender's name and unit."""
+
+    def test_every_native_channel_1_and_2_update_clears_fed_source(self):
+        tree = ast.parse((ROOT / "studio" / "acquisition.py").read_text(encoding="utf-8"))
+        found = 0
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.With):
+                continue
+            lock = ast.unparse(node.items[0].context_expr)
+            if lock not in ("ns['c1_lock']", "ns['ch2f_lock']"):
+                continue
+            for call in ast.walk(node):
+                if not (isinstance(call, ast.Call) and getattr(call.func, "attr", "") == "update"):
+                    continue
+                keys = {k.arg: ast.unparse(k.value) for k in call.keywords}
+                if "last_rx" not in keys or keys.get("fed_source") == "str(source)":
+                    continue                              # not a reading, or the feed itself
+                found += 1
+                self.assertEqual(keys.get("fed_source"), "None", f"line {call.lineno}: native reading keeps fed_source")
+                if lock == "ns['c1_lock']":
+                    self.assertEqual(keys.get("fed_unit"), "None", f"line {call.lineno}: native reading keeps fed_unit")
+        self.assertEqual(found, 4, "two native channel 1 writers and two channel 2 writers (Uno, ADS1115)")
+
 
 class BridgeMarksSimulated(unittest.TestCase):
     def engine(self):
@@ -101,6 +141,33 @@ class BridgeMarksSimulated(unittest.TestCase):
         with mock.patch("urllib.request.urlopen", fake_open):
             bridge.push(bridge.collect())
         self.assertEqual(sent["source"], "MTDI:s")
+
+    def test_mixed_samples_go_over_http_as_one_request_per_label(self):
+        """One request carries one label for every slot, so real and simulated slots are sent apart."""
+        from mtdi.bridge import StudioBridge
+        from mtdi.engine import Engine
+        from mtdi.project import normalise
+        engine = Engine(normalise({"project": {"id": "s"},
+                                   "sources": [{"id": "hw", "adapter": "http"}, {"id": "sim", "adapter": "http"}],
+                                   "channels": [{"id": "a", "keys": ["A"], "source": "hw", "noise_floor": 0.1},
+                                                {"id": "b", "keys": ["B"], "source": "sim", "noise_floor": 0.1}]}))
+        engine.ingest_values("hw", {"A": 1.0}, "HARDWARE")
+        engine.ingest_values("sim", {"B": 2.0}, "SIMULATED")
+        sent = []
+
+        class Response:
+            def read(self): return b'{"ok": true}'
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_open(request, timeout=None):
+            sent.append(json.loads(request.data))
+            return Response()
+        bridge = StudioBridge(engine, "http://127.0.0.1:9")
+        with mock.patch("urllib.request.urlopen", fake_open):
+            self.assertEqual(bridge.push(bridge.collect()), 2)
+        by_source = {body["source"]: set(body) - {"source", "unit"} for body in sent}
+        self.assertEqual(by_source, {"MTDI:s": {"ch1"}, "SIMULATED MTDI:s": {"ch2"}})
 
 
 if __name__ == "__main__":

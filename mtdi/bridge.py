@@ -124,20 +124,26 @@ class StudioBridge:
             if "ch3" in sample:
                 feeds["feed_ch3"](sample["ch3"]["x"], sample["ch3"]["y"], source=self._source("ch3"))
         else:
-            simulated = any(self._simulated.get(slot) for slot in sample)
-            source = ("SIMULATED " + self.source)[:40] if simulated else self.source
-            body = json.dumps(dict(sample, source=source, **({"unit": self.units} if self.units else {}))).encode()
-            headers = {"Content-Type": "application/json"}
-            if self.token:
-                headers["Authorization"] = "Bearer " + self.token
-            request = urllib.request.Request(self.target.rstrip("/") + "/api/ingest", data=body,
-                                             headers=headers, method="POST")
-            with urllib.request.urlopen(request, timeout=10) as response:
-                reply = json.loads(response.read() or b"{}")
-            if not reply.get("ok"):
-                raise RuntimeError(reply.get("error", "studio refused the sample"))
+            # The ingest route gives one source label to every slot in a request, so simulated and
+            # real slots go in separate requests: a hardware reading is never labelled SIMULATED.
+            groups = {}
+            for slot, value in sample.items():
+                groups.setdefault(self._source(slot), {})[slot] = value
+            for source, slots in groups.items():
+                self._post(dict(slots, source=source, **({"unit": self.units} if self.units else {})))
         self.sent += len(sample)
         return len(sample)
+
+    def _post(self, payload):
+        headers = {"Content-Type": "application/json"}
+        if self.token:
+            headers["Authorization"] = "Bearer " + self.token
+        request = urllib.request.Request(self.target.rstrip("/") + "/api/ingest", data=json.dumps(payload).encode(),
+                                         headers=headers, method="POST")
+        with urllib.request.urlopen(request, timeout=10) as response:
+            reply = json.loads(response.read() or b"{}")
+        if not reply.get("ok"):
+            raise RuntimeError(reply.get("error", "studio refused the sample"))
 
     def tick(self):
         try:
