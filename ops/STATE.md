@@ -3,14 +3,16 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 240 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 242 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** phone polish: a smaller NVTRA island on the phone with no keyboard hint, and a timed-swipe step in the tour's phone pass. Then S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-25 midday · Merged #58: an upright swipe in the intro or a scrollable panel no longer triggers Chrome's swipe-back (live since #55, fixed and checked on production 11:22 UTC); the tour gained a 60 Hz swipe pass in full Chrome; NVTRA's island says "Tap ◍" on touch and sits bottom-right on the phone stage. CodeRabbit on #58: 4 findings, 2 fixed, 2 declined with reasons. Report: ops/reports/2026-10-25-midday.md.
 
 * 2026-10-25 day · Owner asked for the desktop layout on phones, fixed in landscape, and dropped the Pi and Third Eye asks (ops/inbox/2026-10-25-owner-phone.md). Merged #55, the phone stage: `/phone` holds the 1180 px studio and turns it when the phone is upright, in lite mode; it is live. Merged #56: a flick carries on, so Page 1's opening takes 2 swipes; speed comes from touch timestamps; one finger drives it. Also merged #53 (Windows and shutdown) and #54 (S1-17 `alert_change` alerts). CodeRabbit raised 3 findings on #55 and #56, all fixed. Nothing has been checked on a real phone yet. Report: ops/reports/2026-10-25-night.md ("Later on 2026-10-25").
 
