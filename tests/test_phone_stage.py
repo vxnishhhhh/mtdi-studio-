@@ -84,6 +84,28 @@ class PhoneStage(unittest.TestCase):
         self.assertIn("t:e.timeStamp", shell)                                # the turned stage glides the same way
         self.assertIn("if(e.timeStamp-drag.t>90)vx=vy=0;", shell)
 
+    def test_upright_no_box_pans_by_itself(self):
+        # a scrollable box inside the turned stage (the intro, a panel) would pan along the glass,
+        # run off sideways, and the browser would take it as swipe-back and leave the studio
+        css = (ROOT / "studio" / "theme.py").read_text(encoding="utf-8")
+        self.assertIn("html.stage-turned *:not(#_){touch-action:none!important}", css)
+        self.assertGreater(css.index("html.stage-turned *:not(#_)"), css.index("touch-action:pan-y!important}"))
+        shell = self.client.get("/phone").get_data(as_text=True)
+        self.assertIn("de.classList.toggle('stage-turned',portrait)", shell)
+        self.assertIn("d.documentElement.classList.toggle('stage-turned',rotated)", shell)
+        # with nothing panning natively, an overflowed text box is scrolled by the shell, up and down only
+        self.assertIn("box=e.target.closest&&e.target.closest('textarea,[contenteditable]');", shell)
+        self.assertIn("drag.el=drag.box||scroller(drag.target,drag.vertical);", shell)
+
+    def test_nvtra_island_suits_a_touch_screen(self):
+        ui = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
+        # a keyboard hint on a computer, a tap hint on a touch screen, from the first render and after
+        self.assertIn('html.Span("Press ◍ or N", className="i3-key-hint"), html.Span("Tap ◍", className="i3-touch-hint")', ui)
+        self.assertIn("@media (hover:none) and (pointer:coarse){.i3-key-hint{display:none;}.i3-touch-hint{display:inline;}}", ui)
+        self.assertIn("else if(st)st.innerHTML=ORB_IDLE;", ui)
+        # on the phone stage the idle island waits in the bottom-right corner, not over the page
+        self.assertIn("html.phone-stage #i3-orb.collapsed {left:auto;right:18px;transform:none;}", ui)
+
     def test_rotate_views_give_up_down_drags_to_the_page(self):
         css = self.ns["GLOBAL_CSS"] if "GLOBAL_CSS" in self.ns else (ROOT / "studio" / "theme.py").read_text(encoding="utf-8")
         self.assertIn("html.phone-stage .i3-tab-board canvas", css)

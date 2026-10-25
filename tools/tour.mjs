@@ -122,6 +122,64 @@ const phoneReport = { stage: null, frame: null };
   }
 }
 
+// Swipes (the flick): upright again, with motion on, so Page 1 opens with its scroll hero. Touches
+// go in at 60 Hz with their own timestamps, as a phone sends them; the studio measures a flick from
+// those, so the emulator's slow software GL does not hide it. The hero must clear in at most 3
+// swipes, and the next swipe must scroll the page. It runs in a browser of its own, full Chrome
+// (which has swipe-back, the failure it guards against) without forced software WebGL: it tests
+// touch, and the 3D views drawn on the CPU after the passes above can outlast the page deadline.
+const swipeReport = { swipes: null, scrolled: null };
+{
+  const plain = await playwright.chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM || "/opt/pw-browsers/chromium", headless: false, args: ["--headless=new"],
+  });
+  const context = await plain.newContext({ ...playwright.devices["iPhone 13"] });
+  const phone = await context.newPage();
+  phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("swipe pageerror: " + e.message); });
+  try {
+    const cdp = await context.newCDPSession(phone);
+    await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
+    await phone.waitForURL(/\/phone/, { timeout: 30000 });
+    let stage = null;
+    for (let i = 0; i < 300 && !stage; i++) {
+      stage = phone.frames().find((f) => f.url().includes("stage=phone")) || null;
+      if (!stage) await phone.waitForTimeout(100);
+    }
+    if (!stage) throw new Error("/phone has no studio frame");
+    await ready(stage, "/");
+    const glass = await phone.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+    let ts = Date.now() / 1000;
+    // Upright, the stage's "down" is the glass's left, so a finger scrolling down moves right.
+    const swipe = async (frac) => {
+      const y = glass.h / 2, x0 = glass.w * 0.15, x1 = glass.w * (0.15 + frac);
+      const touch = (type, x) => cdp.send("Input.dispatchTouchEvent", { type, timestamp: (ts += 0.016), touchPoints: x === null ? [] : [{ x, y }] });
+      await touch("touchStart", x0);
+      for (let k = 1; k <= 10; k++) await touch("touchMove", x0 + (x1 - x0) * k / 10);
+      await touch("touchEnd", null);
+      await phone.waitForTimeout(1500);
+    };
+    for (let i = 0; i < 8 && await stage.evaluate(() => !!document.getElementById("startup-intro")); i++) await swipe(0.6);
+    await stage.locator("#nav-em").tap({ timeout: 15000 });
+    await ready(stage, "/page-1");
+    await phone.waitForTimeout(1500);
+    const heroDone = () => stage.evaluate(() => { const h = document.querySelector(".i3-scrub-hero"); return !!h && h.classList.contains("i3-hero-hidden"); });   // no hero is a failure, not a pass
+    let swipes = 0;
+    // a flick glides on after the finger lifts; software GL draws it slowly, so give it time to land
+    while (!(await heroDone()) && swipes < 4) { await swipe(0.5); await phone.waitForTimeout(1500); swipes++; }
+    swipeReport.swipes = swipes;
+    if (!(await heroDone()) || swipes > 3) problems.push(`swipe: Page 1's scroll opening took more than 3 swipes (${swipes})`);
+    const y0 = await stage.evaluate(() => scrollY);
+    await swipe(0.5);
+    swipeReport.scrolled = Math.round((await stage.evaluate(() => scrollY)) - y0);
+    if (swipeReport.scrolled <= 0) problems.push("swipe: a swipe after the opening did not scroll Page 1");
+  } catch (e) {
+    problems.push("swipe: " + e.message.split("\n")[0]);
+  } finally {
+    await context.close().catch(() => {});
+    await plain.close().catch(() => {});
+  }
+}
+
 await browser.close();
-console.log(JSON.stringify({ ok: problems.length === 0, visited, phone: phoneReport, problems: [...new Set(problems)] }, null, 2));
+console.log(JSON.stringify({ ok: problems.length === 0, visited, phone: phoneReport, swipe: swipeReport, problems: [...new Set(problems)] }, null, 2));
 process.exit(problems.length ? 1 : 0);

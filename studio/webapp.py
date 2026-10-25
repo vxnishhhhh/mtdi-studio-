@@ -248,7 +248,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     /* Rotated, the browser cannot turn a finger drag into a scroll (it pans along the glass,
        not the stage), so the stage scrolls itself (below) and the browser's own panning is
        switched off there. Unrotated, native scrolling works and is left alone. */
-    try{frame.contentDocument.documentElement.style.touchAction=portrait?'none':'';}catch(e){}
+    try{var de=frame.contentDocument.documentElement;de.style.touchAction=portrait?'none':'';de.classList.toggle('stage-turned',portrait);}catch(e){}
     /* Device pixels per stage CSS pixel; the studio caps its canvases to this (max 2). */
     window.__i3StageDPR=(window.devicePixelRatio||1)*s;
   }
@@ -265,6 +265,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     try{if(w.location.search.indexOf('stage=phone')<0)return;}catch(e){return;}   /* not the blank first page */
     w.__i3StageTouch=true;
     d.documentElement.style.touchAction=rotated?'none':'';
+    d.documentElement.classList.toggle('stage-turned',rotated);   /* every box, see theme.py */
     var drag=null, vx=0, vy=0, glide=0;
     /* Controls own every drag. Drag-to-rotate views own a sideways drag only: an up/down drag
        scrolls the page, and the view does not see it (same rule as their pan-y on the
@@ -291,9 +292,16 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     w.addEventListener('touchstart',function(e){
       w.cancelAnimationFrame(glide);
       drag=null;
-      if(!rotated||e.touches.length!==1||own(e.target))return;
+      if(!rotated||e.touches.length!==1)return;
+      /* A control keeps its drags, except that a text box that has overflowed scrolls itself
+         up and down (nothing in the turned stage pans natively, see theme.py). */
+      var box=null;
+      if(own(e.target)){
+        box=e.target.closest&&e.target.closest('textarea,[contenteditable]');
+        if(!box||box.scrollHeight<=box.clientHeight+1)return;
+      }
       var t=e.touches[0];
-      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,
+      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,box:box,
             rotates:!!(e.target.closest&&e.target.closest(ROTATE)),hush:false};
       vx=vy=0;
     },{capture:true,passive:true});
@@ -304,8 +312,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
         if(Math.abs(dx)+Math.abs(dy)<8)return;          /* still a tap */
         drag.vertical=Math.abs(dy)>=Math.abs(dx);
         if(drag.rotates&&!drag.vertical){drag=null;return;}   /* sideways on a 3D view: it rotates */
+        if(drag.box&&!drag.vertical){drag=null;return;}       /* sideways in a text box: the box's own (select, caret) */
         drag.hush=drag.rotates;                          /* up/down on a 3D view: the page scrolls */
-        drag.el=scroller(drag.target,drag.vertical);
+        drag.el=drag.box||scroller(drag.target,drag.vertical);
       }
       hush(e);
       if(drag.vertical)dx=0;else dy=0;

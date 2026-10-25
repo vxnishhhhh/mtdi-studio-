@@ -410,6 +410,10 @@ html.i3-cursor #i3-finger-cursor {opacity:1;}
 #i3-orb.collapsed:hover {transform:translateX(-50%) scale(1.03);}
 #i3-orb.collapsed .i3-orb-text,#i3-orb.collapsed .i3-orb-form,#i3-orb.collapsed .i3-island-pills .i3-island-pill:not(.pill-mtdi),#i3-orb.collapsed .i3-voice-bars {display:none;}
 #i3-orb.hidden {transform:translate(-50%,140%);}
+/* phone stage: the idle island waits in the bottom-right corner, under a sideways phone's right thumb, instead of over the middle of the page */
+html.phone-stage #i3-orb.collapsed {left:auto;right:18px;transform:none;}
+html.phone-stage #i3-orb.collapsed:hover {transform:scale(1.03);}
+html.phone-stage #i3-orb.collapsed.hidden {transform:translateY(140%);}
 #i3-orb .i3-orb-text,#i3-orb .i3-orb-form {animation:i3IslandIn .45s cubic-bezier(.2,.8,.2,1) both;}
 @keyframes i3IslandIn {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .i3-island-top {display:flex;align-items:center;gap:12px;}
@@ -419,6 +423,8 @@ html.i3-cursor #i3-finger-cursor {opacity:1;}
 .i3-island-head {display:grid;gap:2px;min-width:0;}
 .i3-orb-name {font:600 10px var(--i3-mono);letter-spacing:.32em;color:#67e8f9;}
 .i3-orb-state {font:12px var(--i3-font);color:#94a3b8;min-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.i3-touch-hint {display:none;}
+@media (hover:none) and (pointer:coarse){.i3-key-hint{display:none;}.i3-touch-hint{display:inline;}}
 .i3-island-pills {display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;}
 .i3-island-pill {display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:0;background:rgba(255,255,255,.08);font:600 10px var(--i3-mono);letter-spacing:.1em;color:#f5f5f7;white-space:nowrap;}
 .i3-island-pill .pill-key {color:#98a2b3;}
@@ -2307,7 +2313,9 @@ function orbShow(state,textValue){const orb=document.getElementById('i3-orb');if
 /* Hide once the exchange is over: never while the operator is mid-sentence (a chunk recording or
    decoding), awake, or NVTRA is busy or speaking. Re-checks until it is safe. */
 function orbHideWhenIdle(){if(vc.speaking||(vc.inflight||0)>0||agent.awake||agent.busy||agent.speaking){clearTimeout(agent.hideTimer);agent.hideTimer=setTimeout(orbHideWhenIdle,300);return;}orbHide();}
-function orbHide(){const orb=document.getElementById('i3-orb');if(orb){orb.classList.add('collapsed');}text(document.getElementById('i3-orb-state'),agent.listening?'Listening for Hey Novatra':'Press ◍ or N to start listening');const robot=document.getElementById('nvtra-spline-host');if(robot&&agent.robotHome&&agent.robotHome.isConnected){agent.robotHome.insertBefore(robot,agent.robotNext&&agent.robotNext.isConnected?agent.robotNext:null);agent.robotHome=null;const slot=document.getElementById('i3-orb-robot');if(slot)slot.hidden=true;document.getElementById('i3-orb-canvas').hidden=false;}cancelAnimationFrame(agent.raf);agent.raf=0;agent.awake=false;}
+/* the idle hint names the keyboard key on a computer and a tap on a touch screen (CSS picks one) */
+const ORB_IDLE='<span class="i3-key-hint">Press ◍ or N</span><span class="i3-touch-hint">Tap ◍</span> to start listening';
+function orbHide(){const orb=document.getElementById('i3-orb');if(orb){orb.classList.add('collapsed');}{const st=document.getElementById('i3-orb-state');if(agent.listening)text(st,'Listening for Hey Novatra');else if(st)st.innerHTML=ORB_IDLE;}const robot=document.getElementById('nvtra-spline-host');if(robot&&agent.robotHome&&agent.robotHome.isConnected){agent.robotHome.insertBefore(robot,agent.robotNext&&agent.robotNext.isConnected?agent.robotNext:null);agent.robotHome=null;const slot=document.getElementById('i3-orb-robot');if(slot)slot.hidden=true;document.getElementById('i3-orb-canvas').hidden=false;}cancelAnimationFrame(agent.raf);agent.raf=0;agent.awake=false;}
 function orbAnimate(){if(agent.raf)return;const canvas=document.getElementById('i3-orb-canvas');const ctx=canvas.getContext('2d');const draw=()=>{if(document.getElementById('i3-orb').classList.contains('hidden')){agent.raf=0;return;}agent.phase+=.035;let level=agent.level;if(agent.analyser){const data=new Uint8Array(agent.analyser.frequencyBinCount);agent.analyser.getByteTimeDomainData(data);let sum=0;for(const v of data){const d=(v-128)/128;sum+=d*d;}level=Math.min(1,Math.sqrt(sum/data.length)*4);}if(agent.speaking)level=.35+Math.sin(agent.phase*6)*.2;const bars=document.querySelectorAll('#i3-voice-bars i');bars.forEach((bar,i)=>{const v=Math.max(.15,Math.min(1,level*3*(0.5+Math.abs(Math.sin(agent.phase*4+i*.9)))));bar.style.height=(4+v*16)+'px';});const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,base=w*.24;ctx.clearRect(0,0,w,h);const layers=[['#1d4ed8',.9,1],['#3b82f6',.7,1.4],['#22d3ee',.55,1.9],['#a5f3fc',.4,2.6]];layers.forEach(([color,alpha,speed],li)=>{ctx.beginPath();for(let a=0;a<=Math.PI*2+.01;a+=Math.PI/64){const wob=Math.sin(a*3+agent.phase*speed)*.06+Math.sin(a*5-agent.phase*speed*1.3)*.04+Math.sin(a*7+agent.phase*.7)*.03;const r=base*(1+li*.09)*(1+wob*(1+level*4)+level*.15);const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.closePath();ctx.globalAlpha=alpha*.55;ctx.fillStyle=color;ctx.globalCompositeOperation='lighter';ctx.fill();});ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;const core=ctx.createRadialGradient(cx,cy,0,cx,cy,base*.9);core.addColorStop(0,'rgba(255,255,255,.9)');core.addColorStop(.35,'rgba(147,197,253,.55)');core.addColorStop(1,'rgba(29,78,216,0)');ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,base*.9,0,Math.PI*2);ctx.fill();agent.raf=requestAnimationFrame(draw);};agent.raf=requestAnimationFrame(draw);}
 function voicePlayer(){if(!agent.player){agent.player=new Audio();agent.player.preload='auto';}return agent.player;}
 /* Browsers only let audio start after a user gesture: the first click, key or touch
@@ -2998,7 +3006,7 @@ def install(ns, runtime):
         html.Div([
             html.Canvas(id="i3-orb-canvas", width=420, height=420),
             html.Div(id="i3-orb-robot", className="i3-orb-robot", hidden=True),
-            html.Div([html.Div("NVTRA", className="i3-orb-name"), html.Div("Press ◍ or N to start listening", id="i3-orb-state", className="i3-orb-state")], className="i3-island-head"),
+            html.Div([html.Div("NVTRA", className="i3-orb-name"), html.Div([html.Span("Press ◍ or N", className="i3-key-hint"), html.Span("Tap ◍", className="i3-touch-hint"), " to start listening"], id="i3-orb-state", className="i3-orb-state")], className="i3-island-head"),
             html.Div([html.I() for _ in range(9)], id="i3-voice-bars", className="i3-voice-bars", **{"aria-hidden": "true"}),
             html.Div([pill("mtdi", "MTDI"), pill("c1", 'LABEL'), pill("ef", 'LABEL'), pill("ch3", "Channel 3")], className="i3-island-pills"),
         ], className="i3-island-top"),
