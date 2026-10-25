@@ -105,7 +105,8 @@ def normalise(data):
         _channel(ch, f"channels[{i}]", sources[0]["id"], source_ids)
         _require(ch["id"] not in channel_ids, f"channels[{i}].id '{ch['id']}' is used twice")
         channel_ids.add(ch["id"])
-    _fused(data, {ch["id"]: ch for ch in channels})
+    by_id = {ch["id"]: ch for ch in channels}
+    _fused(data, by_id)
 
     data.setdefault("hardware", [])
     data.setdefault("environment", {})
@@ -121,6 +122,13 @@ def normalise(data):
             _require(key in channel_ids or key in ("active_at_least",),
                      f"nvtra.rules[{i}].when names unknown channel '{key}'")
         _require(rule.get("condition"), f"nvtra.rules[{i}].condition is required")
+        direction = rule.get("direction", {})
+        _require(isinstance(direction, dict), f"nvtra.rules[{i}].direction must be an object")
+        for key, way in direction.items():
+            _require(key in by_id, f"nvtra.rules[{i}].direction names unknown channel '{key}'")
+            _require(way in ("up", "down"), f"nvtra.rules[{i}].direction.{key} must be \"up\" or \"down\"")
+            _require(by_id[key]["kind"] == "scalar",
+                     f"nvtra.rules[{i}].direction.{key}: only a scalar channel has a sign (a vector's deviation is a length)")
     data.setdefault("aether", {})
     data.setdefault("interface", {})
     _require(isinstance(data["interface"], dict), "interface must be an object of studio word keys to text")
