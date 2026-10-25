@@ -292,9 +292,16 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     w.addEventListener('touchstart',function(e){
       w.cancelAnimationFrame(glide);
       drag=null;
-      if(!rotated||e.touches.length!==1||own(e.target))return;
+      if(!rotated||e.touches.length!==1)return;
+      /* A control keeps its drags, except that a text box that has overflowed scrolls itself
+         up and down (nothing in the turned stage pans natively, see theme.py). */
+      var box=null;
+      if(own(e.target)){
+        box=e.target.closest&&e.target.closest('textarea,[contenteditable]');
+        if(!box||box.scrollHeight<=box.clientHeight+1)return;
+      }
       var t=e.touches[0];
-      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,
+      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,box:box,
             rotates:!!(e.target.closest&&e.target.closest(ROTATE)),hush:false};
       vx=vy=0;
     },{capture:true,passive:true});
@@ -305,8 +312,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
         if(Math.abs(dx)+Math.abs(dy)<8)return;          /* still a tap */
         drag.vertical=Math.abs(dy)>=Math.abs(dx);
         if(drag.rotates&&!drag.vertical){drag=null;return;}   /* sideways on a 3D view: it rotates */
+        if(drag.box&&!drag.vertical){drag=null;return;}       /* sideways in a text box: the box's own (select, caret) */
         drag.hush=drag.rotates;                          /* up/down on a 3D view: the page scrolls */
-        drag.el=scroller(drag.target,drag.vertical);
+        drag.el=drag.box||scroller(drag.target,drag.vertical);
       }
       hush(e);
       if(drag.vertical)dx=0;else dy=0;

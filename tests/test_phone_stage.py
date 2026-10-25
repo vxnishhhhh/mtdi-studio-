@@ -93,6 +93,9 @@ class PhoneStage(unittest.TestCase):
         shell = self.client.get("/phone").get_data(as_text=True)
         self.assertIn("de.classList.toggle('stage-turned',portrait)", shell)
         self.assertIn("d.documentElement.classList.toggle('stage-turned',rotated)", shell)
+        # with nothing panning natively, an overflowed text box is scrolled by the shell, up and down only
+        self.assertIn("box=e.target.closest&&e.target.closest('textarea,[contenteditable]');", shell)
+        self.assertIn("drag.el=drag.box||scroller(drag.target,drag.vertical);", shell)
 
     def test_nvtra_island_suits_a_touch_screen(self):
         ui = (ROOT / "studio" / "ui.py").read_text(encoding="utf-8")
