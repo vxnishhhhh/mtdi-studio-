@@ -360,7 +360,8 @@ def install(ns, engine):
                                       calibrated=bool(profile) or item["calibration"]["calibrated"],
                                       last_rx=now, error=None, warning=warning, clipped=clipped,
                                       sample_rate=item["sample_rate"], uncertainty=item["uncertainty"],
-                                      raw_magnitude=magnitude, missed_estimate=missed_estimate)
+                                      raw_magnitude=magnitude, missed_estimate=missed_estimate,
+                                      fed_source=None, fed_unit=None)
                         target["history"].append(m)
                         target["xyz_history"].append((x, y, z))
                         target["min_c1"] = min(target["min_c1"], m)
@@ -508,7 +509,8 @@ def install(ns, engine):
                                           calibrated=bool(c1_profile) or item["calibration"]["calibrated"],
                                           last_rx=now, error=None, warning=c1_warning,
                                           clipped=item["clipped"], sample_rate=item["sample_rate"],
-                                          uncertainty=item["uncertainty"], raw_magnitude=magnitude)
+                                          uncertainty=item["uncertainty"], raw_magnitude=magnitude,
+                                          fed_source=None, fed_unit=None)
                             target["history"].append(item["deviation"])
                             target["xyz_history"].append((axial["x"], axial["y"], axial["z"]))
                             target["min_c1"] = min(target["min_c1"], item["deviation"])
@@ -595,7 +597,7 @@ def install(ns, engine):
                                       status="Baseline settling" if base["settling"] else "Live raw-count acquisition",
                                       last_rx=now, error=None, calibrated=not base["settling"],
                                       probe_calibrated=False, provisional_adc=True,
-                                      data_source="ARDUINO_UNO_USB",
+                                      data_source="ARDUINO_UNO_USB", fed_source=None,
                                       warning=(("Uno %s reached 0 or 1023; reference-estimated V/m = N/C and raw activity are lower bounds"
                                                 % "/".join(clipped_axes))
                                                if clipped else
@@ -781,7 +783,8 @@ def install(ns, engine):
                                       probe_calibrated=calibrated, warning=note if (clipped or not probe_ok) else None,
                                       probe_health=probe_health,
                                       unit=item["unit"], uncertainty=item["uncertainty"],
-                                      sample_rate=block["sample_rate"], probe_scale_source=note)
+                                      sample_rate=block["sample_rate"], probe_scale_source=note,
+                                      fed_source=None)
                         # The live graph and numbers show the direct RMS reading; deviation
                         # from Baseline Lock stays available to the analysis engine.
                         target.update(tri)
@@ -990,6 +993,7 @@ def install(ns, engine):
             data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=vector[0], raw_y=vector[1],
                         raw_z=vector[2], raw_magnitude=size, error=None, warning=None, chip_warning=None,
                         chip_id=source, calibrated=False, calibration_warning=None, last_rx=now,
+                        fed_source=str(source), fed_unit=str(unit),
                         baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
                         baseline_magnitude=math.sqrt(sum(v * v for v in c1["baseline_vector"])))
             data["history"].append(c1["deviation"])
@@ -999,6 +1003,17 @@ def install(ns, engine):
         ns["ARCHIVE"].put("c1", {"t": now, "x": vector[0], "y": vector[1], "z": vector[2], "c1": size,
                                  "trusted": False, "warning": None, "data_source": source, "monotonic": mono})
         return c1
+
+    def _scalar_feed_fields():
+        # A fed reading is one number from someone else. Clear what the Uno or the triaxial probe
+        # left behind, or the status keeps naming the Uno and the axis numbers stay frozen on it.
+        return {"data_source": None, "provisional_adc": False, "rms_counts": None, "triaxial": False,
+                "ex_mv": None, "ey_mv": None, "ez_mv": None, "ex_vu": None, "ey_vu": None, "ez_vu": None,
+                "e_magnitude_mv": None, "e_magnitude_vu": None, "axis_clipped": {}, "axes_live": 0,
+                "axis_status": {"x": "unwired", "y": "unwired", "z": "unwired"},
+                "dc_axis_counts": {"x": None, "y": None, "z": None},
+                "dc_baseline_counts": {"x": None, "y": None, "z": None},
+                "dc_delta_counts": {"x": None, "y": None, "z": None}, "static_activity_counts": None}
 
     def feed_ch2(value, unit="mV RMS relative", source="EXTERNAL", now=None):
         """Channel 2: one number per sample (a level, a rate, an RMS, anything scalar)."""
@@ -1020,7 +1035,8 @@ def install(ns, engine):
                         field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
-                        probe_calibrated=False, unit=ch2["unit"])
+                        probe_calibrated=False, unit=ch2["unit"], fed_source=str(source),
+                        **_scalar_feed_fields())
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)
             data["min_rms"] = min(data["min_rms"], value)

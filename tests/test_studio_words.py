@@ -190,7 +190,7 @@ class ChannelWords(unittest.TestCase):
         bridge = StudioBridge(Engine(self.project()), "http://127.0.0.1:9")
         with mock.patch("urllib.request.urlopen", fake_open):
             bridge.push({"ch2": 40.0})
-        self.assertEqual(sent["unit"], {"ch1": "°C", "ch2": "%"})
+        self.assertEqual(sent["samples"][0]["unit"], {"ch1": "°C", "ch2": "%"})
 
     def test_channel_2_axis_shows_the_fed_unit_and_keeps_the_adc_labels(self):
         sys.path.insert(0, str(ROOT))

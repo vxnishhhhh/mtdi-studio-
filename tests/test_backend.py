@@ -416,7 +416,7 @@ class Bridge(unittest.TestCase):
             remote = StudioBridge(engine, fake.url, mapping={"ch1": "v", "ch2": "a"}, token="tok")
             self.assertEqual(remote.tick(), 2)
             self.assertEqual(posted[0]["headers"]["Authorization"], "Bearer tok")
-            self.assertEqual(json.loads(posted[0]["body"])["ch2"], 4.0)
+            self.assertEqual(json.loads(posted[0]["body"])["samples"][0]["ch2"], 4.0)
         finally:
             fake.close()
 
@@ -480,6 +480,33 @@ class StudioIngest(unittest.TestCase):
             self.assertEqual(self.ns["sweep3_data"]["peak_freq"], 2.0)
         with self.ns["c1_lock"]:
             self.assertEqual(self.ns["ch1_data"]["raw_y"], 2.0)
+
+    def test_the_bridge_request_keeps_each_slot_label_at_the_real_route(self):
+        """The bridge's HTTP body, through the studio's own /api/ingest: hardware stays hardware."""
+        engine = Engine(normalise({"project": {"id": "mix"},
+                                   "sources": [{"id": "hw", "adapter": "http"}, {"id": "sim", "adapter": "http"}],
+                                   "channels": [{"id": "a", "keys": ["A"], "source": "hw", "noise_floor": 0.1},
+                                                {"id": "b", "keys": ["B"], "source": "sim", "noise_floor": 0.1}]}))
+        engine.ingest_values("hw", {"A": 1.0}, "HARDWARE")
+        engine.ingest_values("sim", {"B": 2.0}, "SIMULATED")
+        client = self.client
+
+        class Reply:
+            def __init__(self, body): self.body = body
+            def read(self): return self.body
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def through_the_route(request, timeout=None):
+            r = client.post("/api/ingest", data=request.data, headers=dict(request.header_items()))
+            return Reply(r.data)
+        bridge = StudioBridge(engine, "http://studio", token="t0ken")
+        with mock.patch("urllib.request.urlopen", through_the_route):
+            self.assertEqual(bridge.tick(), 2, bridge.last_error)
+        with self.ns["c1_lock"]:
+            self.assertEqual(self.ns["ch1_data"]["fed_source"], "MTDI:mix")
+        with self.ns["ch2f_lock"]:
+            self.assertEqual(self.ns["ch2f_data"]["fed_source"], "SIMULATED MTDI:mix")
 
 
 if __name__ == "__main__":
