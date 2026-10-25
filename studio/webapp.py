@@ -248,7 +248,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     /* Rotated, the browser cannot turn a finger drag into a scroll (it pans along the glass,
        not the stage), so the stage scrolls itself (below) and the browser's own panning is
        switched off there. Unrotated, native scrolling works and is left alone. */
-    try{frame.contentDocument.documentElement.style.touchAction=portrait?'none':'';}catch(e){}
+    try{var de=frame.contentDocument.documentElement;de.style.touchAction=portrait?'none':'';de.classList.toggle('stage-turned',portrait);}catch(e){}
     /* Device pixels per stage CSS pixel; the studio caps its canvases to this (max 2). */
     window.__i3StageDPR=(window.devicePixelRatio||1)*s;
   }
@@ -265,6 +265,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
     try{if(w.location.search.indexOf('stage=phone')<0)return;}catch(e){return;}   /* not the blank first page */
     w.__i3StageTouch=true;
     d.documentElement.style.touchAction=rotated?'none':'';
+    d.documentElement.classList.toggle('stage-turned',rotated);   /* every box, see theme.py */
     var drag=null, vx=0, vy=0, glide=0;
     /* Controls own every drag. Drag-to-rotate views own a sideways drag only: an up/down drag
        scrolls the page, and the view does not see it (same rule as their pan-y on the

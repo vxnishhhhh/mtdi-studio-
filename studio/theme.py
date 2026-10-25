@@ -1611,6 +1611,12 @@ html.phone-stage #nvtra-spline-canvas,html.phone-stage #home-module-globe,
 html.phone-stage .instrument-constellation-canvas,html.phone-stage .i3-lunar-canvas,
 html.phone-stage .i3-vector,html.phone-stage .i3-sc-canvas,html.phone-stage .i3-sc-boards,
 html.phone-stage .i3-tab-board canvas,html.phone-stage .js-plotly-plot canvas{touch-action:pan-y!important}
+/* Upright, the stage is turned and the browser pans along the glass, not the stage, so the /phone
+   shell scrolls it and marks it stage-turned. Then no box pans by itself, not only the page root:
+   a scrollable box inside (the intro, a panel) would otherwise pan sideways off the glass, which
+   the browser takes as swipe-back and leaves the studio. :not(#_) lifts the rule over the id
+   rules above. */
+html.stage-turned *:not(#_){touch-action:none!important}
 #mobile-refresh-btn{display:none}
 
 /* ===== SCROLL ANCHORING =====
