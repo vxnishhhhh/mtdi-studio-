@@ -1,0 +1,122 @@
+# Compatibility Laboratory (S1-05, ADR 0006): what CI can honestly run for each target.
+# Each job writes a result file; the report job turns them into COMPATIBILITY.md (the run's
+# summary and the compat-report artifact). Nothing here can claim "tested on hardware": only the
+# owner's records in docs/results/compat/hardware/ do that.
+name: Compatibility Lab
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 1 * * *"          # nightly, 03:17 in Johannesburg
+permissions:
+  contents: read
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    name: firmware (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [arduino-uno, esp32]
+    env:
+      BOARD: ${{ matrix.board }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Board support
+        run: python tools/compat/lab.py setup --board "$BOARD"
+      - name: Compile every sketch
+        run: python tools/compat/lab.py firmware --board "$BOARD" --out compat-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compat-firmware-${{ matrix.board }}
+          path: compat-results/
+          if-no-files-found: ignore
+
+  core:
+    name: core suite (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, label: linux-x64}
+          - {os: ubuntu-24.04-arm, label: linux-arm64}
+          - {os: macos-latest, label: macos-arm64}
+          - {os: windows-latest, label: windows-x64}
+    env:
+      LABEL: ${{ matrix.label }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: GNU Octave (MATLAB cross-check, Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends octave g++
+      - name: Test suite
+        shell: bash
+        run: python tools/compat/lab.py core --label "$LABEL" --out compat-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compat-core-${{ matrix.label }}
+          path: compat-results/
+          if-no-files-found: ignore
+
+  serverless:
+    name: serverless studio
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - run: python tools/compat/lab.py serverless --out compat-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compat-serverless
+          path: compat-results/
+          if-no-files-found: ignore
+
+  report:
+    needs: [firmware, core, serverless]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: compat-*
+          merge-multiple: true
+          path: compat-results
+      - name: Hardware records (the owner's, from the repository)
+        run: mkdir -p compat-results/hardware && cp -r docs/results/compat/hardware/. compat-results/hardware/ 2>/dev/null || true
+      - name: Report
+        run: |
+          python tools/compat/lab.py report --out compat-results --report COMPATIBILITY.md
+          cat COMPATIBILITY.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compat-report
+          path: |
+            COMPATIBILITY.md
+            compat-results/

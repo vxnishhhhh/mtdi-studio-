@@ -37,12 +37,17 @@ Manifest field `profile` (edge, scientific, vision, autonomous, hybrid, research
 loads only the profile's modules; `mtdi check` reports the profile and whether the target qualifies.
 **Check:** a test per profile proves it loads its modules and refuses an under-capable target.
 
-### S1-05 · Compatibility Laboratory, first matrix (ADR 0006) · ready
+### S1-05 · Compatibility Laboratory, first matrix (ADR 0006) · in progress (lab and report done; the workflow waits for owner review, ADR 0002)
 `.github/workflows/compat.yml` (nightly + on PR): Arduino Uno and ESP32 firmware builds with size
 checks; core suite on an ARM64 runner; desktop matrix (Linux, macOS, Windows); serverless studio
 smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILITY.md` (target ×
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
+2026-10-25: `tools/compat/lab.py` (firmware, core, serverless, report) and `docs/COMPATIBILITY.md`
+from a recorded run: all 3 sketches build for Uno and ESP32 (arduino-cli, esp32 core 3.3.12), core
+suite and serverless smoke pass on Linux x86_64. `.github/workflows/compat.yml` adds Linux ARM64,
+macOS and Windows runners. Not yet: local AI against a small model, the Vision row (no Vision
+pipeline or recorded images exist), the Vercel deployment check.
 
 ### S1-06 · Project-driven studio words · in progress (slices 1–2 merged: shell, page titles, Home hero and cards; channel names and units)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
