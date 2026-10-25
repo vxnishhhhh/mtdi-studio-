@@ -15,6 +15,7 @@ The same runner serves a JSON API on its own (``headless_app``) or adds its rout
 the studio's server (``register``), so the interface and the API share one engine.
 """
 import pathlib
+import threading
 
 from .adapters import build
 from .adapters.replay import Recorder
@@ -38,6 +39,7 @@ class Runner:
         self.adapters = [build(self.engine, s, simulate) for s in self.project["sources"]]
         self._ask = ask
         self.stopped = False
+        self._admit = threading.Lock()           # /mtdi/ingest against stop()
         if start:
             for adapter in self.adapters:
                 adapter.start()
@@ -102,6 +104,12 @@ class Runner:
             """{"source": id, "line": "..."} | {"source": id, "lines": [...]} | {"source": id, "values": {...}}.
             Only sources declared with adapter "http" accept posts."""
             body = request.get_json(silent=True) or {}
+            # The check and the ingest are one step stop() cannot fall between: it waits for a request
+            # already past the check, and every later one is refused.
+            with self._admit:
+                return _admitted(body)
+
+        def _admitted(body):
             sid = body.get("source")
             if self.stopped:                     # the route outlives the project; nothing ingested now is kept
                 return jsonify({"ok": False, "message": "this project has stopped"}), 409
@@ -150,7 +158,8 @@ class Runner:
         return self.register(server)
 
     def stop(self):
-        self.stopped = True
+        with self._admit:
+            self.stopped = True
         for adapter in self.adapters:
             adapter.stop()
         for recorder in self.engine.recorders:
