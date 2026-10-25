@@ -5,12 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 137 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
-* **Next item:** S1-06 slice 2 (section heads and cards, channel names from the project); S1-07 Third Eye reference project; S1-05 Compatibility Lab (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings); S1-07 Third Eye reference project; S1-05 Compatibility Lab (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   CodeRabbit install; Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
+
+* 2026-10-24 late · Merged #46 (S1-06 slice 2: channel names and units from the project; bridge now passes units, fixing channel 2 data labelled mV RMS). Next: S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings).
 
 * 2026-10-24 night · Merged #41 (`mtdi update`, launcher -P fix) and #42 (studio page-ready signal, tour phone pass 3/3). S1-06 slice 1 (studio words from studio/content/default.json, MTDI_CONTENT, manifest `interface`) in review. Backlog statuses corrected (S1-02/03/04 done; S1-11 and S1-16b still in progress, with what is missing stated).
 
