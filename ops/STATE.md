@@ -3,7 +3,7 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 213 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 218 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
 * **Next item:** S1-05 Compatibility Lab with an arduino-cli compile job for every firmware (needs a workflow file: owner review per ADR 0002); S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings); S1-17 `alert_change` (nothing reads it).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
