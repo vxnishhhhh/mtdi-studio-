@@ -80,8 +80,8 @@ reads correctly as soon as you turn it (or with rotation lock on). Swipe to scro
 beside them.
 
 * For the full screen with no browser bars, add the studio to your home screen (Share, then "Add to
-  Home Screen" on an iPhone; the menu, then "Install app" on Android). Android then also holds the
-  app in landscape.
+  Home Screen" on an iPhone; the menu, then "Install app" on Android). Installed, Android may also
+  hold the app in landscape where the browser supports it.
 * In Settings, the Desktop / Mobile switch moves this phone to a narrow layout of its own instead
   ("Mobile"), or back to the landscape desktop layout ("Desktop").
 
