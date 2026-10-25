@@ -114,6 +114,7 @@ jobs:
         run: |
           python tools/compat/lab.py report --out compat-results --report COMPATIBILITY.md
           cat COMPATIBILITY.md >> "$GITHUB_STEP_SUMMARY"
+          cat COMPATIBILITY.md            # also in the log, which the API and a session can read
       - uses: actions/upload-artifact@v4
         with:
           name: compat-report
