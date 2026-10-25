@@ -119,6 +119,14 @@ class CoreSuite(unittest.TestCase):
         self.assertIn("linux-x64: FAILED", text)
         self.assertIn("serverless studio: FAILED", text)
 
+    def test_a_pull_request_run_names_the_pr_head_not_the_merge_commit(self):
+        from unittest import mock
+        ci = {"GITHUB_ACTIONS": "true", "GITHUB_SHA": "1e54270ffff", "RUNNER_OS": "Linux", "RUNNER_ARCH": "X64"}
+        with mock.patch.dict(lab.os.environ, dict(ci, COMPAT_HEAD_SHA="d4c96ef0000")):
+            self.assertEqual(lab.provenance()["commit"], "d4c96ef (PR head, tested merged into its base)")
+        with mock.patch.dict(lab.os.environ, dict(ci, COMPAT_HEAD_SHA="")):
+            self.assertEqual(lab.provenance()["commit"], "1e54270")          # nightly: the commit itself
+
     def test_named_checks_exist_in_the_suite(self):
         for check, test_id in lab.CHECKS.items():
             module, cls, name = test_id.split(".")

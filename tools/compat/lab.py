@@ -254,7 +254,11 @@ def run_serverless(root=ROOT, run=subprocess.run):
 def provenance():
     if os.environ.get("GITHUB_ACTIONS"):
         where = f"GitHub Actions {os.environ.get('ImageOS') or os.environ.get('RUNNER_OS', '')} {os.environ.get('RUNNER_ARCH', '')}".strip()
-        commit = os.environ.get("GITHUB_SHA", "")[:7]
+        # On a pull request GITHUB_SHA is GitHub's temporary merge commit, which no branch holds;
+        # name the PR's own head instead, and say what was actually tested.
+        head = os.environ.get("COMPAT_HEAD_SHA", "")
+        commit = (f"{head[:7]} (PR head, tested merged into its base)" if head
+                  else os.environ.get("GITHUB_SHA", "")[:7])
     else:
         where = os.environ.get("COMPAT_WHERE") or f"local run, {platform.system()} {platform.machine()}"
         try:

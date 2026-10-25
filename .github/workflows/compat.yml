@@ -10,6 +10,8 @@ on:
     - cron: "17 1 * * *"          # nightly, 03:17 in Johannesburg
 permissions:
   contents: read
+env:
+  COMPAT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}    # empty outside pull requests
 concurrency:
   group: compat-${{ github.ref }}
   cancel-in-progress: true
