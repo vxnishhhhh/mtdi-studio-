@@ -1096,8 +1096,13 @@ function scrubFrame(now){if(!scrubActive()){scrub.raf=0;return;}const dt=scrub.l
  scrub.raf=requestAnimationFrame(scrubFrame);}
 const SCRUB_KEYS={ArrowDown:140,ArrowUp:-140,PageDown:700,PageUp:-700,' ':700,End:1e9,Home:-1e9};
 addEventListener('wheel',e=>{if(!scrubActive())return;if(scrubConsume(e.deltaY))e.preventDefault();},{passive:false});
-let scrubTouchY=0;addEventListener('touchstart',e=>{scrubTouchY=e.touches[0]?.clientY??0;},{passive:true});
-addEventListener('touchmove',e=>{if(!scrubActive())return;const y=e.touches[0]?.clientY??scrubTouchY;/* A swipe has no wheel momentum: on the phone stage it counts three times, so the hero takes about three swipes instead of a dozen. */const d=(scrubTouchY-y)*(document.documentElement.classList.contains('phone-stage')?3:1);scrubTouchY=y;if(scrubConsume(d))e.preventDefault();},{passive:false});
+let scrubTouchY=0,scrubTouchT=0,scrubFlingV=0,scrubFling=0;
+addEventListener('touchstart',e=>{scrubTouchY=e.touches[0]?.clientY??0;scrubTouchT=e.timeStamp;scrubFlingV=0;cancelAnimationFrame(scrubFling);scrubFling=0;},{passive:true});
+addEventListener('touchmove',e=>{if(!scrubActive())return;const y=e.touches[0]?.clientY??scrubTouchY,now=e.timeStamp;/* on the phone stage a swipe counts three times, so the hero is not a dozen swipes long */const d=(scrubTouchY-y)*(document.documentElement.classList.contains('phone-stage')?3:1);scrubFlingV=.8*d/Math.max(1,now-scrubTouchT)+.2*scrubFlingV;scrubTouchY=y;scrubTouchT=now;if(scrubConsume(d))e.preventDefault();},{passive:false});
+/* A flick carries on after the finger lifts, the way a page scroll does: the hero keeps the swipe's speed and slows down (a finger that stopped before lifting carries nothing). Speed comes from the touch events' own times, so a busy page does not lose it. */
+addEventListener('touchend',e=>{if(!scrubActive()||!scrub.locked||e.timeStamp-scrubTouchT>90||Math.abs(scrubFlingV)<.3)return;let last=performance.now();
+ const glide=now=>{const dt=Math.min(50,now-last);last=now;scrubFlingV*=Math.pow(.95,dt/(1000/60));if(!scrubActive()||!scrub.locked||Math.abs(scrubFlingV)<.05){scrubFling=0;return;}scrubConsume(scrubFlingV*dt);scrubFling=requestAnimationFrame(glide);};
+ scrubFling=requestAnimationFrame(glide);},{passive:true})
 addEventListener('keydown',e=>{if(!scrubActive()||e.target.matches?.('input,textarea,select'))return;if(e.key==='Escape'&&scrub.locked){scrub.target=scrub.shown=1;scrub.moved=true;scrubPaint(1);scrubRelease(true);return;}const step=SCRUB_KEYS[e.key];if(step===undefined)return;if(scrubConsume(step))e.preventDefault();});
 function scrubExit(){if(!scrubActive()||scrub.locked)return;const h=scrub.hero.offsetHeight||1;const k=clamp((scrollY-scrub.hero.offsetTop)/h,0,1);const st=scrub.el.stage;if(st){st.style.transform='translate3d(0,'+(-k*22).toFixed(2)+'vh,0) scale('+(1+k*.28).toFixed(3)+')';st.style.opacity=String(1-k*1.15);}}
 addEventListener('scroll',scrubExit,{passive:true});

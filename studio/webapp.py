@@ -293,13 +293,13 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
       drag=null;
       if(!rotated||e.touches.length!==1||own(e.target))return;
       var t=e.touches[0];
-      drag={x:t.clientX,y:t.clientY,t:performance.now(),target:e.target,el:null,vertical:true,
+      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,
             rotates:!!(e.target.closest&&e.target.closest(ROTATE)),hush:false};
       vx=vy=0;
     },{capture:true,passive:true});
     w.addEventListener('touchmove',function(e){
       if(!drag||e.touches.length!==1)return;
-      var t=e.touches[0], dx=drag.x-t.clientX, dy=drag.y-t.clientY, now=performance.now();
+      var t=e.touches[0], dx=drag.x-t.clientX, dy=drag.y-t.clientY, now=e.timeStamp;
       if(!drag.el){
         if(Math.abs(dx)+Math.abs(dy)<8)return;          /* still a tap */
         drag.vertical=Math.abs(dy)>=Math.abs(dx);
@@ -314,14 +314,16 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;ove
       vx=0.8*dx/dt+0.2*vx; vy=0.8*dy/dt+0.2*vy;
       drag.x=t.clientX; drag.y=t.clientY; drag.t=now;
     },{capture:true,passive:true});
-    function release(){
+    /* Speed is measured from the touch events' own times, not from when a busy page got to
+       them, so a glide is not lost while the studio is drawing. */
+    function release(e){
       if(!drag||!drag.el){drag=null;return;}
-      var el=drag.el, last=performance.now();
-      if(last-drag.t>90)vx=vy=0;                         /* the finger stopped before lifting */
+      var el=drag.el, last=w.performance.now();
+      if(e.timeStamp-drag.t>90)vx=vy=0;                  /* the finger stopped before lifting */
       drag=null;
       (function step(now){
         var dt=Math.max(1,now-last); last=now;
-        var k=Math.pow(0.95,dt/16); vx*=k; vy*=k;
+        var k=Math.pow(0.93,dt/16); vx*=k; vy*=k;   /* about as far as the browser glides unturned */
         if(Math.abs(vx)<0.02&&Math.abs(vy)<0.02)return;
         el.scrollBy(vx*dt,vy*dt);
         glide=w.requestAnimationFrame(step);
