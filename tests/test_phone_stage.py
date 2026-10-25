@@ -76,6 +76,9 @@ class PhoneStage(unittest.TestCase):
         # one finger drives it: a second finger is ignored, and only the last lift may flick
         self.assertIn("const t=scrubTouch(e.touches);if(!t)return;", ui)
         self.assertIn("if(!lifted||e.touches.length||", ui)
+        # the tracked finger lifts while another stays: that finger takes over where it is, with no flick
+        self.assertIn("if(lifted&&e.touches.length){const t=e.touches[0];scrubTouchId=t.identifier;"
+                      "scrubTouchY=t.clientY;scrubTouchT=e.timeStamp;scrubFlingV=0;return;}", ui)
         self.assertNotIn("scrubTouchT=performance.now()", ui)                # not when a busy page got to it
         shell = self.client.get("/phone").get_data(as_text=True)
         self.assertIn("t:e.timeStamp", shell)                                # the turned stage glides the same way
