@@ -12,6 +12,8 @@ Updated by every session. Newest first.
 
 ## Log
 
+* 2026-10-25 night · S1-07 Third Eye project in review: manifest, firmware (compiles for Uno locally), tests. Found: a 0/1 state channel with raw_range never settles and holds NVTRA at Baseline settling (documented); studio Page 1 status mislabels fed data (next PR).
+
 * 2026-10-24 late · Merged #46 (S1-06 slice 2: channel names and units from the project; bridge now passes units, fixing channel 2 data labelled mV RMS). Next: S1-06 slice 3 (section heads and cards, channel 3 sweep units, PDF headings).
 
 * 2026-10-24 night · Merged #41 (`mtdi update`, launcher -P fix) and #42 (studio page-ready signal, tour phone pass 3/3). S1-06 slice 1 (studio words from studio/content/default.json, MTDI_CONTENT, manifest `interface`) in review. Backlog statuses corrected (S1-02/03/04 done; S1-11 and S1-16b still in progress, with what is missing stated).

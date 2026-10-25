@@ -25,7 +25,13 @@ OPS = {">=": operator.ge, ">": operator.gt, "<=": operator.le, "<": operator.lt,
 _TEST = re.compile(r"^\s*(>=|<=|==|>|<)\s*(-?\d+(\.\d+)?)\s*$")
 
 
-def _matches(rule, snrs, live):
+def _matches(rule, snrs, live, deviations=None):
+    # "direction": {"<channel>": "down" | "up"}: the reading must be below / above its learned
+    # baseline. SNR alone is unsigned, so without it a rise and a fall look the same.
+    for key, way in (rule.get("direction") or {}).items():
+        dev = (deviations or {}).get(key, 0.0)
+        if key not in live or not ((way == "down" and dev < 0) or (way == "up" and dev > 0)):
+            return False
     for key, test in rule["when"].items():
         if key == "active_at_least":
             if sum(1 for c in live if snrs[c] >= 3) < int(test):
@@ -54,7 +60,8 @@ def interpret(project, channels):
         condition = "Baseline settling"
         text = "The ambient reference is still forming. Wait for the baseline before interpreting deviations."
     else:
-        chosen = next((r for r in project["nvtra"]["rules"] if _matches(r, snrs, live)), None)
+        deviations = {cid: channels[cid]["environment"].get("deviation") or 0.0 for cid in live}
+        chosen = next((r for r in project["nvtra"]["rules"] if _matches(r, snrs, live, deviations)), None)
         if chosen:
             condition, text, rule_id = chosen["condition"], chosen.get("text", ""), chosen.get("id", chosen["condition"])
         else:

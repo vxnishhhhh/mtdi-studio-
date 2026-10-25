@@ -439,6 +439,16 @@
                   "pattern": "^\\s*(>=|<=|==|>|<)\\s*-?\\d+(\\.\\d+)?\\s*$"
                 }
               },
+              "direction": {
+                "type": "object",
+                "description": "Scalar channel id to \"down\" (below its learned baseline) or \"up\" (above it); the SNR in `when` has no sign.",
+                "additionalProperties": {
+                  "enum": [
+                    "up",
+                    "down"
+                  ]
+                }
+              },
               "condition": {
                 "type": "string"
               },
