@@ -1,0 +1,58 @@
+{
+  "mtdi": "5.0",
+  "project": {
+    "id": "third-eye",
+    "name": "Third Eye",
+    "author": "MTDI Studio reference project",
+    "domain": "obstacle sensing",
+    "tagline": "TWO ECHOES, ONE WARNING",
+    "description": "MTDI 1 rebuilt on MTDI 5: two [[HC-SR04 ultrasonic]] rangers look left and right, and a buzzer beeps faster as the nearest object gets closer. The board warns on its own; MTDI learns the open space as the environment and shows which side something came from."
+  },
+  "profile": "edge",
+  "hardware": [
+    {"name": "HC-SR04 × 2", "role": "Ultrasonic rangers · left and right · 2–400 cm"},
+    {"name": "Buzzer", "role": "Warning · faster as things get closer"},
+    {"name": "ARDUINO UNO", "role": "Any 5 V board · USB serial"}
+  ],
+  "sources": [
+    {"id": "eye", "adapter": "serial", "port": "auto", "baud": 115200}
+  ],
+  "channels": [
+    {"id": "left", "label": "Left distance", "domain": "ultrasonic", "kind": "scalar",
+     "keys": ["LEFT_CM"], "unit": "cm", "raw_range": [2, 400],
+     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "expected_rate": 15,
+     "simulate": {"mean": 150.0, "noise": 0.5}},
+    {"id": "right", "label": "Right distance", "domain": "ultrasonic", "kind": "scalar",
+     "keys": ["RIGHT_CM"], "unit": "cm", "raw_range": [2, 400],
+     "noise_floor": 0.3, "noise_budget": 2.0, "alert_change": 10.0, "expected_rate": 15,
+     "simulate": {"mean": 150.0, "noise": 0.5}},
+    {"id": "buzzer", "label": "Buzzer", "domain": "actuator", "kind": "scalar",
+     "keys": ["BUZZ"], "unit": "", "noise_floor": 0.5,
+     "expected_rate": 15, "optional": true, "simulate": {"mean": 0.0, "noise": 0.0}}
+  ],
+  "studio": {"ch1": "left", "ch2": "right"},
+  "nvtra": {
+    "rules": [
+      {"id": "both_sides", "when": {"left": ">=6", "right": ">=6"},
+       "condition": "Something ahead on both sides",
+       "text": "Both echoes moved well beyond the open space they learned: something is in front of both rangers, or the device itself turned to face a wall."},
+      {"id": "left_side", "when": {"left": ">=6"},
+       "condition": "Something on the left",
+       "text": "The left echo moved well beyond its learned open space while the right stayed put: something is on the left, or the left ranger is angled at a surface."},
+      {"id": "right_side", "when": {"right": ">=6"},
+       "condition": "Something on the right",
+       "text": "The right echo moved well beyond its learned open space while the left stayed put: something is on the right, or the right ranger is angled at a surface."}
+    ]
+  },
+  "interface": {
+    "brand.title": "Third Eye",
+    "home.title": "Third Eye",
+    "home.subtitle": "Two ultrasonic rangers look left and right; the buzzer beeps faster as the nearest object gets closer.",
+    "page1.title": "Left and right",
+    "page1.subtitle": "Echo distances in cm, against the open space each ranger learned."
+  },
+  "aether": {
+    "purpose": "MTDI 1, rebuilt: the first project's two echoes and a buzzer, now measured, validated and explained by the same pillars as every other MTDI project.",
+    "authorship": ["Reference project for the Stage 1 universality gate (S1-07, S1-09)."]
+  }
+}

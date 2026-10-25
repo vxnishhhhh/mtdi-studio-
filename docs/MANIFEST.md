@@ -43,7 +43,7 @@ Every source needs a unique `id`. `note` is free text.
 | `domain` | `generic` | any lowercase word: `ultrasonic`, `radio`, `thermal`, `motion`, `inertial`, `power`, `compute`, `network`, `security`, `software`, `energy`, … (`physical` is accepted as an alias) |
 | `unit` | `""` | physical unit after scaling |
 | `scale`, `offset` | 1, 0 | physical = raw × scale + offset; a number or one per key |
-| `raw_range` | none | `[low, high]` raw limits; a raw value at either end is flagged as clipped |
+| `raw_range` | none | `[low, high]` raw limits; a raw value at either end is flagged as clipped. Leave it out for an on/off or state channel: sitting at 0 or 1 is its normal value, and a channel clipped on every sample never settles, which holds NVTRA at "Baseline settling" for the whole project |
 | `transform` | `none` | `ac_rms`: report the RMS about the mean over `window` samples (activity, vibration) |
 | `window` | 25 | samples for `ac_rms` |
 | `noise_floor` | 0.01 | smallest meaningful change, in `unit` (> 0) |

@@ -57,12 +57,17 @@ title and subtitle. Defaults render identically to before on every page. Slice 2
 units from the project's channels. Next slices: section heads and cards on each page, channel 3's
 sweep units, tab and button labels, typewriter lines, constellation and globe words, PDF headings.
 
-### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · ready
+### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware
 (`firmware/`, prints protocol lines), studio block, NVTRA rules, Aether purpose. A recorded
 session for replay (`recordings/`), labelled with how it was produced; if no real recording exists,
 leave replay empty and say so.
 **Check:** `mtdi check`, firmware compiles in CI (arduino-cli or PlatformIO), replay drives the studio.
+2026-10-25: `projects/third-eye` (Edge profile, left/right rangers, buzzer state, three NVTRA rules,
+studio words); firmware compiles for arduino:avr:uno with arduino-cli 1.5.2 (5,712 B flash, 257 B RAM),
+run locally; `tests/test_third_eye.py` drives the engine with firmware lines. Open: the CI compile
+needs a workflow file (owner review, ADR 0002; it belongs with S1-05's Arduino builds), and replay
+waits for a real recording (`recordings/README.md` says so).
 
 ### S1-08 · Reference project: space weather (software only) · ready
 `projects/space-weather`: a collector for NOAA SWPC planetary K-index (public JSON), run by a
