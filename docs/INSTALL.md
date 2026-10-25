@@ -32,6 +32,23 @@ On a Pi 5 it takes a few minutes. Most of that time is downloading the Python pa
 
 When piping the installer from `curl`, pass options like this: `curl -fsSL .../install.sh | bash -s -- --autostart`.
 
+## Installing one exact version
+
+The command above installs whatever `main` holds right now. To install a revision you have checked,
+take the script from that same commit and pin the code to it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vxnishhhhh/mtdi-studio-/<commit>/install.sh | MTDI_REF=<commit> bash
+```
+
+`<commit>` is a full 40-character commit id. The code the installer checks out is verified by git
+against that id, and the script comes from the same commit's path on GitHub, which later pushes cannot
+change. You still trust GitHub to serve that commit faithfully; nothing on your machine checks the
+script before it runs. If you want to read it first, download it, read it, then run it with
+`MTDI_REF=<commit> bash install.sh`. The installer prints the commit it installed.
+`MTDI_REF` also takes a tag, but a tag can be moved. A pinned install stays where it is:
+`mtdi update` says so instead of updating. Run the plain command again to follow `main`.
+
 ## Updating
 
 ```bash
