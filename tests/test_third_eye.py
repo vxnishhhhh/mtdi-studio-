@@ -5,7 +5,7 @@ import unittest
 
 from mtdi.bridge import mapping_for, words_for
 from mtdi.engine import Engine
-from mtdi.project import load
+from mtdi.project import ManifestError, load, normalise
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROJECT = ROOT / "projects" / "third-eye"
@@ -31,8 +31,8 @@ class ThirdEye(unittest.TestCase):
         self.rng = random.Random(7)
 
     def feed(self, seconds, left, right, buzz=0):
-        for _ in range(int(seconds * 15)):                 # the firmware prints about 15 lines a second
-            self.clock[0] += 1 / 15
+        for _ in range(int(seconds * 13)):                 # the firmware prints about 13 lines a second
+            self.clock[0] += 1 / 13
             # Jitter inside the channels' 0.3 cm noise floor: this checks which side NVTRA names,
             # not how the baseline copes with noise above the floor the manifest declares.
             noisy = lambda v: None if v is None else v + self.rng.gauss(0, 0.2)   # noqa: E731
@@ -57,6 +57,14 @@ class ThirdEye(unittest.TestCase):
         self.assertEqual(self.condition(), "Something on the left")
         self.feed(2, 40, 35, buzz=1)                      # and now on both sides
         self.assertEqual(self.condition(), "Something ahead on both sides")
+
+    def test_moving_away_is_not_something_on_that_side(self):
+        """The SNR has no sign; the rules' direction makes a farther wall different from a closer one."""
+        self.feed(30, 150, 150)
+        self.feed(2, 260, 150)                            # the left side opens up: farther, not closer
+        self.assertNotIn(self.condition(), ("Something on the left", "Something ahead on both sides"))
+        self.feed(2, 260, 40, buzz=1)                     # right closes in while left is still far
+        self.assertEqual(self.condition(), "Something on the right")
 
     def test_a_missing_echo_is_a_gap_not_a_number(self):
         self.feed(5, 150, 150)
@@ -84,6 +92,26 @@ class ThirdEye(unittest.TestCase):
             self.assertIn(key, sketch)
         keys = {k for ch in self.project["channels"] for k in ch["keys"]}
         self.assertEqual(keys, {"LEFT_CM", "RIGHT_CM", "BUZZ"})
+
+
+class RuleDirection(unittest.TestCase):
+    """`direction` on an NVTRA rule: checked by `mtdi check`, scalar channels only."""
+
+    def manifest(self, direction):
+        return {"project": {"id": "d"}, "sources": [{"id": "s", "adapter": "http"}],
+                "channels": [{"id": "gap", "keys": ["G"], "noise_floor": 0.1},
+                             {"id": "field", "kind": "vector", "keys": ["X", "Y"], "noise_floor": 0.1}],
+                "nvtra": {"rules": [{"when": {"gap": ">=6"}, "condition": "Closer", "direction": direction}]}}
+
+    def test_up_and_down_are_accepted(self):
+        for way in ("up", "down"):
+            normalise(self.manifest({"gap": way}))
+
+    def test_bad_directions_name_the_problem(self):
+        for direction, needle in (({"gap": "closer"}, '"up" or "down"'), ({"nope": "down"}, "unknown channel 'nope'"),
+                                  ({"field": "down"}, "only a scalar channel"), (["gap"], "must be an object")):
+            with self.assertRaisesRegex(ManifestError, needle):
+                normalise(self.manifest(direction))
 
 
 if __name__ == "__main__":

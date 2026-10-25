@@ -1,7 +1,8 @@
 // Third Eye (MTDI 1, rebuilt on MTDI 5): two HC-SR04 rangers and a buzzer on an Arduino.
 // The buzzer beeps faster as the nearest object gets closer, and holds a tone inside STOP_CM.
 // Wiring: LEFT  TRIG D2, ECHO D3 · RIGHT TRIG D4, ECHO D5 · buzzer + D8, - GND · both rangers on 5 V.
-// One MTDI protocol line per cycle (about 15 a second):
+// One MTDI protocol line per cycle, about 13 a second (two pings of ~9 ms, two 30 ms waits;
+// down to about 9 a second when both rangers wait out their no-echo timeout):
 //   LEFT_CM=84.2,RIGHT_CM=120.5,BUZZ=1,_SEQ=42
 // A ranger with no echo (out of range or angled away) leaves its key out of that line, so the
 // Validation Chamber sees a gap instead of an invented distance. The rangers fire one after the

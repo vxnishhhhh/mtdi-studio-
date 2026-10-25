@@ -103,6 +103,11 @@ Ordered list; the first match wins after the universal offline/settling checks.
 Comparisons (`>=`, `>`, `<=`, `<`, `==`) are on the channel's signal-to-noise ratio. A
 named channel must be live for the rule to match.
 
+The signal-to-noise ratio has no sign: a reading far above its baseline and one far below it
+look the same. Add `"direction": {"<channel id>": "down"}` (below the learned baseline) or
+`"up"` (above it) when the rule means one of them, for example "closer" for a distance.
+Scalar channels only; a vector's deviation is a length and has no sign.
+
 ## aether
 
 `purpose`, `story` (list), `authorship` (list), `quote`. Non-functional.
