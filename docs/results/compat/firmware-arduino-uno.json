@@ -1,6 +1,6 @@
 {
   "board": "arduino-uno",
-  "commit": "7816565",
+  "commit": "5581345",
   "evidence": "compiled",
   "fqbn": "arduino:avr:uno",
   "kind": "firmware",

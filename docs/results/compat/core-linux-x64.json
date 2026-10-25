@@ -4,13 +4,13 @@
     "octave-matches-python": "ok",
     "studio-ingest-serverless": "ok"
   },
-  "commit": "7816565",
+  "commit": "5581345",
   "evidence": "ran",
   "failed": [],
   "kind": "core",
   "ok": true,
   "python": "3.13.16",
-  "ran": 225,
+  "ran": 227,
   "skipped": {
     "test_pillars_studio.MtdiPagePillars.test_research_has_honest_empty_state": "datasets catalogued; empty state not shown"
   },

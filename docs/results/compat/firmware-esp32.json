@@ -1,6 +1,6 @@
 {
   "board": "esp32",
-  "commit": "7816565",
+  "commit": "5581345",
   "evidence": "compiled",
   "fqbn": "esp32:esp32:esp32",
   "kind": "firmware",

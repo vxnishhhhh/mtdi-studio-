@@ -13,7 +13,7 @@ CI runs the same commands (`.github/workflows/compat.yml`) on every pull request
 | Arduino-class (AVR) | 3/3 sketches build for `arduino:avr:uno`; largest 5,712 / 32,256 B flash, 257 / 2,048 B RAM | compiled | none recorded |
 | ESP32 + edge processing | 3/3 sketches build for `esp32:esp32:esp32`; largest 283,023 / 1,310,720 B flash, 22,320 / 327,680 B RAM. C++ SDK detectors match Python on the host: linux-x64 ok | compiled, ran | none recorded |
 | Raspberry Pi + local AI | core suite on Linux ARM64: not run yet. Local AI against a small model: not exercised in CI yet | — | none recorded |
-| Desktop scientific | linux-x64: passed (225 tests, 1 skipped). Octave matches Python: linux-x64 ok | ran | none recorded |
+| Desktop scientific | linux-x64: passed (227 tests, 1 skipped). Octave matches Python: linux-x64 ok | ran | none recorded |
 | Cloud analysis | serverless studio: all 5 checks passed. Live Vercel deployment: not checked by the lab | ran | none recorded |
 | Software-only visual intelligence | not exercised: the repository has no Vision-profile pipeline or recorded images yet | — | none recorded |
 
@@ -32,7 +32,7 @@ CI runs the same commands (`.github/workflows/compat.yml`) on every pull request
 
 | Machine | Python | Tests | Result | Skipped |
 |---|---|---|---|---|
-| linux-x64 | 3.13.16 | 225 | passed | test_research_has_honest_empty_state (datasets catalogued; empty state not shown) |
+| linux-x64 | 3.13.16 | 227 | passed | test_research_has_honest_empty_state (datasets catalogued; empty state not shown) |
 
 ## Serverless studio
 
@@ -61,7 +61,7 @@ From the capability records in `mtdi/targets/` (`mtdi.capabilities.select_runtim
 
 | Result | Where | When | Commit |
 |---|---|---|---|
-| core linux-x64 | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 7816565 |
-| firmware arduino-uno | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 7816565 |
-| firmware esp32 | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 7816565 |
-| serverless cloud | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 7816565 |
+| core linux-x64 | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 5581345 |
+| firmware arduino-uno | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 5581345 |
+| firmware esp32 | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 5581345 |
+| serverless cloud | Claude Code cloud session, Linux x86_64 | 2026-10-25 | 5581345 |
