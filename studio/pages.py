@@ -395,6 +395,12 @@ def _e3_shown(value, unit=""):
     return "—" if value is None else ("%.3f%s" % (value, unit))
 
 
+# Channel 2's *_vu values come only from the studio's own probe, scaled to volts per metre
+# (_c2_scale, the calibration profile's "V/m"). A project feed sets them to None, so their
+# cards read "—" there and never in the project's unit.
+CH2_REFERENCE_UNIT = "V/m est."
+
+
 def ch2_triaxial_blocks():
     """The triaxial Ch2 section.
 
@@ -412,7 +418,7 @@ def ch2_triaxial_blocks():
     tri = bool(e.get("triaxial"))
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     axis_unit = ch2_axis_unit(e)
-    n2, u2 = T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
+    n2, u2 = T('ch2.name'), CH2_REFERENCE_UNIT   # *_vu: the studio probe's own scale, not a project unit
 
     # The section is built whether or not the probe is triaxial. Returning a
     # different panel here would leave e3-int, e3-line and the rest unmounted
@@ -543,7 +549,8 @@ def ch2_body():
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     axis_unit = ch2_axis_unit(e)   # fed data keeps its own unit; the studio's ADC paths keep theirs
-    n1, n2, u2 = T('ch1.name'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
+    n1, n2 = T('ch1.name'), T('ch2.name')   # the project's channel words (S1-06)
+    u2 = CH2_REFERENCE_UNIT   # *_vu: the studio probe's own scale; a project feed leaves them empty
     return [
         html.Div([
             _mcard("ev-level", f"X ({u2})", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))) if have and e.get("ex_vu") is not None else "—"),
@@ -609,14 +616,14 @@ def ch2_body():
                             "The quiet baseline is learned at start and on request. ",
                             _hi("relative index"), " compares the level with it: ",
                             _hi("LOW"), " (< 3× baseline), ", _hi("MID"), " (3–10×), ", _hi("HIGH"), " (> 10×). ",
-                            f"The {u2} value is a ", _hi("reference-scaled estimate"),
+                            "The V/m value is a ", _hi("reference-scaled estimate"),
                             ", not a calibrated field strength."], className="summary-text")],
                  className="summary-panel"),
         html.Div(id="c2-error"),
     ] + ch2_triaxial_blocks() + ([
         html.Div("REFERENCE MODE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div([html.Div(f"{e.get('baseline_vu', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div("Baseline (counts)", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{e.get('baseline_vu', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div(f"Baseline ({u2})", className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div(f"{e.get('sample_rate', 0):.1f}" if have else "—", id="ev-bottom-rate", className="arch-stat-val"), html.Div("SAMPLES / S", className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div(f"{e['min_code']} / {e['max_code']}" if have else "—", id="ev-bottom-minmax", className="arch-stat-val"), html.Div("MIN / MAX CODE", className="arch-stat-key")], className="arch-stat"),
             html.Div([html.Div("UNO USB", className="arch-stat-val"), html.Div("Source", className="arch-stat-key")], className="arch-stat"),

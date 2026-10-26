@@ -231,7 +231,7 @@ class SecondContentFile(unittest.TestCase):
         # in the project's channel words, empty, fed and in channel 2's reference mode
         for state, tab in rendered["tabs"].items():
             self.assertIsNone(placeholder.search(tab), f"Page 1 {state}: {placeholder.search(tab)}")
-            for word in (n1, n2, words["ch2.unit"]):
+            for word in (n1, n2, "V/m est."):     # channel 2's probe cards keep the probe's own scale
                 self.assertIn(word, tab, f"Page 1 {state}: {word}")
         self.assertIn(words["ch1.unit"], rendered["tabs"]["empty"])
         tab2, both2 = rendered["direction2"]["tab"], rendered["direction2"]["both"]
