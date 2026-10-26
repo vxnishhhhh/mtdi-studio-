@@ -38,8 +38,8 @@ dump = lambda c: json.dumps(c, cls=plotly.utils.PlotlyJSONEncoder)
 ui = sys.modules["studio.ui"]
 out = {"layout": dump(ns["app"].layout), "boot": ui.boot_html(), "words": ui.words_script()}
 out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
-# Page 1's three tabs (slice 6), before any data: the engine blocks under each tab are a later slice
-tabs = lambda: dump([ns["ch1_body"](), ns["ch2_body"](), ns["_combined_view_base"](), ns["p1_page"]().children[:4]])
+# Page 1's three tabs (slice 6) and its tab bar, before any data: the engine blocks under each tab are a later slice
+tabs = lambda: dump([ns["ch1_body"](), ns["ch2_body"](), ns["_combined_view_base"](), ns["p1_page"]().children[:5]])
 out["tabs"] = {"empty": tabs()}
 out["report"] = json.dumps(sys.modules["studio.reports"]._gather_report_blocks(row_cap=3), default=str)
 s3, fig = ns["sweep3_data"], ns["fig_sweep3"]
@@ -113,6 +113,9 @@ out["ch2_fed"] = {"unit": u2,
 for v in ([1.0, 2.0, 2.0], [2.0, 1.0, 2.0], [2.0, 2.0, 1.0]):
     ns["feed_ch1"](v, unit="fedunit1", source="TEST")
 out["tabs"]["fed"] = tabs()
+ns["ch2f_data"]["exyz_history"] = list(xyz)            # a channel 2 vector: its direction charts name channel 2
+out["direction2"] = {"tab": dump(ns["update_ch2f_triaxial_3d"](1, None)),
+                     "both": dump(ns["update_p1_overlays"](1, None, None))}
 ns["ch2f_data"]["data_source"] = "ARDUINO_UNO_USB"     # channel 2's reference mode has its own cards and notes
 out["tabs"]["reference"] = dump(ns["ch2_view"]())
 print(json.dumps(out))
@@ -231,6 +234,12 @@ class SecondContentFile(unittest.TestCase):
             for word in (n1, n2, words["ch2.unit"]):
                 self.assertIn(word, tab, f"Page 1 {state}: {word}")
         self.assertIn(words["ch1.unit"], rendered["tabs"]["empty"])
+        tab2, both2 = rendered["direction2"]["tab"], rendered["direction2"]["both"]
+        self.assertIn(f"{n2.upper()} DIRECTION", tab2)
+        self.assertIn(f"dipole field along {n2}", tab2)
+        self.assertNotIn(f"{n1.upper()} DIRECTION", tab2)
+        for who in (n1.upper(), n2.upper(), "COMPOSITE"):   # the both-channels tab draws all three directions
+            self.assertIn(f"{who} DIRECTION", both2, who)
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

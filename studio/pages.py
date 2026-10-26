@@ -220,7 +220,7 @@ def ch1_body():
         html.Div([
             html.Div([
                 html.Div("VERTICAL ZOOM", className="ch3-ctl-label"),
-                html.Div("Magnifies the line chart around the recent signal. 1× fits its whole range.",
+                html.Div("Magnifies the line chart around the recent signal. 1× fits its typical range; a reading beyond it shows as a spike marker.",
                          className="validation-subcopy"),
             ]),
             _zoom_range("c1-zoom"),
@@ -510,15 +510,15 @@ def ch2_triaxial_blocks():
                  style={"marginTop": "30px"}),
         html.Div([
             _chart("e3-surface", "Surface over the X–Y plane",
-                   fig_3d_surface(xyz, height=400), cfg=CFG_3D, h=400),
+                   fig_3d_surface(xyz, height=400, unit=axis_unit), cfg=CFG_3D, h=400),
             _chart("e3-terrain", "Magnitude terrain, window by window",
-                   fig_3d_terrain(xyz, height=400), cfg=CFG_3D, h=400),
+                   fig_3d_terrain(xyz, height=400, unit=axis_unit), cfg=CFG_3D, h=400),
         ], className="chart-grid"),
         html.Div([
             _chart("e3-plane", f"{n2} direction",
-                   fig_3d_error_plane(xyz, height=430), cfg=CFG_3D, h=430),
+                   fig_3d_error_plane(xyz, height=430, name=n2, unit=axis_unit), cfg=CFG_3D, h=430),
             _chart("e3-twopole", "Dipole model along that direction",
-                   fig_3d_dipolch2f(xyz, height=430), cfg=CFG_3D, h=430),
+                   fig_3d_dipolch2f(xyz, height=430, name=n2), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop": "14px"}),
         html.Div([
             html.Div("DIRECTION", className="summary-tag"),
@@ -565,7 +565,7 @@ def ch2_body():
         html.Div([html.Span(className="online-dot off", id="c2-dot"),
                   html.Span(f"{n2.upper()} · WAITING FOR DATA", id="c2-status", className="online-text c-sub")],
                  className="online-bar"),
-        _zoom_bar("c2-zoom", "VERTICAL ZOOM", "Magnifies the line charts around the recent signal. 1× fits their whole range."),
+        _zoom_bar("c2-zoom", "VERTICAL ZOOM", "Magnifies the level chart around the recent signal. 1× fits its typical range; a reading beyond it shows as a spike marker."),
         _chart_board("ch2f", f"{n2} sensor board"),
         html.Div("LIVE SIGNAL", className="section-label"),
         html.Div(f"{n2} level, and its activity relative to the quiet baseline (0–100).",
@@ -685,7 +685,7 @@ def _combined_view_base():
             className="validation-subcopy",
         ),
         _sg_listen_card("p1"),
-        _zoom_bar("p1-zoom", "VERTICAL ZOOM", "Magnifies the overlay around the recent signal. 1× fits its whole range."),
+        _zoom_bar("p1-zoom", "TIME ZOOM", "Shows fewer, more recent samples in every view on this tab: 1× is the last 200, 8× the last 25."),
         html.Div([
             _chart("p1-overlay", f"{n1} and {n2} on their own axes",
                    fig_p1_overlay(c1_hist, c2_hist, unit2=c2_unit), h=320),
@@ -714,8 +714,8 @@ def _combined_view_base():
             _chart("em3-cross-proxy", f"{n2} × {n1} direction (geometry only)", fig_p1_cross_proxy_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
             _chart("em3-surface", "Composite surface over the X–Y plane", fig_3d_surface(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
             _chart("em3-terrain", "Composite terrain, window by window", fig_3d_terrain(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
-            _chart("em3-plane", "Composite direction", fig_3d_error_plane(p1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em3-twopole", "Dipole model along that direction", fig_3d_dipolch2f(p1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("em3-plane", "Composite direction", fig_3d_error_plane(p1_xyz, height=430, name="Composite", unit="normalized"), cfg=CFG_3D, h=430),
+            _chart("em3-twopole", "Dipole model along that direction", fig_3d_dipolch2f(p1_xyz, height=430, name="the composite"), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div("Correlation over the shared window. A strong value means they move together, not that one drives the other.",
                  className="validation-subcopy", style={"marginTop":"10px"}),
@@ -736,9 +736,9 @@ def _combined_view_base():
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
             _chart("p1-b-plane", f"{n1} direction", fig_3d_error_plane(c1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("p1-e-plane", f"{n2} direction", fig_3d_error_plane(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-plane", f"{n2} direction", fig_3d_error_plane(exyz, height=430, name=n2, unit=c2_unit), cfg=CFG_3D, h=430),
             _chart("p1-b-twopole", f"Dipole model along {n1}", fig_3d_dipolch2f(c1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("p1-e-twopole", f"Dipole model along {n2}", fig_3d_dipolch2f(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-twopole", f"Dipole model along {n2}", fig_3d_dipolch2f(exyz, height=430, name=n2), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         dcc.Interval(id="p1-overlay-int", interval=3600, n_intervals=0),
         html.Div([

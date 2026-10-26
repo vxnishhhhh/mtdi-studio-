@@ -314,8 +314,8 @@ def update_ch2f_triaxial_3d(n, _refresh):
     state = _direction_plot_state(xyz)
     return (fig_3d_surface(xyz, height=400, unit=axis_unit),
             fig_3d_terrain(xyz, height=400, unit=axis_unit),
-            fig_3d_error_plane(xyz, height=430, direction_state=state),
-            fig_3d_dipolch2f(xyz, height=430, direction_state=state))
+            fig_3d_error_plane(xyz, height=430, direction_state=state, name=T('ch2.name'), unit=axis_unit),
+            fig_3d_dipolch2f(xyz, height=430, direction_state=state, name=T('ch2.name')))
 
 
 # ── ch1: heavier 3D surfaces update slowly ──
@@ -511,14 +511,14 @@ def update_p1_overlays(n, zoom, _refresh):
         fig_c2_induction_proxy(c1_hist, c2_rel, height=300),
         fig_c2_b_correlation(c1_hist, c2_rel, height=300),
         fig_p1_trajectory_3d(c1_hist, c2_rel),
-        fig_3d_error_plane(c1_xyz, height=430), fig_3d_error_plane(c2_xyz, height=430),
-        fig_3d_dipolch2f(c1_xyz, height=430), fig_3d_dipolch2f(c2_xyz, height=430),
+        fig_3d_error_plane(c1_xyz, height=430), fig_3d_error_plane(c2_xyz, height=430, name=T('ch2.name'), unit=c2_unit),
+        fig_3d_dipolch2f(c1_xyz, height=430), fig_3d_dipolch2f(c2_xyz, height=430, name=T('ch2.name')),
         make_line_chart(p1_c1, color=CYAN, height=250, ylabel="normalized"), fig_axis(p1_xyz, unit="normalized"),
         fig_2d_scatter(p1_xyz, unit="normalized"), fig_2d_delta(p1_xyz, unit="normalized"), fig_gauge(p1_c1[-1] if p1_c1 else None, unit="normalized"),
         fig_pie(*(p1_xyz[-1] if p1_xyz else (None, None, None))),
         fig_bar(*_e3_stats(p1_c1), unit="normalized", quantity="E+B composite magnitude"),
         fig_3d_surface(p1_xyz, height=400, unit="normalized"), fig_3d_terrain(p1_xyz, height=400, unit="normalized"),
-        fig_3d_error_plane(p1_xyz, height=430), fig_3d_dipolch2f(p1_xyz, height=430),
+        fig_3d_error_plane(p1_xyz, height=430, name="Composite", unit="normalized"), fig_3d_dipolch2f(p1_xyz, height=430, name="the composite"),
         fig_p1_vector_overlay_3d(c1_xyz, c2_xyz), fig_p1_cross_proxy_3d(c1_xyz, c2_xyz),
     )
     # A stable uirevision normally preserves a user's 3D camera. For this explicit
