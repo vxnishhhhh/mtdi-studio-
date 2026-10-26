@@ -660,12 +660,13 @@ def fig_c2_bullet(rel, level, height=250):
     return fig
 
 
-def fig_c2_basebar(baseline, rms, peak, height=250):
+def fig_c2_basebar(baseline, rms, peak, height=250, unit=None):
+    unit = T("ch2.unit") if unit is None else unit   # pass ch2_axis_unit(data): fed data keeps its own unit
     fig = go.Figure()
     if baseline is not None and rms is not None and peak is not None:
         fig.add_trace(go.Bar(x=["BASELINE","AC RMS","PEAK"], y=[baseline, rms, peak], marker=dict(color=[SUBTEXT, CYAN, AMBER]),
             text=[f"{v:.1f}" for v in (baseline, rms, peak)], textposition="outside",
-            textfont=dict(family=FONT, color=WHITE, size=10), hovertemplate="%{x}: %{y:.3f} " + T("ch2.unit") + "<extra></extra>"))
+            textfont=dict(family=FONT, color=WHITE, size=10), hovertemplate="%{x}: %{y:.3f} " + unit + "<extra></extra>"))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0,r=0,t=16,b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(tickfont=dict(color=SUBTEXT, size=10)),
@@ -749,9 +750,10 @@ def fig_c2_induction_proxy(c1_history, c2_relative_history, height=280):
     return fig
 
 
-def fig_p1_overlay(c1_history, c2_rms_history, height=320):
+def fig_p1_overlay(c1_history, c2_rms_history, height=320, unit2=None):
     """Sample-aligned B magnitude and reference-scaled Ch2 on independent axes."""
     n1, u1, n2, u2 = T('ch1.name'), T('ch1.unit'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
+    u2 = u2 if unit2 is None else unit2   # pass ch2_axis_unit(data): fed data keeps its own unit
     count = min(len(c1_history), len(c2_rms_history), 200)
     b = list(c1_history)[-count:] if count else []
     e = list(c2_rms_history)[-count:] if count else []

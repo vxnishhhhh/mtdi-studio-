@@ -69,6 +69,16 @@ charts = {
     "ch3_terrain_empty": ns["fig_ch3_terrain"]([], []),
 }
 out["charts"] = {name: dump(fig) for name, fig in charts.items()}
+# channel 2 fed with its own unit: its charts take that unit, not the content file's
+for v in (1.0, 2.0, 3.0):
+    ns["feed_ch2"](v, unit="fedunit", source="TEST")
+e2 = dict(ns["ch2f_data"])
+u2 = ns["ch2_axis_unit"](e2)
+out["ch2_fed"] = {"unit": u2,
+    "basebar": dump(ns["fig_c2_basebar"](1.0, 2.0, 3.0, unit=u2)),
+    "overlay": dump(ns["fig_p1_overlay"](hist, hist, unit2=u2)),
+    "page1": dump([ns["ch2_body"](), ns["_combined_view_base"]()]),   # the tabs that hold these charts
+    "callbacks": dump([ns["update_ch2f_charts"](1, None, None), ns["update_p1_overlays"](1, None, None)])}
 print(json.dumps(out))
 '''
 
@@ -171,6 +181,13 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn(words["ch1.unit"], rendered["charts"]["overlay"])
         self.assertIn(words["ch2.unit"], rendered["charts"]["overlay"])
         self.assertIn(words["ch3.unit"], rendered["charts"]["waterfall"])
+        fed2 = rendered["ch2_fed"]
+        self.assertEqual(fed2["unit"], "fedunit")
+        for name in ("basebar", "overlay"):
+            self.assertIn("fedunit", fed2[name], name)
+            self.assertNotIn(words["ch2.unit"], fed2[name], name)
+        for name in ("page1", "callbacks"):          # the pages and their callbacks pass it in
+            self.assertIn("fedunit", fed2[name], name)
         # the archive headings carry the channel names, and the bound report still marks them raw
         report = json.loads(rendered["report"])
         heads = [b[1] for b in report if b[0] == "h" and "ARCHIVE" in b[1]]

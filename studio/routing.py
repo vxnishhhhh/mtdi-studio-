@@ -467,13 +467,14 @@ def update_ch2f_charts(n, zoom, _refresh):
         c1_hist = list(ch1_data["history"])
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
+    axis_unit = ch2_axis_unit(e)   # fed data keeps its own unit; the studio's ADC paths keep theirs
     return (make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250,
-                            ylabel="ADC counts RMS" if provisional else "mV RMS",
+                            ylabel=axis_unit,
                             smart_scale=True, zoom=zoom or 1, revision="c2-line"),
             make_line_chart(rel_hist, color=CYAN, fill_color="rgba(0,229,255,0.07)", height=250, ylabel="%"),
             fig_c2_gauge(e["rel_index"] if have else None),
             (fig_c2_basebar(None, None, None) if provisional else
-             fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"])) if have else fig_c2_basebar(None, None, None),
+             fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"], unit=axis_unit)) if have else fig_c2_basebar(None, None, None),
             fig_c2_bullet(e["rel_index"] if have else None, e["level"]),
             fig_c2_b_correlation(c1_hist, rel_hist),
             fig_c2_induction_proxy(c1_hist, rel_hist))
@@ -501,10 +502,11 @@ def update_p1_overlays(n, zoom, _refresh):
         c2_hist = list(ch2f_data["history"])[-window:]
         c2_rel = list(ch2f_data["rel_history"])[-window:]
         c2_xyz = list(ch2f_data.get("exyz_history") or [])[-window:]
+        c2_unit = ch2_axis_unit(ch2f_data)
     p1_xyz = _p1_composite_xyz(c1_xyz, c2_xyz, window)
     p1_c1 = [math.sqrt(x*x + y*y + z*z) for x, y, z in p1_xyz]
     figures = (
-        fig_p1_overlay(c1_hist, c2_hist),
+        fig_p1_overlay(c1_hist, c2_hist, unit2=c2_unit),
         fig_p1_normalized_overlay(c1_hist, c2_rel),
         fig_c2_induction_proxy(c1_hist, c2_rel, height=300),
         fig_c2_b_correlation(c1_hist, c2_rel, height=300),
