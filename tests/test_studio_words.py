@@ -94,6 +94,9 @@ charts.update({
                ns["_lan_rows"]([], ""), ns["_dbm_scale"]()],
 })
 out["charts"] = {name: dump(fig) for name, fig in charts.items()}
+flat = {"last_rx": 1, "levels": [-80.0] * 20, "freqs": [100e6 + i * 1e5 for i in range(20)], "floor": -80.0,
+        "peaks": [], "level_sane": True, "waterfall": []}
+out["quiet"] = [dump(ns["sg_rows"](flat)), dump(ns["sg_rows"](dict(flat, waterfall=[flat["levels"]] * 6)))]
 # channel 2 fed with its own unit: its charts take that unit, not the content file's
 for v in (1.0, 2.0, 3.0):
     ns["feed_ch2"](v, unit="fedunit", source="TEST")
@@ -207,6 +210,10 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn(words["ch2.unit"], rendered["charts"]["overlay"])
         self.assertIn(words["ch3.unit"], rendered["charts"]["waterfall"])
         self.assertIn(words["ch3.unit"], rendered["charts"]["tables"])     # the level scale reads in the radio's unit
+        # a quiet sweep says the new-energy check has not run yet, until 6 sweeps of history exist
+        early, settled = rendered["quiet"]
+        self.assertIn("starts after 6 sweeps", early)
+        self.assertNotIn("starts after", settled)
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

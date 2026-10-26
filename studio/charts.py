@@ -1214,7 +1214,10 @@ def sg_rows(s):
     if not s.get("level_sane", True):
         return [html.Div("No findings while the levels are implausible: check the receiver's setup first.", className="ch3-peak-empty")]
     if not findings:
-        return [html.Div("Nothing stands out in this sweep: no harmonics, comb, plateau or new energy.", className="ch3-peak-empty")]
+        # the new-energy check needs 6 sweeps of the current width (sg_findings, check 5)
+        history = sum(1 for r in s.get("waterfall") or [] if len(r) == len(s["levels"]))
+        return [html.Div("Nothing stands out in this sweep." if history >= 6 else
+                         "Nothing stands out in this sweep. The check for new energy starts after 6 sweeps.", className="ch3-peak-empty")]
     return [html.Div([
         html.Div(className=f"ch3-sg-dot ch3-sg-{f['severity']}"),
         html.Div([html.Div(f["title"], className="ch3-sg-title"), html.Div(f["detail"], className="ch3-sg-detail")]),
@@ -1532,7 +1535,7 @@ def fig_sdr_constellation(grid, axis, height=320):
         z = [[_m.log10(v + 1) for v in row] for row in grid]
         fig.add_trace(go.Heatmap(
             z=z, x=axis, y=axis, colorscale="Inferno", showscale=True, zsmooth="best",
-            colorbar=dict(title=dict(text="samples", font=dict(color=SUBTEXT, size=9)),
+            colorbar=dict(title=dict(text="log10(samples + 1)", font=dict(color=SUBTEXT, size=9)),
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             hovertemplate="I %{x:.3f} · Q %{y:.3f}<extra></extra>"))
     else:
@@ -1564,7 +1567,7 @@ def fig_sdr_iq_3d(i_vals, q_vals, dt_s, height=380):
         fig.add_trace(go.Scatter3d(
             x=i_vals[:n], y=q_vals[:n], z=t, mode="lines",
             line=dict(color=amp, colorscale="Turbo", width=2,
-                      colorbar=dict(title=dict(text="µs", font=dict(color=SUBTEXT, size=9)),
+                      colorbar=dict(title=dict(text="IQ amplitude", font=dict(color=SUBTEXT, size=9)),
                                     tickfont=dict(color=SUBTEXT, size=8), thickness=10,
                                     outlinewidth=0)),
             hovertemplate="I %{x:.3f} · Q %{y:.3f} · %{z:.2f} µs<extra></extra>"))
@@ -1844,7 +1847,7 @@ def fig_wifi_channels(nets, band="2.4 GHz", height=300):
             fillcolor="rgba(0,229,255,0.07)" if band == "2.4 GHz" else "rgba(154,145,189,0.07)",
             name=ssid,
             hovertemplate=f"{ssid}<br>ch {n.get('chan')} · {c:.0f} MHz<br>"
-                          f"{n.get('dbm')} dBm · {n.get('sec') or 'open'}<extra></extra>"))
+                          f"≈{n.get('dbm')} dBm · {n.get('sec') or 'open'}<extra></extra>"))
         fig.add_annotation(x=c, y=top, text=ssid[:14], showarrow=False, yshift=8,
                            font=dict(family=FONT, color=SUBTEXT, size=8))
     fig.update_layout(
@@ -1871,9 +1874,9 @@ def fig_wifi_signal_bars(nets, height=280):
     cols = [_BAND_COLOURS.get(n.get("band"), CYAN) for n in rows][::-1]
     fig = go.Figure(go.Bar(
         x=vals, y=names, orientation="h", marker=dict(color=cols),
-        text=[f"{v:.0f} dBm" for v in vals], textposition="outside",
+        text=[f"≈{v:.0f} dBm" for v in vals], textposition="outside",
         textfont=dict(family=FONT, color=SUBTEXT, size=9),
-        hovertemplate="%{y}: %{x:.0f} dBm<extra></extra>"))
+        hovertemplate="%{y}: ≈%{x:.0f} dBm<extra></extra>"))
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=124, r=54, t=8, b=36), height=height, autosize=False,
