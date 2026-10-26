@@ -24,26 +24,45 @@ class Snapshot(unittest.TestCase):
     def test_computes_never_overlap(self):
         state = {"running": 0, "most": 0, "runs": 0}
         guard = threading.Lock()
+        all_waiting = threading.Event()
+
+        class CountingLock:
+            """The compute lock, counting callers that reached it, so the first compute can hold
+            on until all 8 are queued behind it."""
+            def __init__(self):
+                self.lock, self.entered = threading.Lock(), 0
+
+            def __enter__(self):
+                with guard:
+                    self.entered += 1
+                    if self.entered == 8:
+                        all_waiting.set()
+                self.lock.acquire()
+
+            def __exit__(self, *exc):
+                self.lock.release()
 
         def compute():
             with guard:
                 state["running"] += 1
                 state["most"] = max(state["most"], state["running"])
                 state["runs"] += 1
-            time.sleep(0.05)
+            all_waiting.wait(5)
+            time.sleep(0.01)
             with guard:
                 state["running"] -= 1
             return {"run": state["runs"]}
 
         service = bare_service(compute)
+        service.compute_lock = CountingLock()
         threads = [threading.Thread(target=service.snapshot, kwargs={"force": True}) for _ in range(8)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
         self.assertEqual(state["most"], 1)
-        # callers that waited reuse the packet computed while they waited
-        self.assertLess(state["runs"], 8)
+        # all 7 that waited reuse the packet computed while they waited
+        self.assertEqual(state["runs"], 1)
 
     def test_a_fresh_packet_is_reused_without_computing(self):
         calls = []

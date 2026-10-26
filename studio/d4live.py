@@ -360,9 +360,9 @@ class D4Service:
                 if self.packet is not None and self.computed_at >= asked:
                     return self.packet
             packet = self._compute()
-        with self.lock:
-            self.packet = packet
-            self.computed_at = time.time()
+            with self.lock:   # published before the next waiter looks, so it reuses this packet
+                self.packet = packet
+                self.computed_at = time.time()
         return packet
 
     def _compute(self):
