@@ -3,7 +3,7 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 242 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 245 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
 * **Next item:** S1-06 slice 6 (section heads and cards, tab and button labels, typewriter lines, constellation and globe words), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
@@ -12,7 +12,7 @@ Updated by every session. Newest first.
 
 ## Log
 
-* 2026-10-26 evening · S1-06 slice 5 in review: every chart and table in studio/charts.py says what it shows (receiver, Wi-Fi, BLE, line-frequency, repeatability, peak and finding tables). Measurements keep their physical units (MHz, dBFS, µs, dBm); the radio's level uses `ch3.unit`. The words test now renders 44 charts and 9 table bodies, filled and empty.
+* 2026-10-26 night · Merged #64, S1-06 slice 5: every chart and table in studio/charts.py says what it shows (MHz, dBFS, µs, dBm for the studio's own instruments; `ch3.unit` for the radio's level); CodeRabbit 4 findings, all fixed. Merged #65: D4Service computed the packet in two callbacks at once (`deque mutated during iteration`, a 500 found by the tour); computes now run one at a time and a config reload waits for one in flight; CodeRabbit 2 findings + 1 nit, all fixed. Report: ops/reports/2026-10-26-night.md.
 
 * 2026-10-26 midday · Merged #62, S1-06 slice 4: the channel 1–3 charts and cross-channel views name their axes, legends, colour bars and empty states in the project's channel names and units (were "Text"/"Title"/"Label" and a literal "unit"); channel 2 charts keep a fed unit (CodeRabbit, 1 finding, fixed). A test renders 22 charts under a second content file. Report: ops/reports/2026-10-26-midday.md.
 
