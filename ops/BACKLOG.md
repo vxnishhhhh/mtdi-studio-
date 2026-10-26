@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–4: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; the channel charts' words)
+### S1-06 · Project-driven studio words · in progress (slices 1–5: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
@@ -62,9 +62,13 @@ names and units and `report.title`/`report.subtitle`. Slice 4: the channel 1–3
 cross-channel views say what they plot. Axis titles, legend names, colour bars and empty-state notes
 were the placeholders "Text", "Title" and "Label", and hover text said a literal "unit". They now
 name the axis (sample order, window, direction, sweep time) in the project's channel names and units.
-Next slices: the radio, Wi-Fi, BLE and line-frequency charts and the peak and scan tables (still
-placeholders); section heads and cards on each page, tab and button labels, typewriter lines,
-constellation and globe words.
+Slice 5: the receiver, scan and reference charts and the peak, finding and scan tables. They
+had placeholder titles and empty-state notes, and a literal "unit" for levels. Each now names
+what it shows. The receiver's own measurements keep their physical units (MHz, dBFS, µs). Wi-Fi
+and BLE signal is dBm. The radio's level and its plain-language scale use `ch3.unit`.
+studio/charts.py has no placeholder left. Next slices: section heads and cards on each page,
+tab and button labels, typewriter lines, constellation and globe words (in pages.py, ui.py and
+the browser layer).
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

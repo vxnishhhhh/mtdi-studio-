@@ -68,7 +68,35 @@ charts = {
     "focus_empty": ns["fig_focus_bands"]({}), "ch3_terrain": ns["fig_ch3_terrain"](rows, s3["freqs"]),
     "ch3_terrain_empty": ns["fig_ch3_terrain"]([], []),
 }
+# slice 5: the receiver, scan and reference charts and tables, filled and empty
+net = {"ssid": "net", "active": True, "bssid": "aa:bb:cc:dd:ee:ff", "chan": 6, "band": "2.4 GHz",
+       "signal": 70, "sec": "WPA2", "mhz": 2437, "dbm": -55}
+dev = {"name": "dev", "addr": "11:22:33:44:55:66", "rssi": -60, "vendor": "Acme", "kind": "phone"}
+mhz = [100.0e6, 100.5e6, 101.0e6, 101.5e6, 102.0e6]
+iq = [0.1, -0.2, 0.3, -0.1, 0.2, 0.0]
+charts.update({
+    "sdr_slice": ns["fig_sdr_slice"](mhz, [-60, -40, -60, -50, -60], [{"freq": 100.5e6, "level_dbfs": -40}], -60),
+    "sdr_fall": ns["fig_sdr_waterfall"](rows, mhz), "sdr_sweep": ns["fig_sdr_sweep"](None),
+    "sdr_sweep_full": ns["fig_sdr_sweep"]({"freqs": mhz, "levels_dbfs": [-60] * 5, "floor_dbfs": -60, "peaks": []}),
+    "sdr_terrain": ns["fig_sdr_terrain"](rows, mhz), "sdr_terrain_empty": ns["fig_sdr_terrain"]([], []),
+    "sdr_iq": ns["fig_sdr_constellation"]([[1, 2], [3, 4]], [-1, 1]), "sdr_iq_empty": ns["fig_sdr_constellation"](None, None),
+    "sdr_iq3d": ns["fig_sdr_iq_3d"](iq, iq, 1e-6), "sdr_iq3d_empty": ns["fig_sdr_iq_3d"]([], [], 1e-6),
+    "sdr_codes": ns["fig_sdr_codes"]([1] * 256), "sdr_codes_empty": ns["fig_sdr_codes"](None),
+    "sdr_env": ns["fig_sdr_envelope"](iq, 1e-6), "sdr_env_empty": ns["fig_sdr_envelope"]([], 1e-6),
+    "linefreq_empty": ns["fig_linefreq_spectrogram"](None),
+    "repeat": ns["fig_repeatability"]({"readings": [1.0, 1.1, 0.9], "mean": 1.0, "sd": 0.1}),
+    "wifi_ch": ns["fig_wifi_channels"]([net]), "wifi_bars": ns["fig_wifi_signal_bars"]([net]),
+    "wifi_bars_empty": ns["fig_wifi_signal_bars"]([]), "ble": ns["fig_ble_rssi"]([dev]),
+    "ble_empty": ns["fig_ble_rssi"]([]), "ble_vendors": ns["fig_ble_vendors"]([dev]),
+    "ble_vendors_empty": ns["fig_ble_vendors"]([]),
+    "tables": [ns["_peak_rows"]([], 0), ns["sg_rows"]({}), ns["sg_rows"]({"last_rx": 1, "levels": [1], "level_sane": False}),
+               ns["_wifi_rows"]([]), ns["_wifi_rows"]([net]), ns["_bt_rows"]([]), ns["_bt_rows"]([dev]),
+               ns["_lan_rows"]([], ""), ns["_dbm_scale"]()],
+})
 out["charts"] = {name: dump(fig) for name, fig in charts.items()}
+flat = {"last_rx": 1, "levels": [-80.0] * 20, "freqs": [100e6 + i * 1e5 for i in range(20)], "floor": -80.0,
+        "peaks": [], "level_sane": True, "waterfall": []}
+out["quiet"] = [dump(ns["sg_rows"](flat)), dump(ns["sg_rows"](dict(flat, waterfall=[flat["levels"]] * 6)))]
 # channel 2 fed with its own unit: its charts take that unit, not the content file's
 for v in (1.0, 2.0, 3.0):
     ns["feed_ch2"](v, unit="fedunit", source="TEST")
@@ -170,7 +198,7 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual(sw["axes"], ["MHz", xu, lu])                  # the sweep chart titles its own axes
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
         # the channel charts say what they plot, in the project's words: no placeholder and no bare "unit"
-        placeholder = re.compile(r'"(Text|TEXT|Title|Label|LABEL)"|\bunit\b')
+        placeholder = re.compile(r'"(Text|TEXT|Title|Label|LABEL|  Text)"|Paragraph\. Enter your text here|\bunit\b')
         for name, chart in rendered["charts"].items():
             self.assertIsNone(placeholder.search(chart), f"{name}: {placeholder.search(chart)}")
         n1, n2 = words["ch1.name"], words["ch2.name"]
@@ -181,6 +209,11 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn(words["ch1.unit"], rendered["charts"]["overlay"])
         self.assertIn(words["ch2.unit"], rendered["charts"]["overlay"])
         self.assertIn(words["ch3.unit"], rendered["charts"]["waterfall"])
+        self.assertIn(words["ch3.unit"], rendered["charts"]["tables"])     # the level scale reads in the radio's unit
+        # a quiet sweep says the new-energy check has not run yet, until 6 sweeps of history exist
+        early, settled = rendered["quiet"]
+        self.assertIn("starts after 6 sweeps", early)
+        self.assertNotIn("starts after", settled)
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):
