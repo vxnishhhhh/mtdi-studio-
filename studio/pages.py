@@ -548,6 +548,7 @@ def ch2_body():
         c1_xyz = list(ch1_data["xyz_history"])
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
+    fed = bool(e.get("fed_source"))   # a project or /api/ingest; the probe and Uno paths clear it
     axis_unit = ch2_axis_unit(e)   # fed data keeps its own unit; the studio's ADC paths keep theirs
     n1, n2 = T('ch1.name'), T('ch2.name')   # the project's channel words (S1-06)
     u2 = CH2_REFERENCE_UNIT   # *_vu: the studio probe's own scale; a project feed leaves them empty
@@ -607,7 +608,8 @@ def ch2_body():
         html.Div([html.Div("STATE", className="summary-tag"),
                   html.Div([_hi("State"), html.Span("  "), html.Span("—", id="ev-statustext")], className="summary-text")],
                  className="summary-panel", style={"display":"none" if provisional else "block"}),
-        html.Div([html.Div("HOW IT IS MEASURED", className="summary-tag"),
+        # how the studio's own probe measures: not true of a reading someone else sends
+        None if fed else html.Div([html.Div("HOW IT IS MEASURED", className="summary-tag"),
                   html.Div(["The probe reads ", _hi(_ch2f_wiring_text()),
                             ". ",
                             "Each reading is the ", _hi("AC RMS"),

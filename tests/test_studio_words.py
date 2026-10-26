@@ -116,7 +116,7 @@ out["tabs"]["fed"] = tabs()
 ns["ch2f_data"]["exyz_history"] = list(xyz)            # a channel 2 vector: its direction charts name channel 2
 out["direction2"] = {"tab": dump(ns["update_ch2f_triaxial_3d"](1, None)),
                      "both": dump(ns["update_p1_overlays"](1, None, None))}
-ns["ch2f_data"]["data_source"] = "ARDUINO_UNO_USB"     # channel 2's reference mode has its own cards and notes
+ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", fed_source=None)   # the Uno path: reference mode, not fed
 out["tabs"]["reference"] = dump(ns["ch2_view"]())
 print(json.dumps(out))
 '''
@@ -234,6 +234,9 @@ class SecondContentFile(unittest.TestCase):
             for word in (n1, n2, "V/m est."):     # channel 2's probe cards keep the probe's own scale
                 self.assertIn(word, tab, f"Page 1 {state}: {word}")
         self.assertIn(words["ch1.unit"], rendered["tabs"]["empty"])
+        # the probe's measurement note is for the studio's own probe, never for fed data
+        for state, shown in (("empty", True), ("reference", True), ("fed", False)):
+            self.assertEqual("reference-scaled estimate" in rendered["tabs"][state], shown, state)
         tab2, both2 = rendered["direction2"]["tab"], rendered["direction2"]["both"]
         self.assertIn(f"{n2.upper()} DIRECTION", tab2)
         self.assertIn(f"dipole field along {n2}", tab2)
