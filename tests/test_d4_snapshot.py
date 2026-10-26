@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from studio.d4live import D4Service  # noqa: E402
@@ -63,6 +64,25 @@ class Snapshot(unittest.TestCase):
         self.assertEqual(state["most"], 1)
         # all 7 that waited reuse the packet computed while they waited
         self.assertEqual(state["runs"], 1)
+
+    def test_a_config_reload_waits_for_a_compute_in_flight(self):
+        started = threading.Event()
+
+        def compute():
+            started.set()
+            time.sleep(0.1)
+            return {"config": "old"}
+
+        service = bare_service(compute)
+        worker = threading.Thread(target=service.snapshot, kwargs={"force": True})
+        worker.start()
+        started.wait(5)
+        with mock.patch("studio.d4live.d4.load_config", return_value=({"config": "new"}, None)):
+            service.reload_config()
+        worker.join()
+        # the packet made with the old config was published before the reload, and cleared by it
+        self.assertIsNone(service.packet)
+        self.assertEqual(service.config, {"config": "new"})
 
     def test_a_fresh_packet_is_reused_without_computing(self):
         calls = []

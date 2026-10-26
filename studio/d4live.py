@@ -113,7 +113,9 @@ class D4Service:
 
     # ── configuration ────────────────────────────────────────────────────────
     def reload_config(self):
-        with self.lock:
+        # after any compute in flight: its packet, made with the old config, is published first and
+        # then cleared here, so no caller reuses it (lock order: compute_lock, then lock)
+        with self.compute_lock, self.lock:
             self.config, self.config_error = d4.load_config()
             self.packet = None
         return self.config, self.config_error
