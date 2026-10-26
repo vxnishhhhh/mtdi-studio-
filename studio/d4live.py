@@ -41,6 +41,7 @@ class D4Service:
         self.ns = ns
         self.engine = engine
         self.lock = threading.Lock()
+        self.compute_lock = threading.Lock()   # one compute at a time: it appends to the histories below
         self.config, self.config_error = d4.load_config()
         self.packet = None
         self.computed_at = 0.0
@@ -112,7 +113,9 @@ class D4Service:
 
     # ── configuration ────────────────────────────────────────────────────────
     def reload_config(self):
-        with self.lock:
+        # after any compute in flight: its packet, made with the old config, is published first and
+        # then cleared here, so no caller reuses it (lock order: compute_lock, then lock)
+        with self.compute_lock, self.lock:
             self.config, self.config_error = d4.load_config()
             self.packet = None
         return self.config, self.config_error
@@ -349,10 +352,19 @@ class D4Service:
         with self.lock:
             if self.packet is not None and not force and time.time() - self.computed_at < 2.0:
                 return self.packet
-        packet = self._compute()
-        with self.lock:
-            self.packet = packet
-            self.computed_at = time.time()
+            asked = time.time()
+        # _compute_inner appends to and reads mtdi_history, transient_times and events. Two
+        # callbacks computing at once made one iterate a deque the other was appending to
+        # ("deque mutated during iteration", a 500 on the page). Computes now run one at a
+        # time; a caller that waited reuses the packet computed while it waited.
+        with self.compute_lock:
+            with self.lock:
+                if self.packet is not None and self.computed_at >= asked:
+                    return self.packet
+            packet = self._compute()
+            with self.lock:   # published before the next waiter looks, so it reuses this packet
+                self.packet = packet
+                self.computed_at = time.time()
         return packet
 
     def _compute(self):
