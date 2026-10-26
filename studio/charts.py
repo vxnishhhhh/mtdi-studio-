@@ -25,7 +25,7 @@ def _chart_layout(height=340, ylabel="", xlabel="Independent variable — sample
                            title=dict(text=xlabel, font=dict(color=SUBTEXT, size=9))),
                 yaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color=SUBTEXT, size=10),
                            zeroline=False, title=dict(
-                               text=f"Dependent variable — {ylabel}" if ylabel else 'Text',
+                               text=f"Dependent variable — {ylabel}" if ylabel else "Dependent variable",
                                font=dict(color=SUBTEXT, size=10))),
                 showlegend=False)
 
@@ -104,9 +104,9 @@ def _scene(height):
                 autosize=False, transition=NO_TRANSITION,
                 scene=dict(bgcolor="rgba(0,0,0,0)", aspectmode="cube",
                            dragmode="orbit",
-                           xaxis={**ax, "title": {**ax["title"], "text":'Text'}},
-                           yaxis={**ax, "title": {**ax["title"], "text":'Text'}},
-                           zaxis={**ax, "title": {**ax["title"], "text":'Text'}},
+                           xaxis={**ax, "title": {**ax["title"], "text":"X"}},
+                           yaxis={**ax, "title": {**ax["title"], "text":"Y"}},
+                           zaxis={**ax, "title": {**ax["title"], "text":"Z"}},
                            camera=dict(eye=dict(x=1.5, y=1.5, z=1.2))))
 
 
@@ -133,7 +133,7 @@ def fig_axis(xyz, height=250, unit=None):
         transition=NO_TRANSITION, dragmode=False,
         xaxis=dict(showgrid=False, showticklabels=True, zeroline=False,
                    tickfont=dict(color=SUBTEXT, size=9),
-                   title=dict(text='Text', font=dict(color=SUBTEXT,size=9))),
+                   title=dict(text="Independent variable — sample order", font=dict(color=SUBTEXT,size=9))),
         yaxis=dict(gridcolor="rgba(128,128,128,0.12)", zeroline=False,
                    tickfont=dict(color=SUBTEXT, size=9),
                    title=dict(text=f"Dependent variables — X, Y, Z components ({unit})",
@@ -159,7 +159,7 @@ def fig_gauge(c1, height=250, unit=None):
     unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     if c1 is None:
         fig = go.Figure()
-        fig.add_annotation(text='TEXT', x=0.5, y=0.5,
+        fig.add_annotation(text=f"WAITING FOR {T('ch1.name').upper()}", x=0.5, y=0.5,
                            showarrow=False, font=dict(color=SUBTEXT, size=11))
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=height, autosize=False,
                           transition=NO_TRANSITION, margin=dict(l=14,r=14,t=18,b=6), uirevision="gauge")
@@ -197,7 +197,7 @@ def fig_bar(mn, avg, mx, height=250, unit=None, quantity=None):
         margin=dict(l=68,r=12,t=16,b=52), height=height, autosize=False,
         transition=NO_TRANSITION, dragmode=False,
         xaxis=dict(tickfont=dict(color=SUBTEXT, size=10),
-                   title=dict(text='Text',
+                   title=dict(text="Session statistic",
                               font=dict(color=SUBTEXT,size=9))),
         yaxis=dict(gridcolor="rgba(128,128,128,0.12)", zeroline=False,
                    tickfont=dict(color=SUBTEXT, size=9),
@@ -328,8 +328,8 @@ def fig_3d_terrain(xyz, height=300, unit=None):
         ))
     fig.update_layout(uirevision="signal-terrain", **_scene(height))
     fig.update_layout(scene=dict(
-        xaxis=dict(title=dict(text='Text')),
-        yaxis=dict(title=dict(text='Text')),
+        xaxis=dict(title=dict(text="Independent variable — sample in window")),
+        yaxis=dict(title=dict(text="Independent variable — window, older to newer")),
         zaxis=dict(title=dict(text=f"Dependent response — magnitude ({unit})")),
     ))
     return fig
@@ -434,6 +434,7 @@ def _mesh_trace(points, faces, color, hovertext):
 
 
 def fig_3d_error_plane(xyz, height=300, direction_state=None):
+    n1, u1 = T('ch1.name'), T('ch1.unit')   # the project's channel words (S1-06)
     fig = go.Figure()
     # Hollow XYZ framework: all twelve cube edges in one lightweight trace.
     corners = [
@@ -482,21 +483,21 @@ def fig_3d_error_plane(xyz, height=300, direction_state=None):
         shaft_vertices,shaft_faces,head_vertices,head_faces=_unit_arrow_geometry()
         shaft=_rotate_arrow_points(shaft_vertices,direction,display_length)
         head=_rotate_arrow_points(head_vertices,direction,display_length)
-        hover=("CH1 FIELD DIRECTION"
-               f"<br>Sensor X {a:.3f} unit<br>Sensor Y {b:.3f} unit"
-               f"<br>Sensor Z {c:.3f} unit<br>|B| {c1:.3f} unit"
+        hover=(f"{n1.upper()} DIRECTION"
+               f"<br>Sensor X {a:.3f} {u1}<br>Sensor Y {b:.3f} {u1}"
+               f"<br>Sensor Z {c:.3f} {u1}<br>Magnitude {c1:.3f} {u1}"
                f"<br>Log display length {display_length:.3f}<extra></extra>")
         fig.add_trace(_mesh_trace(shaft,shaft_faces,color,hover))
         fig.add_trace(_mesh_trace(head,head_faces,color,hover))
-        fig.add_annotation(text=f"FIELD DIRECTION · |B| {c1:.3f} unit · Δ {error:.3f} unit",
+        fig.add_annotation(text=f"{n1.upper()} DIRECTION · magnitude {c1:.3f} {u1} · Δ {error:.3f} {u1}",
                            x=0.02,y=0.98,
                            xref="paper",yref="paper",showarrow=False,
                            font=dict(family=FONT,color=color,size=10))
     fig.update_layout(uirevision="error-plane", **_scene(height))
     fig.update_layout(scene=dict(
-        xaxis=dict(title=dict(text='Text')),
-        yaxis=dict(title=dict(text='Text')),
-        zaxis=dict(title=dict(text='Text')),
+        xaxis=dict(title=dict(text="Direction X (normalised)")),
+        yaxis=dict(title=dict(text="Direction Y (normalised)")),
+        zaxis=dict(title=dict(text="Direction Z (normalised)")),
         aspectmode="cube",
     ))
     fig.update_scenes(
@@ -576,16 +577,16 @@ def fig_3d_dipolch2f(xyz, height=420, direction_state=None):
     ))
     fig.update_layout(uirevision="twopole-field", **_scene(height))
     fig.update_layout(scene=dict(
-        xaxis=dict(title=dict(text='Text')),
-        yaxis=dict(title=dict(text='Text')),
-        zaxis=dict(title=dict(text='Text')),
+        xaxis=dict(title=dict(text="Direction X (normalised)")),
+        yaxis=dict(title=dict(text="Direction Y (normalised)")),
+        zaxis=dict(title=dict(text="Direction Z (normalised)")),
         aspectmode="cube",
     ))
     fig.update_scenes(
         xaxis_range=[-1.15,1.15],yaxis_range=[-1.15,1.15],zaxis_range=[-1.15,1.15]
     )
     fig.add_annotation(
-        text='Text',
+        text=f"MODEL · dipole field along {T('ch1.name')}'s current direction",
         x=0.02,y=0.98,xref="paper",yref="paper",showarrow=False,
         font=dict(family=FONT,color=AMBER,size=10),
     )
@@ -623,7 +624,7 @@ def fig_archive(height=220, series=None, unit=None):
 def fig_c2_gauge(rel, height=250):
     if rel is None:
         fig = go.Figure()
-        fig.add_annotation(text='TEXT', x=0.5, y=0.5,
+        fig.add_annotation(text=f"WAITING FOR {T('ch2.name').upper()}", x=0.5, y=0.5,
                            showarrow=False, font=dict(color=SUBTEXT, size=11))
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=height, autosize=False,
                           transition=NO_TRANSITION, margin=dict(l=14,r=14,t=18,b=6), uirevision="efgauge")
@@ -659,12 +660,13 @@ def fig_c2_bullet(rel, level, height=250):
     return fig
 
 
-def fig_c2_basebar(baseline, rms, peak, height=250):
+def fig_c2_basebar(baseline, rms, peak, height=250, unit=None):
+    unit = T("ch2.unit") if unit is None else unit   # pass ch2_axis_unit(data): fed data keeps its own unit
     fig = go.Figure()
     if baseline is not None and rms is not None and peak is not None:
         fig.add_trace(go.Bar(x=["BASELINE","AC RMS","PEAK"], y=[baseline, rms, peak], marker=dict(color=[SUBTEXT, CYAN, AMBER]),
             text=[f"{v:.1f}" for v in (baseline, rms, peak)], textposition="outside",
-            textfont=dict(family=FONT, color=WHITE, size=10), hovertemplate="%{x}: %{y:.3f} unit = N/C<extra></extra>"))
+            textfont=dict(family=FONT, color=WHITE, size=10), hovertemplate="%{x}: %{y:.3f} " + unit + "<extra></extra>"))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0,r=0,t=16,b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(tickfont=dict(color=SUBTEXT, size=10)),
@@ -675,6 +677,7 @@ def fig_c2_basebar(baseline, rms, peak, height=250):
 
 def fig_c2_b_correlation(c1_history, c2_relative_history, height=280):
     """Relative E activity against B magnitude; association only, never causation."""
+    n1, u1, n2, u2 = T('ch1.name'), T('ch1.unit'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
     count=min(len(c1_history),len(c2_relative_history),160)
     b=list(c1_history)[-count:] if count else []
     e=list(c2_relative_history)[-count:] if count else []
@@ -684,8 +687,8 @@ def fig_c2_b_correlation(c1_history, c2_relative_history, height=280):
             x=b,y=e,mode="markers",
             marker=dict(size=6,color=list(range(count)),colorscale="Turbo",
                         opacity=0.78,showscale=False),
-            hovertemplate="B magnitude %{x:.3f} unit"
-                          "<br>Relative E activity %{y:.2f}%<extra></extra>",
+            hovertemplate=f"{n1} magnitude %{{x:.3f}} {u1}"
+                          f"<br>{n2} relative activity %{{y:.2f}}%<extra></extra>",
             showlegend=False,
         ))
         if count>=3:
@@ -702,9 +705,9 @@ def fig_c2_b_correlation(c1_history, c2_relative_history, height=280):
         paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",
         height=height,autosize=False,transition=NO_TRANSITION,dragmode=False,
         margin=dict(l=62,r=14,t=12,b=46),
-        xaxis=dict(title='Title',
+        xaxis=dict(title=f"{n1} magnitude ({u1})",
                    gridcolor="rgba(128,128,128,0.12)",tickfont=dict(color=SUBTEXT,size=9)),
-        yaxis=dict(title='Title',
+        yaxis=dict(title=f"{n2} relative activity (%)",
                    gridcolor="rgba(128,128,128,0.12)",tickfont=dict(color=SUBTEXT,size=9)),
         uirevision="c2-b-correlation",
     )
@@ -713,6 +716,7 @@ def fig_c2_b_correlation(c1_history, c2_relative_history, height=280):
 
 def fig_c2_induction_proxy(c1_history, c2_relative_history, height=280):
     """Compare |ΔB| per ch1 sample with relative E activity."""
+    n1, u1, n2, u2 = T('ch1.name'), T('ch1.unit'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
     count=min(len(c1_history),len(c2_relative_history),160)
     b=list(c1_history)[-count:] if count else []
     e=list(c2_relative_history)[-count:] if count else []
@@ -720,24 +724,24 @@ def fig_c2_induction_proxy(c1_history, c2_relative_history, height=280):
     fig=go.Figure()
     if count:
         fig.add_trace(go.Scatter(
-            y=delta,mode="lines",name='Label',
+            y=delta,mode="lines",name=f"|Δ {n1}| per sample",
             line=dict(color=AMBER,width=2),
-            hovertemplate="|ΔB| %{y:.4f} unit/sample<extra></extra>",
+            hovertemplate=f"|Δ {n1}| %{{y:.4f}} {u1}/sample<extra></extra>",
         ))
         fig.add_trace(go.Scatter(
-            y=e,mode="lines",name='Label',yaxis="y2",
+            y=e,mode="lines",name=f"{n2} relative",yaxis="y2",
             line=dict(color=CYAN,width=1.6),
-            hovertemplate="Relative E %{y:.2f}%<extra></extra>",
+            hovertemplate=f"{n2} relative %{{y:.2f}}%<extra></extra>",
         ))
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",
         height=height,autosize=False,transition=NO_TRANSITION,dragmode=False,
         margin=dict(l=62,r=62,t=12,b=46),
-        xaxis=dict(title='Title',
+        xaxis=dict(title="Independent variable — aligned sample order",
                    gridcolor="rgba(128,128,128,0.10)",tickfont=dict(color=SUBTEXT,size=9)),
-        yaxis=dict(title='Title',
+        yaxis=dict(title=f"|Δ {n1}| ({u1}/sample)",
                    gridcolor="rgba(128,128,128,0.12)",tickfont=dict(color=AMBER,size=9)),
-        yaxis2=dict(title='Title',overlaying="y",side="right",
+        yaxis2=dict(title=f"{n2} relative (%)",overlaying="y",side="right",
                     showgrid=False,tickfont=dict(color=CYAN,size=9)),
         legend=dict(orientation="h",y=1.12,x=0,font=dict(color=SUBTEXT,size=9),
                     bgcolor="rgba(0,0,0,0)"),
@@ -746,34 +750,36 @@ def fig_c2_induction_proxy(c1_history, c2_relative_history, height=280):
     return fig
 
 
-def fig_p1_overlay(c1_history, c2_rms_history, height=320):
+def fig_p1_overlay(c1_history, c2_rms_history, height=320, unit2=None):
     """Sample-aligned B magnitude and reference-scaled Ch2 on independent axes."""
+    n1, u1, n2, u2 = T('ch1.name'), T('ch1.unit'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
+    u2 = u2 if unit2 is None else unit2   # pass ch2_axis_unit(data): fed data keeps its own unit
     count = min(len(c1_history), len(c2_rms_history), 200)
     b = list(c1_history)[-count:] if count else []
     e = list(c2_rms_history)[-count:] if count else []
     fig = go.Figure()
     if count:
         fig.add_trace(go.Scatter(
-            y=b, mode="lines", name='Label',
+            y=b, mode="lines", name=n1,
             line=dict(color=CYAN, width=2.3),
-            hovertemplate="B %{y:.3f} unit<extra></extra>",
+            hovertemplate=f"{n1} %{{y:.3f}} {u1}<extra></extra>",
         ))
         fig.add_trace(go.Scatter(
-            y=e, mode="lines", name='Label', yaxis="y2",
+            y=e, mode="lines", name=n2, yaxis="y2",
             line=dict(color=AMBER, width=2.0),
-            hovertemplate="E %{y:.3f} unit = N/C<extra></extra>",
+            hovertemplate=f"{n2} %{{y:.3f}} {u2}<extra></extra>",
         ))
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         height=height, autosize=False, transition=NO_TRANSITION, dragmode=False,
         margin=dict(l=66, r=68, t=18, b=48),
-        xaxis=dict(title='Title',
+        xaxis=dict(title="Independent variable — aligned sample order",
                    gridcolor="rgba(128,128,128,0.10)",
                    tickfont=dict(color=SUBTEXT, size=9)),
-        yaxis=dict(title='Title',
+        yaxis=dict(title=f"{n1} ({u1})",
                    gridcolor="rgba(128,128,128,0.12)",
                    tickfont=dict(color=CYAN, size=9)),
-        yaxis2=dict(title='Title', overlaying="y", side="right",
+        yaxis2=dict(title=f"{n2} ({u2})", overlaying="y", side="right",
                     showgrid=False, tickfont=dict(color=AMBER, size=9)),
         legend=dict(orientation="h", y=1.14, x=0,
                     font=dict(color=WHITE, size=10), bgcolor="rgba(0,0,0,0)"),
@@ -798,12 +804,12 @@ def fig_p1_normalized_overlay(c1_history, c2_relative_history, height=300):
     fig = go.Figure()
     if count:
         fig.add_trace(go.Scatter(
-            y=normalize(b), mode="lines", name='Label',
-            line=dict(color=CYAN, width=2.2), hovertemplate="B movement %{y:.1f}%<extra></extra>",
+            y=normalize(b), mode="lines", name=T('ch1.name'),
+            line=dict(color=CYAN, width=2.2), hovertemplate=T("ch1.name") + " movement %{y:.1f}%<extra></extra>",
         ))
         fig.add_trace(go.Scatter(
-            y=normalize(e), mode="lines", name='Label',
-            line=dict(color=AMBER, width=2.0), hovertemplate="E movement %{y:.1f}%<extra></extra>",
+            y=normalize(e), mode="lines", name=T('ch2.name'),
+            line=dict(color=AMBER, width=2.0), hovertemplate=T("ch2.name") + " movement %{y:.1f}%<extra></extra>",
         ))
     fig.update_layout(**_chart_layout(
         height, "normalized movement (%)",
@@ -831,7 +837,7 @@ def fig_p1_vector_overlay_3d(ch1_xyz, ch2_xyz, height=470):
     e = _p1_normalized_vectors(ch2_xyz, count)
     fig = go.Figure()
     if count:
-        for rows, name, color in ((b, 'Text', CYAN), (e, 'Text', AMBER)):
+        for rows, name, color in ((b, T('ch1.name'), CYAN), (e, T('ch2.name'), AMBER)):
             x, y, z = zip(*rows)
             fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode="lines+markers", name=name,
                                        line=dict(color=color, width=5), marker=dict(size=2, color=color),
@@ -857,11 +863,11 @@ def fig_p1_cross_proxy_3d(ch1_xyz, ch2_xyz, height=470):
     fig = go.Figure()
     if cross:
         x, y, z = zip(*cross)
-        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode="lines+markers", name='Label',
+        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode="lines+markers", name="cross-product path",
                                    line=dict(color=PURPLE, width=6), marker=dict(size=3, color=list(range(len(cross))), colorscale="Turbo"),
                                    hovertemplate="E × B geometry<br>X %{x:.3f}<br>Y %{y:.3f}<br>Z %{z:.3f}<extra></extra>"))
         cx, cy, cz = cross[-1]
-        fig.add_trace(go.Cone(x=[0], y=[0], z=[0], u=[cx], v=[cy], w=[cz], name='Label',
+        fig.add_trace(go.Cone(x=[0], y=[0], z=[0], u=[cx], v=[cy], w=[cz], name="latest",
                               colorscale=[[0, PURPLE], [1, CYAN]], showscale=False, sizemode="absolute", sizeref=.35))
     fig.update_layout(**_scene(height))
     fig.update_layout(uirevision="p1-cross-proxy-3d",
@@ -915,13 +921,13 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
                               annotation_font=dict(family=FONT, color=SUBTEXT, size=8),
                               annotation_textangle=-90)
         if maxhold and len(maxhold) == len(freqs):
-            fig.add_trace(go.Scatter(x=x, y=maxhold, mode="lines", name='LABEL',
+            fig.add_trace(go.Scatter(x=x, y=maxhold, mode="lines", name="max hold",
                 line=dict(color=PURPLE, width=1.2, dash="dot"),
                 hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y:.1f} LU (hold)")))
         trace_color = AMBER if RUNTIME["demo"] else CYAN
         fig.add_trace(go.Scatter(
             x=x, y=levels, mode="lines",
-            name="SIMULATED" if RUNTIME["demo"] else 'LABEL',
+            name="SIMULATED" if RUNTIME["demo"] else "live sweep",
             line=dict(
                 color=trace_color, width=1.7,
                 dash="dash" if RUNTIME["demo"] else "solid",
@@ -932,7 +938,7 @@ def fig_sweep3(freqs, levels, maxhold, peaks, floor, logx=False, height=380, ban
             hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y:.1f} LU")))
         if peaks:
             fig.add_trace(go.Scatter(x=_ch3_x([p["freq"] for p in peaks]), y=[p["level"] for p in peaks],
-                mode="markers+text", name='LABEL',
+                mode="markers+text", name="peaks",
                 marker=dict(color=AMBER, size=8, symbol="triangle-down",
                             line=dict(color=WHITE, width=1)),
                 text=[_ch3_pos(p["freq"]) for p in peaks], textposition="top center",
@@ -985,16 +991,16 @@ def fig_waterfall(rows, freqs, times=None, height=320):
         fig.add_trace(go.Heatmap(z=z, x=_ch3_x(freqs), y=y,
             colorscale=[[0.0,"#050912"],[0.35,"#0d2f5e"],[0.6,"#2979ff"],
                         [0.82,"#00e5ff"],[1.0,"#ff5252"]],
-            colorbar=dict(title=dict(text='Text', font=dict(color=SUBTEXT, size=9)),
+            colorbar=dict(title=dict(text=T('ch3.unit'), font=dict(color=SUBTEXT, size=9)),
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             hovertemplate=_ch3_hover("%{y}", "%{x:.3f} XU", "%{z:.1f} LU")))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=8, b=0), height=height, autosize=False, transition=NO_TRANSITION,
         xaxis=dict(tickfont=dict(color=SUBTEXT, size=9), zeroline=False,
-                   title=dict(text='Text', font=dict(color=SUBTEXT, size=10))),
+                   title=dict(text=_ch3_xunit(), font=dict(color=SUBTEXT, size=10))),
         yaxis=dict(showticklabels=True, zeroline=False, showgrid=False,
                    tickfont=dict(color=SUBTEXT, size=8),
-                   title=dict(text='Text', font=dict(color=SUBTEXT, size=9))),
+                   title=dict(text="sweep time", font=dict(color=SUBTEXT, size=9))),
         uirevision="waterfall")
     return fig
 
@@ -1004,6 +1010,7 @@ def fig_focus_bands(bands, height_per=230):
     and the change since the previous sweep as a filled trace on a right-hand Δ dB axis.
     Below each row, that band's own waterfall. Narrow bands are revisited quickly, so the
     Δ trace is where live activity shows. Every value is a measured sweep."""
+    u3 = T('ch3.unit')   # focus bands are radio sweeps: MHz across, the channel's level unit (S1-06)
     from plotly.subplots import make_subplots
     items = [b for b in bands.values() if b.get("freqs")]
     items.sort(key=lambda b: b["start"])
@@ -1011,7 +1018,7 @@ def fig_focus_bands(bands, height_per=230):
         fig = go.Figure()
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=160,
                           margin=dict(l=0, r=0, t=8, b=0), transition=NO_TRANSITION,
-                          annotations=[dict(text='Text', x=.5, y=.5, xref="paper", yref="paper",
+                          annotations=[dict(text="No focus band swept yet", x=.5, y=.5, xref="paper", yref="paper",
                                             showarrow=False, font=dict(color=SUBTEXT, size=11))],
                           xaxis=dict(visible=False), yaxis=dict(visible=False))
         return fig
@@ -1027,14 +1034,14 @@ def fig_focus_bands(bands, height_per=230):
         r = 2 * i + 1
         x = _ch3_x(b["freqs"])
         if b.get("prev"):
-            fig.add_trace(go.Scatter(x=x, y=b["prev"], mode="lines", name='Label',
+            fig.add_trace(go.Scatter(x=x, y=b["prev"], mode="lines", name="previous sweep",
                                      line=dict(color="rgba(160,190,220,.35)", width=1, dash="dot"),
-                                     hovertemplate="prev %{y:.1f} unit<extra></extra>", showlegend=(i == 0)), row=r, col=1)
+                                     hovertemplate="prev %{y:.1f} " + u3 + "<extra></extra>", showlegend=(i == 0)), row=r, col=1)
         fig.add_trace(go.Scatter(x=x, y=b["levels"], mode="lines", name="live",
                                  line=dict(color="#00e5ff", width=1.6),
-                                 hovertemplate="%{x:.3f} MHz · %{y:.1f} unit<extra></extra>", showlegend=(i == 0)), row=r, col=1)
+                                 hovertemplate="%{x:.3f} MHz · %{y:.1f} " + u3 + "<extra></extra>", showlegend=(i == 0)), row=r, col=1)
         if b.get("delta"):
-            fig.add_trace(go.Scatter(x=x, y=b["delta"], mode="lines", name='Label',
+            fig.add_trace(go.Scatter(x=x, y=b["delta"], mode="lines", name="Δ since previous",
                                      line=dict(color="#ffab40", width=1), fill="tozeroy", fillcolor="rgba(255,171,64,.18)",
                                      hovertemplate="Δ %{y:+.1f} dB<extra></extra>", showlegend=(i == 0)),
                           row=r, col=1, secondary_y=True)
@@ -1044,13 +1051,13 @@ def fig_focus_bands(bands, height_per=230):
             y = [time.strftime("%H:%M:%S", time.localtime(t)) for t in times] if len(times) == len(rows) else [f"sweep {k+1}" for k in range(len(rows))]
             fig.add_trace(go.Heatmap(z=rows, x=x, y=y, showscale=False,
                                      colorscale=[[0.0, "#050912"], [0.35, "#0d2f5e"], [0.6, "#2979ff"], [0.82, "#00e5ff"], [1.0, "#ff5252"]],
-                                     hovertemplate="%{y} · %{x:.3f} MHz · %{z:.1f} unit<extra></extra>"), row=r + 1, col=1)
-        fig.update_yaxes(title_text='Title', tickfont=dict(color=SUBTEXT, size=9), gridcolor="rgba(255,255,255,.06)", row=r, col=1, secondary_y=False)
-        fig.update_yaxes(title_text='Title', tickfont=dict(color="#ffab40", size=9), showgrid=False, zeroline=True,
+                                     hovertemplate="%{y} · %{x:.3f} MHz · %{z:.1f} " + u3 + "<extra></extra>"), row=r + 1, col=1)
+        fig.update_yaxes(title_text=u3, tickfont=dict(color=SUBTEXT, size=9), gridcolor="rgba(255,255,255,.06)", row=r, col=1, secondary_y=False)
+        fig.update_yaxes(title_text="Δ dB", tickfont=dict(color="#ffab40", size=9), showgrid=False, zeroline=True,
                          zerolinecolor="rgba(255,171,64,.35)", row=r, col=1, secondary_y=True)
         fig.update_yaxes(showgrid=False, tickfont=dict(color=SUBTEXT, size=8), row=r + 1, col=1)
         fig.update_xaxes(tickfont=dict(color=SUBTEXT, size=9), showgrid=False, row=r, col=1)
-        fig.update_xaxes(tickfont=dict(color=SUBTEXT, size=9), title_text='Title' if i == n - 1 else None, row=r + 1, col=1)
+        fig.update_xaxes(tickfont=dict(color=SUBTEXT, size=9), title_text="MHz" if i == n - 1 else None, row=r + 1, col=1)
     for a in fig.layout.annotations:
         a.font = dict(color=SUBTEXT, size=10, family=FONT)
         a.x = 0.0; a.xanchor = "left"
@@ -1072,7 +1079,7 @@ def fig_ch3_trend(history, height=220):
         xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
         yaxis=dict(gridcolor="rgba(128,128,128,0.12)", zeroline=False,
                    tickfont=dict(color=SUBTEXT, size=9),
-                   title=dict(text='Text', font=dict(color=SUBTEXT, size=10))),
+                   title=dict(text=f"strongest peak ({T('ch3.unit')})", font=dict(color=SUBTEXT, size=10))),
         showlegend=False, uirevision="rftrend")
     return fig
 
@@ -1674,6 +1681,7 @@ def fig_p1_trajectory_3d(c1_history, c2_relative_history, height=440):
     portrait with time removed. Scalar magnitudes only - the Ch2 probe has no
     direction, so this is not a field vector.
     """
+    n1, u1, n2, u2 = T('ch1.name'), T('ch1.unit'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
     count = min(len(c1_history or []), len(c2_relative_history or []), 240)
     fig = go.Figure()
     if count >= 8:
@@ -1684,17 +1692,17 @@ def fig_p1_trajectory_3d(c1_history, c2_relative_history, height=440):
             x=b, y=e, z=t, mode="lines",
             line=dict(color=t, colorscale="Turbo", width=3.5),
             name="path",
-            hovertemplate="B %{x:.3f} unit · E %{y:.2f} % · sample %{z}<extra></extra>"))
+            hovertemplate=f"{n1} %{{x:.3f}} {u1} · {n2} %{{y:.2f}} % · sample %{{z}}<extra></extra>"))
         # the same path with time removed, laid on the floor: the E-B phase portrait
         floor = min(t)
         fig.add_trace(go.Scatter3d(
             x=b, y=e, z=[floor] * count, mode="lines",
             line=dict(color="rgba(255,255,255,0.22)", width=1.5),
-            name='Label', hoverinfo="skip"))
+            name="floor shadow", hoverinfo="skip"))
         fig.add_trace(go.Scatter3d(
             x=[b[-1]], y=[e[-1]], z=[t[-1]], mode="markers",
             marker=dict(size=5, color="#ff5252"), name="now", hoverinfo="skip"))
-        fig.update_layout(**_ch3_scene(height, 'B magnitude (unit)', "E activity (%)",
+        fig.update_layout(**_ch3_scene(height, f"{n1} magnitude ({u1})", f"{n2} activity (%)",
                                       "sample order", eye=(1.45, -1.5, 0.95),
                                       aspect=(1.25, 1.25, 1.0)))
         fig.update_layout(showlegend=True,
@@ -1702,8 +1710,8 @@ def fig_p1_trajectory_3d(c1_history, c2_relative_history, height=440):
                                       font=dict(color=SUBTEXT, size=9),
                                       bgcolor="rgba(0,0,0,0)"))
     else:
-        fig.update_layout(**_ch3_scene(height, 'B magnitude (unit)', "E activity (%)", "sample order"))
-        fig.add_annotation(text='Text',
+        fig.update_layout(**_ch3_scene(height, f"{n1} magnitude ({u1})", f"{n2} activity (%)", "sample order"))
+        fig.add_annotation(text="Needs 8 aligned samples from both channels",
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
     fig.update_layout(uirevision="p1-traj3d")
@@ -1731,15 +1739,15 @@ def fig_ch3_terrain(rows, freqs, times=None, height=460):
         fig.add_trace(go.Surface(
             x=x, y=y, z=z, colorscale=_SDR_SCALE, showscale=True,
             cmin=lo, cmax=max(flat) if flat else None,
-            colorbar=dict(title=dict(text='Text', font=dict(color=SUBTEXT, size=9)),
+            colorbar=dict(title=dict(text=T('ch3.unit'), font=dict(color=SUBTEXT, size=9)),
                           tickfont=dict(color=SUBTEXT, size=8), thickness=10, outlinewidth=0),
             contours=dict(z=dict(show=True, usecolormap=True, project_z=True, width=1)),
             hovertemplate=_ch3_hover("%{x:.3f} XU", "%{y} s", "%{z:.1f} LU")))
-        fig.update_layout(**_ch3_scene(height, "Axis", ylab, "unit", eye=(1.05, -1.1, 0.62),
+        fig.update_layout(**_ch3_scene(height, _ch3_xunit(), ylab, T("ch3.unit"), eye=(1.05, -1.1, 0.62),
                                       aspect=(1.9, 1.0, 0.72)))
     else:
-        fig.update_layout(**_ch3_scene(height, "Axis", "sweep", "unit"))
-        fig.add_annotation(text='Text',
+        fig.update_layout(**_ch3_scene(height, _ch3_xunit(), "sweep", T("ch3.unit")))
+        fig.add_annotation(text="Needs 2 sweeps",
                            x=.5, y=.5, xref="paper", yref="paper", showarrow=False,
                            font=dict(color=SUBTEXT, size=11))
     fig.update_layout(uirevision="ch3-terrain")

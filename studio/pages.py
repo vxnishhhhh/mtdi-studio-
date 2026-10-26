@@ -539,6 +539,7 @@ def ch2_body():
         c1_xyz = list(ch1_data["xyz_history"])
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
+    axis_unit = ch2_axis_unit(e)   # fed data keeps its own unit; the studio's ADC paths keep theirs
     return [
         html.Div([
             _mcard("ev-level", "X (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))) if have and e.get("ex_vu") is not None else "—"),
@@ -567,11 +568,11 @@ def ch2_body():
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
             _chart("c2-line", 'Title',
-                   make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250, ylabel="unit  (= N/C)")),
+                   make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250, ylabel=axis_unit)),
             _chart("c2-index-line", 'Title',
                    make_line_chart(rel_hist, color=CYAN, fill_color="rgba(0,229,255,0.07)", height=250, ylabel="%")),
             _chart("c2-gauge", 'Title', fig_c2_gauge(e["rel_index"] if have else None)),
-            _chart("c2-basebar", 'Title', fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"]) if have else fig_c2_basebar(None, None, None)),
+            _chart("c2-basebar", 'Title', fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"], unit=axis_unit) if have else fig_c2_basebar(None, None, None, unit=axis_unit)),
         ], className="chart-grid"),
         html.Div([_chart("c2-bullet", 'Title', fig_c2_bullet(e["rel_index"] if have else None, e["level"]), h=140)],
                  style={"marginTop":"14px"}),
@@ -669,6 +670,7 @@ def _combined_view_base():
         c2_rel = list(ch2f_data["rel_history"])
         exyz = list(ch2f_data.get("exyz_history") or [])
         provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
+        c2_unit = ch2_axis_unit(ch2f_data)
     p1_xyz = _p1_composite_xyz(c1_xyz, exyz)
     p1_c1 = [math.sqrt(x*x + y*y + z*z) for x, y, z in p1_xyz]
     return html.Div([
@@ -681,7 +683,7 @@ def _combined_view_base():
         _zoom_bar("p1-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
         html.Div([
             _chart("p1-overlay", 'Title',
-                   fig_p1_overlay(c1_hist, c2_hist), h=320),
+                   fig_p1_overlay(c1_hist, c2_hist, unit2=c2_unit), h=320),
         ], className="chart-grid chart-grid-primary", style={"marginTop":"14px"}),
         html.Div([
             _chart("p1-normalized-overlay", 'Title',
