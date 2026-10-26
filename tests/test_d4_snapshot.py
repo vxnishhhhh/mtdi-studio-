@@ -1,0 +1,57 @@
+"""The D4 packet is computed by one caller at a time (studio/d4live.py, D4Service.snapshot).
+
+Computing appends to and reads deques (mtdi_history, transient_times, events). Two Dash callbacks
+computing at once made one iterate a deque the other was appending to, and the page got a 500."""
+import pathlib
+import sys
+import threading
+import time
+import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from studio.d4live import D4Service  # noqa: E402
+
+
+def bare_service(compute):
+    service = D4Service.__new__(D4Service)          # skip __init__: no config or files needed
+    service.lock, service.compute_lock = threading.Lock(), threading.Lock()
+    service.packet, service.computed_at = None, 0.0
+    service._compute = compute
+    return service
+
+
+class Snapshot(unittest.TestCase):
+    def test_computes_never_overlap(self):
+        state = {"running": 0, "most": 0, "runs": 0}
+        guard = threading.Lock()
+
+        def compute():
+            with guard:
+                state["running"] += 1
+                state["most"] = max(state["most"], state["running"])
+                state["runs"] += 1
+            time.sleep(0.05)
+            with guard:
+                state["running"] -= 1
+            return {"run": state["runs"]}
+
+        service = bare_service(compute)
+        threads = [threading.Thread(target=service.snapshot, kwargs={"force": True}) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(state["most"], 1)
+        # callers that waited reuse the packet computed while they waited
+        self.assertLess(state["runs"], 8)
+
+    def test_a_fresh_packet_is_reused_without_computing(self):
+        calls = []
+        service = bare_service(lambda: calls.append(1) or {"n": len(calls)})
+        first = service.snapshot()
+        self.assertIs(service.snapshot(), first)
+        self.assertEqual(len(calls), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
