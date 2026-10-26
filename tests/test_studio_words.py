@@ -38,6 +38,9 @@ dump = lambda c: json.dumps(c, cls=plotly.utils.PlotlyJSONEncoder)
 ui = sys.modules["studio.ui"]
 out = {"layout": dump(ns["app"].layout), "boot": ui.boot_html(), "words": ui.words_script()}
 out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
+# Page 1's three tabs (slice 6), before any data: the engine blocks under each tab are a later slice
+tabs = lambda: dump([ns["ch1_body"](), ns["ch2_body"](), ns["_combined_view_base"](), ns["p1_page"]().children[:4]])
+out["tabs"] = {"empty": tabs()}
 out["report"] = json.dumps(sys.modules["studio.reports"]._gather_report_blocks(row_cap=3), default=str)
 s3, fig = ns["sweep3_data"], ns["fig_sweep3"]
 radio = fig([88.0e6, 98.0e6, 108.0e6], [-60.0, -30.0, -60.0], [], [], -60.0)    # the radio's own sweep
@@ -107,6 +110,11 @@ out["ch2_fed"] = {"unit": u2,
     "overlay": dump(ns["fig_p1_overlay"](hist, hist, unit2=u2)),
     "page1": dump([ns["ch2_body"](), ns["_combined_view_base"]()]),   # the tabs that hold these charts
     "callbacks": dump([ns["update_ch2f_charts"](1, None, None), ns["update_p1_overlays"](1, None, None)])}
+for v in ([1.0, 2.0, 2.0], [2.0, 1.0, 2.0], [2.0, 2.0, 1.0]):
+    ns["feed_ch1"](v, unit="fedunit1", source="TEST")
+out["tabs"]["fed"] = tabs()
+ns["ch2f_data"]["data_source"] = "ARDUINO_UNO_USB"     # channel 2's reference mode has its own cards and notes
+out["tabs"]["reference"] = dump(ns["ch2_view"]())
 print(json.dumps(out))
 '''
 
@@ -198,7 +206,9 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual(sw["axes"], ["MHz", xu, lu])                  # the sweep chart titles its own axes
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
         # the channel charts say what they plot, in the project's words: no placeholder and no bare "unit"
-        placeholder = re.compile(r'"(Text|TEXT|Title|Label|LABEL|  Text)"|Paragraph\. Enter your text here|\bunit\b')
+        # (a dumped layout names each component's class, "type": "Button"; that is not on-screen text)
+        placeholder = re.compile(r'(?<!"type": )"\s*(?:Text|TEXT|Title|TITLE|Label|LABEL|Subtext|Button|BUTTON|Heading)\s*"'
+                                 r'|Paragraph\. Enter your text here|\bunit\b')
         for name, chart in rendered["charts"].items():
             self.assertIsNone(placeholder.search(chart), f"{name}: {placeholder.search(chart)}")
         n1, n2 = words["ch1.name"], words["ch2.name"]
@@ -214,6 +224,13 @@ class SecondContentFile(unittest.TestCase):
         early, settled = rendered["quiet"]
         self.assertIn("starts after 6 sweeps", early)
         self.assertNotIn("starts after", settled)
+        # Page 1's tabs (slice 6): every section head, card, button and note says what it shows,
+        # in the project's channel words, empty, fed and in channel 2's reference mode
+        for state, tab in rendered["tabs"].items():
+            self.assertIsNone(placeholder.search(tab), f"Page 1 {state}: {placeholder.search(tab)}")
+            for word in (n1, n2, words["ch2.unit"]):
+                self.assertIn(word, tab, f"Page 1 {state}: {word}")
+        self.assertIn(words["ch1.unit"], rendered["tabs"]["empty"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

@@ -535,7 +535,7 @@ def update_p1_overlays(n, zoom, _refresh):
 def ch2f_recalibrate(n):
     with ch2f_lock:
         if ch2f_data["last_rx"] is None or ch2f_data["error"]:
-            return "Ch2 sensor is offline; baseline request was not queued."
+            return f"{T('ch2.name')} is offline; baseline request was not queued."
     with ch2f_cmd_lock:
         ch2f_cmd["recalibrate"] = True
     return "Re-learning the environmental baseline… keep the probe fixed and clear for ~10 s."

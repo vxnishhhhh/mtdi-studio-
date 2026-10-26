@@ -2742,10 +2742,10 @@ def _audio_block(html, dcc, key, title, extra):
     path = "audition.sources." + key + "."
     return html.Div([
         html.H4([title, _live(html, path + "state", "Unavailable", class_name="i3-state")]),
-        html.Canvas(className="i3-meter", **{"data-i3-meter": key, "aria-label": title + ' Text'}),
-        html.Div([html.Span('Label', className="i3-label"), _live(html, path + "level_dbfs", fmt="number")], className="i3-row"),
+        html.Canvas(className="i3-meter", **{"data-i3-meter": key, "aria-label": title + ' level meter'}),
+        html.Div([html.Span("Level (dBFS)", className="i3-label"), _live(html, path + "level_dbfs", fmt="number")], className="i3-row"),
         html.Div([html.Span("Device", className="i3-label"), _live(html, path + "device")], className="i3-row"),
-        html.Div([html.Span("Status", className="i3-label"), _live(html, path + "error", 'Text')], className="i3-row"),
+        html.Div([html.Span("Status", className="i3-label"), _live(html, path + "error", "—")], className="i3-row"),
         html.Form([
             html.Div([
                 html.Button("Start", type="button", className="i3-btn i3-primary", **{"data-i3-action": "audition", "data-i3-source": key, "data-i3-op": "start"}),
@@ -2755,7 +2755,7 @@ def _audio_block(html, dcc, key, title, extra):
             html.Label(["Gain", dcc.Input(name="gain", type="range", min=0, max=30, step=0.5, value=4 if key == "ch2f" else 1, className="i3-gain")]),
             *extra,
             html.Audio(preload="none", **{"data-i3-audio": key}),
-            html.Div('Text', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Div("", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "audition-" + key}),
     ], className="i3-audio")
 

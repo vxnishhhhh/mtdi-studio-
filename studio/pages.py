@@ -187,95 +187,96 @@ def ch1_body():
     with c1_lock:
         m = dict(ch1_data); hist = list(ch1_data["history"]); xyz = list(ch1_data["xyz_history"])
     have = m["last_rx"] is not None
+    n1, u1 = T('ch1.name'), T('ch1.unit')   # the project's channel words (S1-06)
     shown = lambda value: f"{value:.2f}" if have else "—"
     return [
         html.Div([
             _mcard("mv-x", "X", shown(m["x"])),
             _mcard("mv-y", "Y", shown(m["y"])),
             _mcard("mv-z", "Z", shown(m["z"])),
-            _mcard("mv-c1", 'Label', shown(m["magnitude"]), CYAN),
-            _mcard("mv-baseline", 'Label',
+            _mcard("mv-c1", "Magnitude", shown(m["magnitude"]), CYAN),
+            _mcard("mv-baseline", "Quiet baseline",
                    shown(m["baseline_magnitude"]) if m["baseline_calibrated"] else "—"),
-            _mcard("mv-delta", 'Label',
+            _mcard("mv-delta", "Change from baseline",
                    shown(m["baseline_delta"]) if m["baseline_calibrated"] else "—", AMBER),
-            _mcard("mv-sig", 'Label', "—"),
+            _mcard("mv-sig", "Noise σ (last 10)", "—"),
         ], className="metric-row"),
         html.Div([
-            html.Button(['BUTTON'], id="c1-recal-btn",
+            html.Button(["RE-LEARN BASELINE"], id="c1-recal-btn",
                         className="open-btn", n_clicks=0,
                         style={"width":"auto","marginTop":"0","whiteSpace":"nowrap"}),
-            html.Span('Paragraph. Enter your text here.',
+            html.Span("Waiting for the first reading.",
                       id="c1-recal-status",
                       style={"fontFamily":FONT,"fontSize":"11px","color":SUBTEXT,"lineHeight":"1.5"}),
             dcc.Store(id="c1-recal-request"),
         ], style={"display":"flex","alignItems":"center","gap":"16px",
                   "marginBottom":"16px","flexWrap":"wrap"}),
         html.Div([html.Span(className="online-dot off", id="c1-dot"),
-                  html.Span('Subtext', id="c1-status", className="online-text c-sub")],
+                  html.Span(f"{n1.upper()} · WAITING FOR DATA", id="c1-status", className="online-text c-sub")],
                  className="online-bar"),
         _sg_listen_card("c1"),
-        _chart_board("c1", 'Label'),
-        html.Div('LABEL', className="section-label"),
+        _chart_board("c1", f"{n1} sensor board"),
+        html.Div("LIVE SIGNAL", className="section-label"),
         html.Div([
             html.Div([
-                html.Div('LABEL', className="ch3-ctl-label"),
-                html.Div('Subtext',
+                html.Div("VERTICAL ZOOM", className="ch3-ctl-label"),
+                html.Div("Magnifies the line chart around the recent signal. 1× fits its whole range.",
                          className="validation-subcopy"),
             ]),
             _zoom_range("c1-zoom"),
         ], className="ch3-ctl-bar", style={"marginBottom":"16px"}),
         html.Div([
-            _chart("g-line", 'Title',
+            _chart("g-line", f"{n1} magnitude over time ({u1})",
                    make_line_chart(hist, color=CYAN, fill_color="rgba(0,229,255,0.07)",
                                    height=250, ylabel=T("ch1.unit"), smart_scale=True, zoom=1,
                                    revision="c1-line")),
         ], className="chart-grid chart-grid-primary"),
         html.Div([
-            _chart("g-axis", 'Title', fig_axis(xyz)),
-            _chart("g-scatter", 'Title',
+            _chart("g-axis", f"X, Y and Z components ({u1})", fig_axis(xyz)),
+            _chart("g-scatter", "X against Y",
                    fig_2d_scatter(xyz), h=280),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div([
-            _chart("g-delta", 'Title',
+            _chart("g-delta", "Sample change against magnitude",
                    fig_2d_delta(xyz), h=280),
-            _chart("g-gauge", 'Title',
+            _chart("g-gauge", f"Live magnitude ({u1})",
                    fig_gauge(m['magnitude'] if have else None)),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div([
-            _chart("g-pie", 'Title', fig_pie(m['x'], m['y'], m['z']) if have else fig_pie(None, None, None)),
-            _chart("g-bar", 'Title',
+            _chart("g-pie", "Share of each axis (|X|, |Y|, |Z|)", fig_pie(m['x'], m['y'], m['z']) if have else fig_pie(None, None, None)),
+            _chart("g-bar", "Session minimum, average and maximum",
                    fig_bar(None, None, None)),
         ], className="chart-grid", style={"marginTop":"14px"}),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div('Subtext',
+        html.Div("3D VIEWS", className="section-label", style={"marginTop":"30px"}),
+        html.Div(f"The same {n1.lower()} history in three dimensions. Drag to rotate, scroll to zoom.",
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("g3d-surface", 'Title',
+            _chart("g3d-surface", "Surface over the X–Y plane",
                    fig_3d_surface(xyz, height=400), cfg=CFG_3D, h=400),
-            _chart("g3d-terrain", 'Title',
+            _chart("g3d-terrain", "Magnitude terrain, window by window",
                    fig_3d_terrain(xyz, height=400), cfg=CFG_3D, h=400),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div([
-            _chart("g3d-plane", 'Title',
+            _chart("g3d-plane", f"{n1} direction",
                    fig_3d_error_plane(xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("g3d-twopole", 'Title',
+            _chart("g3d-twopole", "Dipole model along that direction",
                    fig_3d_dipolch2f(xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         html.Div(id="mag3d-error"),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("SIGNAL ARCHIVE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div('Subtext', className="validation-subcopy"),
+            html.Div(f"Every {n1.lower()} magnitude kept this session, oldest on the left.", className="validation-subcopy"),
             html.Div(dcc.Graph(id="g-archive", figure=fig_archive(), config=CFG_FLAT,
                                style={"height":"220px", "width":"100%"}),
                      style={"height":"220px","minHeight":"220px"}),
             html.Div([
-                html.Div([html.Div("0", id="arch-count", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="arch-min", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="arch-avg", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-                html.Div([html.Div("—", id="arch-max", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
+                html.Div([html.Div("0", id="arch-count", className="arch-stat-val"), html.Div("SAMPLES", className="arch-stat-key")], className="arch-stat"),
+                html.Div([html.Div("—", id="arch-min", className="arch-stat-val"), html.Div("Minimum", className="arch-stat-key")], className="arch-stat"),
+                html.Div([html.Div("—", id="arch-avg", className="arch-stat-val"), html.Div("Average", className="arch-stat-key")], className="arch-stat"),
+                html.Div([html.Div("—", id="arch-max", className="arch-stat-val"), html.Div("Maximum", className="arch-stat-key")], className="arch-stat"),
             ], className="arch-stats"),
         ], className="arch-shell"),
-        html.Div([html.Div('LABEL', className="summary-tag"),
+        html.Div([html.Div("SUMMARY", className="summary-tag"),
                   html.Div([_hi("Magnitude"), html.Span("  "), html.Span("—", id="sum-c1"), html.Br(), html.Br(),
                             _hi("Axes"), html.Span("  "), html.Span("—", id="sum-axes")], className="summary-text")],
                  className="summary-panel"),
@@ -312,12 +313,12 @@ def _zoom_bar(slider_id, title, copy):
 
 
 _LISTEN_COPY = {
-    "ch2": ('TEXT',
-                 'Paragraph. Enter your text here.'),
-    "c1": ('TEXT',
-            'Paragraph. Enter your text here.'),
-    "p1": ('TEXT',
-           'Paragraph. Enter your text here.'),
+    "ch2": ("LISTEN",
+                 "Plays this channel as sound: louder means more activity."),
+    "c1": ("LISTEN",
+            "Plays this channel as sound: louder means more activity."),
+    "p1": ("LISTEN TO BOTH",
+           "Plays both channels as sound, mixed or one at a time."),
 }
 
 
@@ -327,19 +328,20 @@ def _sg_listen_card(kind):
     every page; the EM block is driven client side (both sources at once)."""
     from .ui import _audio_block
     title, copy = _LISTEN_COPY[kind]
+    n1, n2 = T('ch1.name'), T('ch2.name')   # the project's channel words (S1-06)
     if kind == "ch2":
-        blocks = [_audio_block(html, dcc, "ch2f", 'Title', [])]
+        blocks = [_audio_block(html, dcc, "ch2f", n2, [])]
     elif kind == "c1":
-        blocks = [_audio_block(html, dcc, "c1", 'Title', [])]
+        blocks = [_audio_block(html, dcc, "c1", n1, [])]
     else:
         blocks = [html.Div([
-            html.Div([html.Button('Button', type="button", className="i3-btn i3-primary", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "start"}),
-                      html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "stop"}),
+            html.Div([html.Button("Play mix", type="button", className="i3-btn i3-primary", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "start"}),
+                      html.Button("Stop", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "stop"}),
                       html.Button("Mute", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "p1", "data-i3-op": "mute", "aria-pressed": "false"})], className="i3-form i3-p1-mix"),
             html.Div("", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], className="i3-audio"),
-            _audio_block(html, dcc, "ch2f", 'Title', []),
-            _audio_block(html, dcc, "c1", 'Title', [])]
+            _audio_block(html, dcc, "ch2f", n2, []),
+            _audio_block(html, dcc, "c1", n1, [])]
     return html.Div([
         html.Div([html.Div(title, className="ch3-ctl-label"), html.Div(copy, className="validation-subcopy")]),
         html.Div(blocks, className="i3-sg-listen" + (" i3-sg-two" if len(blocks) > 1 else "")),
@@ -410,6 +412,7 @@ def ch2_triaxial_blocks():
     tri = bool(e.get("triaxial"))
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     axis_unit = ch2_axis_unit(e)
+    n2, u2 = T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
 
     # The section is built whether or not the probe is triaxial. Returning a
     # different panel here would leave e3-int, e3-line and the rest unmounted
@@ -420,8 +423,8 @@ def ch2_triaxial_blocks():
     single_note = None
     if not tri:
         single_note = html.Div([
-            html.Div('LABEL', className="summary-tag"),
-            html.Div('Paragraph. Enter your text here.',
+            html.Div("ONE AXIS", className="summary-tag"),
+            html.Div(f"This {n2.lower()} source is not triaxial, so the three-axis views below stay empty.",
                      className="summary-text"),
         ], className="summary-panel", style={"marginTop": "20px"})
 
@@ -447,13 +450,13 @@ def ch2_triaxial_blocks():
                 for a in ("X", "Y", "Z"))
 
     return [
-        html.Div('LABEL', className="section-label",
+        html.Div("THREE AXES", className="section-label",
                  style={"marginTop": "30px"}),
         single_note,
-        html.Div(('Subtext'
-                  if provisional else 'Subtext'),
+        html.Div(("Reference mode: raw ADC activity per axis, not a calibrated field."
+                  if provisional else f"{n2} on each axis, and the vector they make together."),
                  className="validation-subcopy", style={"marginTop": "-4px"}),
-        (html.Div('Subtext',
+        (html.Div("Values marked ≥ hit the input's limit and are lower bounds.",
                   className="validation-subcopy", style={"marginBottom":"14px"}) if provisional else None),
         html.Div([html.Span(coverage, style={"color": coverage_colour})],
                  className="validation-subcopy", style={"marginTop": "6px"}),
@@ -461,69 +464,69 @@ def ch2_triaxial_blocks():
             _mcard("e3-x", "X (" + axis_unit + ")", _e3_shown(e.get("ex_mv"))),
             _mcard("e3-y", "Y (" + axis_unit + ")", _e3_shown(e.get("ey_mv"))),
             _mcard("e3-z", "Z (" + axis_unit + ")", _e3_shown(e.get("ez_mv"))),
-            _mcard("e3-c1", 'LABEL' + axis_unit + ")", _e3_shown(e.get("e_magnitude_mv")), CYAN),
-            _mcard("e3-live", 'LABEL', "%d / 3" % live,
+            _mcard("e3-c1", "MAGNITUDE (" + axis_unit + ")", _e3_shown(e.get("e_magnitude_mv")), CYAN),
+            _mcard("e3-live", "AXES REPORTING", "%d / 3" % live,
                    GREEN if live == 3 else AMBER if live else RED),
         ], className="metric-row", style={"marginBottom": "14px", "display": "none" if provisional else "flex"}),
         html.Div([
-            _mcard("e3-x-vm", "X (unit = N/C)" if provisional else "X (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))),
-            _mcard("e3-y-vm", "Y (unit = N/C)" if provisional else "Y (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))),
-            _mcard("e3-z-vm", "Z (unit = N/C)" if provisional else "Z (unit)", ("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))),
-            _mcard("e3-c1-vm", 'Label', ("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu")), CYAN),
+            _mcard("e3-x-vm", f"X ({u2})", ("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))),
+            _mcard("e3-y-vm", f"Y ({u2})", ("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))),
+            _mcard("e3-z-vm", f"Z ({u2})", ("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))),
+            _mcard("e3-c1-vm", f"Magnitude ({u2})", ("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu")), CYAN),
         ], className="metric-row", style={"marginBottom":"14px"}),
-        html.Div('Subtext',
+        html.Div("Static offset of each axis from its quiet baseline, in ADC counts.",
                  className="validation-subcopy", style={"marginTop":"6px"}) if provisional else None,
         html.Div([
-            _mcard("e3-static-x", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("x"))),
-            _mcard("e3-static-y", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("y"))),
-            _mcard("e3-static-z", 'LABEL', _e3_shown((e.get("dc_delta_counts") or {}).get("z"))),
-            _mcard("e3-static-c1", 'LABEL', _e3_shown(e.get("static_activity_counts")), CYAN),
+            _mcard("e3-static-x", "X OFFSET (counts)", _e3_shown((e.get("dc_delta_counts") or {}).get("x"))),
+            _mcard("e3-static-y", "Y OFFSET (counts)", _e3_shown((e.get("dc_delta_counts") or {}).get("y"))),
+            _mcard("e3-static-z", "Z OFFSET (counts)", _e3_shown((e.get("dc_delta_counts") or {}).get("z"))),
+            _mcard("e3-static-c1", "STATIC ACTIVITY (counts)", _e3_shown(e.get("static_activity_counts")), CYAN),
         ], className="metric-row", style={"marginBottom":"14px"}),
         html.Div([
-            _chart("e3-line", 'Title' + axis_unit + ")",
+            _chart("e3-line", f"{n2} magnitude over time (" + axis_unit + ")",
                    make_line_chart(sgm, color=AMBER, fill_color="rgba(255,171,64,0.08)",
                                    height=250, ylabel=axis_unit)),
-            _chart("e3-axis", 'Title' + axis_unit + ")", fig_axis(xyz, unit=axis_unit)),
-            _chart("e3-scatter", 'Title',
+            _chart("e3-axis", "X, Y and Z components (" + axis_unit + ")", fig_axis(xyz, unit=axis_unit)),
+            _chart("e3-scatter", "X against Y",
                    fig_2d_scatter(xyz, unit=axis_unit), h=280),
-            _chart("e3-delta", 'Title',
+            _chart("e3-delta", "Sample change against magnitude",
                    fig_2d_delta(xyz, unit=axis_unit), h=280),
-            _chart("e3-gauge", 'Title',
+            _chart("e3-gauge", "Live magnitude",
                    fig_gauge(e.get("e_magnitude_mv"), unit=axis_unit)),
-            _chart("e3-pie", 'Title',
+            _chart("e3-pie", "Share of each axis (|X|, |Y|, |Z|)",
                    fig_pie(e.get("ex_mv"), e.get("ey_mv"), e.get("ez_mv"))),
-            _chart("e3-bar", 'Title',
+            _chart("e3-bar", "Session minimum, average and maximum",
                    fig_bar(*_e3_stats(sgm), unit=axis_unit,
                            quantity=f"{T('ch2.name').lower()} activity magnitude" if provisional else f"{T('ch2.name').lower()} magnitude")),
         ], className="chart-grid"),
-        html.Div('LABEL', className="section-label",
+        html.Div("SIGNAL ARCHIVE", className="section-label",
                  style={"marginTop": "30px"}),
-        html.Div('Subtext',
+        html.Div(f"Every {n2.lower()} magnitude kept this session, oldest on the left.",
                  className="validation-subcopy", style={"marginTop": "-4px"}),
-        html.Div(_chart("e3-archive", 'Title' + axis_unit + ")",
+        html.Div(_chart("e3-archive", "Magnitude archive (" + axis_unit + ")",
                         fig_archive(series=sgm, unit=axis_unit), h=220),
                  style={"marginTop": "14px"}),
-        html.Div('LABEL', className="section-label",
+        html.Div("3D VIEWS", className="section-label",
                  style={"marginTop": "30px"}),
         html.Div([
-            _chart("e3-surface", 'Title',
+            _chart("e3-surface", "Surface over the X–Y plane",
                    fig_3d_surface(xyz, height=400), cfg=CFG_3D, h=400),
-            _chart("e3-terrain", 'Title',
+            _chart("e3-terrain", "Magnitude terrain, window by window",
                    fig_3d_terrain(xyz, height=400), cfg=CFG_3D, h=400),
         ], className="chart-grid"),
         html.Div([
-            _chart("e3-plane", 'Title',
+            _chart("e3-plane", f"{n2} direction",
                    fig_3d_error_plane(xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("e3-twopole", 'Title',
+            _chart("e3-twopole", "Dipole model along that direction",
                    fig_3d_dipolch2f(xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop": "14px"}),
         html.Div([
-            html.Div('LABEL', className="summary-tag"),
+            html.Div("DIRECTION", className="summary-tag"),
             html.Div([
-                ('Paragraph. Enter your text here. '),
+                ("The direction comes from the three axes, each scaled by its own calibration factor. "),
                 _hi("Currently uncalibrated (all factors 1.0); direction is indicative, not accurate."
                     if uncal else "Calibrated per axis."),
-                ' Text',
+                " Set STUDIO_CH2F_SCALE_X, _Y and _Z to calibrate.",
             ], className="summary-text"),
         ], className="summary-panel", style={"marginTop": "20px"}),
         dcc.Interval(id="e3-int", interval=2600, n_intervals=0),
@@ -540,82 +543,83 @@ def ch2_body():
     have = e["last_rx"] is not None
     provisional = e.get("data_source") == "ARDUINO_UNO_USB"
     axis_unit = ch2_axis_unit(e)   # fed data keeps its own unit; the studio's ADC paths keep theirs
+    n1, n2, u2 = T('ch1.name'), T('ch2.name'), T('ch2.unit')   # the project's channel words (S1-06)
     return [
         html.Div([
-            _mcard("ev-level", "X (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))) if have and e.get("ex_vu") is not None else "—"),
-            _mcard("ev-index", "Y (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))) if have and e.get("ey_vu") is not None else "—", CYAN),
-            _mcard("ev-rms", "Z (unit = N/C)", (("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))) if have and e.get("ez_vu") is not None else "—"),
-            _mcard("ev-gain", 'Label', (("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu"))) if have and e.get("e_magnitude_vu") is not None else "—"),
-            _mcard("ev-base-top", 'Label' if provisional else 'Label', f"{e['baseline_vu']:.3f}" if provisional and have else "—"),
-            _mcard("ev-delta-top", 'Label' if provisional else 'Label', f"{abs(e.get('e_magnitude_vu') or 0):.3f}" if provisional and have else "—"),
+            _mcard("ev-level", f"X ({u2})", (("≥ " if (e.get("axis_clipped") or {}).get("x") else "") + _e3_shown(e.get("ex_vu"))) if have and e.get("ex_vu") is not None else "—"),
+            _mcard("ev-index", f"Y ({u2})", (("≥ " if (e.get("axis_clipped") or {}).get("y") else "") + _e3_shown(e.get("ey_vu"))) if have and e.get("ey_vu") is not None else "—", CYAN),
+            _mcard("ev-rms", f"Z ({u2})", (("≥ " if (e.get("axis_clipped") or {}).get("z") else "") + _e3_shown(e.get("ez_vu"))) if have and e.get("ez_vu") is not None else "—"),
+            _mcard("ev-gain", f"Magnitude ({u2})", (("≥ " if e.get("clipped") else "") + _e3_shown(e.get("e_magnitude_vu"))) if have and e.get("e_magnitude_vu") is not None else "—"),
+            _mcard("ev-base-top", "Quiet baseline", f"{e['baseline_vu']:.3f}" if provisional and have else "—"),
+            _mcard("ev-delta-top", "Change from baseline", f"{abs(e.get('e_magnitude_vu') or 0):.3f}" if provisional and have else "—"),
         ], className="metric-row", style={"marginBottom":"14px"}),
         _sg_listen_card("ch2"),
         # ── Environmental Intelligence: re-learn the baseline on command ──
         html.Div([
-            html.Button(['BUTTON'], id="c2-recal-btn", className="open-btn",
+            html.Button(["RE-LEARN BASELINE"], id="c2-recal-btn", className="open-btn",
                         n_clicks=0, style={"width":"auto","marginTop":"0","whiteSpace":"nowrap"}),
-            html.Span('Paragraph. Enter your text here.',
+            html.Span("Press to re-learn the quiet baseline with the probe fixed and clear.",
                       id="c2-recal-status", style={"fontFamily":FONT,"fontSize":"11px","color":SUBTEXT,"lineHeight":"1.5"}),
         ], style={"display":"flex","alignItems":"center","gap":"16px","marginBottom":"16px","flexWrap":"wrap"}),
         html.Div(id="c2-warn"),   # clipping / overload banner
         html.Div([html.Span(className="online-dot off", id="c2-dot"),
-                  html.Span('Subtext', id="c2-status", className="online-text c-sub")],
+                  html.Span(f"{n2.upper()} · WAITING FOR DATA", id="c2-status", className="online-text c-sub")],
                  className="online-bar"),
-        _zoom_bar("c2-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
-        _chart_board("ch2f", 'Label'),
-        html.Div('LABEL', className="section-label"),
-        html.Div('Subtext',
+        _zoom_bar("c2-zoom", "VERTICAL ZOOM", "Magnifies the line charts around the recent signal. 1× fits their whole range."),
+        _chart_board("ch2f", f"{n2} sensor board"),
+        html.Div("LIVE SIGNAL", className="section-label"),
+        html.Div(f"{n2} level, and its activity relative to the quiet baseline (0–100).",
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("c2-line", 'Title',
+            _chart("c2-line", f"{n2} level over time (" + axis_unit + ")",
                    make_line_chart(hist, color=AMBER, fill_color="rgba(255,171,64,0.08)", height=250, ylabel=axis_unit)),
-            _chart("c2-index-line", 'Title',
+            _chart("c2-index-line", "Relative activity over time (%)",
                    make_line_chart(rel_hist, color=CYAN, fill_color="rgba(0,229,255,0.07)", height=250, ylabel="%")),
-            _chart("c2-gauge", 'Title', fig_c2_gauge(e["rel_index"] if have else None)),
-            _chart("c2-basebar", 'Title', fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"], unit=axis_unit) if have else fig_c2_basebar(None, None, None, unit=axis_unit)),
+            _chart("c2-gauge", "Relative activity now (0–100)", fig_c2_gauge(e["rel_index"] if have else None)),
+            _chart("c2-basebar", "Baseline, level and peak (" + axis_unit + ")", fig_c2_basebar(e["baseline_vu"], e["field_vu"], e["peak_vu"], unit=axis_unit) if have else fig_c2_basebar(None, None, None, unit=axis_unit)),
         ], className="chart-grid"),
-        html.Div([_chart("c2-bullet", 'Title', fig_c2_bullet(e["rel_index"] if have else None, e["level"]), h=140)],
+        html.Div([_chart("c2-bullet", "Activity band: low, mid, high", fig_c2_bullet(e["rel_index"] if have else None, e["level"]), h=140)],
                  style={"marginTop":"14px"}),
-        html.Div('LABEL', className="section-label", style={"marginTop":"26px"}),
-        html.Div('Subtext',
+        html.Div(f"{n2.upper()} WITH {n1.upper()}", className="section-label", style={"marginTop":"26px"}),
+        html.Div("How the two channels move together. Association only: neither chart shows cause.",
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("c2-b-correlation", 'Title',
+            _chart("c2-b-correlation", f"{n2} activity against {n1} magnitude",
                    fig_c2_b_correlation(c1_hist, rel_hist), h=280),
-            _chart("c2-induction-proxy", 'Title',
+            _chart("c2-induction-proxy", f"{n1} change per sample beside {n2} activity",
                    fig_c2_induction_proxy(c1_hist, rel_hist), h=280),
         ], className="chart-grid", style={"marginTop":"14px"}),
-        html.Div('LABEL', className="section-label", style={"marginTop":"26px", "display":"none" if provisional else "block"}),
+        html.Div("SESSION", className="section-label", style={"marginTop":"26px", "display":"none" if provisional else "block"}),
         html.Div([
-            html.Div([html.Div("—", id="ev-baseline", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div("—", id="ev-peak", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div("—", id="ev-util", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div("—", id="ev-minmax", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div(f"{C2_SCALE_PER_VOLT:,.3f}", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div("—", id="ev-baseline", className="arch-stat-val"), html.Div("Baseline", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div("—", id="ev-peak", className="arch-stat-val"), html.Div("Peak", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div("—", id="ev-util", className="arch-stat-val"), html.Div("INPUT RANGE USED", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div("—", id="ev-minmax", className="arch-stat-val"), html.Div("MIN / MAX CODE", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{C2_SCALE_PER_VOLT:,.3f}", className="arch-stat-val"), html.Div("Scale per volt", className="arch-stat-key")], className="arch-stat"),
         ], className="arch-stats", style={"display":"none" if provisional else "grid"}),
-        html.Div([html.Div('LABEL', className="summary-tag"),
+        html.Div([html.Div("STATE", className="summary-tag"),
                   html.Div([_hi("State"), html.Span("  "), html.Span("—", id="ev-statustext")], className="summary-text")],
                  className="summary-panel", style={"display":"none" if provisional else "block"}),
-        html.Div([html.Div('LABEL', className="summary-tag"),
-                  html.Div(['Text ', _hi(_ch2f_wiring_text()),
-                            'Paragraph. Enter your text here. ',
-                            'Text ', _hi("AC RMS"),
-                            ' Text ',
-                            _hi("auto-ranges"), ' Paragraph. Enter your text here. ',
-                            'Paragraph. Enter your text here. ',
-                            _hi("relative index"), ' Text ',
+        html.Div([html.Div("HOW IT IS MEASURED", className="summary-tag"),
+                  html.Div(["The probe reads ", _hi(_ch2f_wiring_text()),
+                            ". ",
+                            "Each reading is the ", _hi("AC RMS"),
+                            " of a short block of samples; the input ",
+                            _hi("auto-ranges"), " so weak and strong fields both stay readable. ",
+                            "The quiet baseline is learned at start and on request. ",
+                            _hi("relative index"), " compares the level with it: ",
                             _hi("LOW"), " (< 3× baseline), ", _hi("MID"), " (3–10×), ", _hi("HIGH"), " (> 10×). ",
-                            'Text ', _hi("reference-scaled estimate"),
-                            'Paragraph. Enter your text here.'], className="summary-text")],
+                            f"The {u2} value is a ", _hi("reference-scaled estimate"),
+                            ", not a calibrated field strength."], className="summary-text")],
                  className="summary-panel"),
         html.Div(id="c2-error"),
     ] + ch2_triaxial_blocks() + ([
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("REFERENCE MODE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div([html.Div(f"{e.get('baseline_vu', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div(f"{e.get('sample_rate', 0):.1f}" if have else "—", id="ev-bottom-rate", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div(f"{e['min_code']} / {e['max_code']}" if have else "—", id="ev-bottom-minmax", className="arch-stat-val"), html.Div('LABEL', className="arch-stat-key")], className="arch-stat"),
-            html.Div([html.Div('TEXT', className="arch-stat-val"), html.Div('Label', className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{e.get('baseline_vu', 0.0):.3f}" if have else "—", id="ev-bottom-baseline", className="arch-stat-val"), html.Div("Baseline (counts)", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{e.get('sample_rate', 0):.1f}" if have else "—", id="ev-bottom-rate", className="arch-stat-val"), html.Div("SAMPLES / S", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div(f"{e['min_code']} / {e['max_code']}" if have else "—", id="ev-bottom-minmax", className="arch-stat-val"), html.Div("MIN / MAX CODE", className="arch-stat-key")], className="arch-stat"),
+            html.Div([html.Div("UNO USB", className="arch-stat-val"), html.Div("Source", className="arch-stat-key")], className="arch-stat"),
         ], className="arch-stats"),
     ] if provisional else []) + [
         # Offset from the ch1 intervals so combined view spreads the load.
@@ -629,8 +633,8 @@ def ch2_view():
         provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
     if provisional:
         return html.Div(ch2_body() + [html.Div([
-            html.Div('LABEL', className="section-label"),
-            html.Div('Subtext',
+            html.Div("REFERENCE MODE", className="section-label"),
+            html.Div("The engine views are off in reference mode: raw ADC activity is not a calibrated input.",
                      className="validation-subcopy"),
         ], className="summary-panel", style={"marginTop":"24px"})])
     return html.Div(ch2_body() + [d4_ch2_blocks()])
@@ -672,74 +676,76 @@ def _combined_view_base():
         provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
         c2_unit = ch2_axis_unit(ch2f_data)
     p1_xyz = _p1_composite_xyz(c1_xyz, exyz)
+    n1, n2 = T('ch1.name'), T('ch2.name')   # the project's channel words (S1-06)
     p1_c1 = [math.sqrt(x*x + y*y + z*z) for x, y, z in p1_xyz]
     return html.Div([
-        html.Div('LABEL', className="section-label"),
+        html.Div("BOTH CHANNELS", className="section-label"),
         html.Div(
-            'Subtext',
+            f"{n1} and {n2} side by side, aligned sample by sample. Their units differ, so each keeps its own axis or is normalised.",
             className="validation-subcopy",
         ),
         _sg_listen_card("p1"),
-        _zoom_bar("p1-zoom", 'TITLE', 'Paragraph. Enter your text here.'),
+        _zoom_bar("p1-zoom", "VERTICAL ZOOM", "Magnifies the overlay around the recent signal. 1× fits its whole range."),
         html.Div([
-            _chart("p1-overlay", 'Title',
+            _chart("p1-overlay", f"{n1} and {n2} on their own axes",
                    fig_p1_overlay(c1_hist, c2_hist, unit2=c2_unit), h=320),
         ], className="chart-grid chart-grid-primary", style={"marginTop":"14px"}),
         html.Div([
-            _chart("p1-normalized-overlay", 'Title',
+            _chart("p1-normalized-overlay", "Both on one 0–100 scale",
                    fig_p1_normalized_overlay(c1_hist, c2_rel), h=300),
-            _chart("p1-coupling", 'Title',
+            _chart("p1-coupling", f"{n1} change per sample beside {n2} activity",
                    fig_c2_induction_proxy(c1_hist, c2_rel), h=300),
         ], className="chart-grid", style={"marginTop":"14px"}),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div('Subtext',
+        html.Div("COMPOSITE VECTOR", className="section-label", style={"marginTop":"30px"}),
+        html.Div("Each channel's X, Y and Z divided by its own largest magnitude, then averaged. A shape for the eye, not a physical quantity.",
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("em3-line", 'Title', make_line_chart(p1_c1, color=CYAN, height=250, ylabel="normalized")),
-            _chart("em3-axis", 'Title', fig_axis(p1_xyz, unit="normalized")),
-            _chart("em3-scatter", 'Title', fig_2d_scatter(p1_xyz, unit="normalized"), h=280),
-            _chart("em3-delta", 'Title', fig_2d_delta(p1_xyz, unit="normalized"), h=280),
-            _chart("em3-gauge", 'Title', fig_gauge(p1_c1[-1] if p1_c1 else None, unit="normalized")),
-            _chart("em3-pie", 'Title', fig_pie(*(p1_xyz[-1] if p1_xyz else (None,None,None)))),
-            _chart("em3-bar", 'Title', fig_bar(*_e3_stats(p1_c1), unit="normalized", quantity="E+B composite magnitude")),
+            _chart("em3-line", "Composite magnitude over time (normalised)", make_line_chart(p1_c1, color=CYAN, height=250, ylabel="normalized")),
+            _chart("em3-axis", "Composite X, Y and Z (normalised)", fig_axis(p1_xyz, unit="normalized")),
+            _chart("em3-scatter", "Composite X against Y", fig_2d_scatter(p1_xyz, unit="normalized"), h=280),
+            _chart("em3-delta", "Composite change against magnitude", fig_2d_delta(p1_xyz, unit="normalized"), h=280),
+            _chart("em3-gauge", "Composite magnitude now", fig_gauge(p1_c1[-1] if p1_c1 else None, unit="normalized")),
+            _chart("em3-pie", "Share of each composite axis", fig_pie(*(p1_xyz[-1] if p1_xyz else (None,None,None)))),
+            _chart("em3-bar", "Composite minimum, average and maximum", fig_bar(*_e3_stats(p1_c1), unit="normalized", quantity="E+B composite magnitude")),
         ], className="chart-grid"),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("3D VIEWS", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            _chart("em3-vector-overlay", 'Title', fig_p1_vector_overlay_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
-            _chart("em3-cross-proxy", 'Title', fig_p1_cross_proxy_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
-            _chart("em3-surface", 'Title', fig_3d_surface(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
-            _chart("em3-terrain", 'Title', fig_3d_terrain(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
-            _chart("em3-plane", 'Title', fig_3d_error_plane(p1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("em3-twopole", 'Title', fig_3d_dipolch2f(p1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("em3-vector-overlay", "Both vector histories in one frame", fig_p1_vector_overlay_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
+            _chart("em3-cross-proxy", f"{n2} × {n1} direction (geometry only)", fig_p1_cross_proxy_3d(c1_xyz, exyz), cfg=CFG_3D, h=470),
+            _chart("em3-surface", "Composite surface over the X–Y plane", fig_3d_surface(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
+            _chart("em3-terrain", "Composite terrain, window by window", fig_3d_terrain(p1_xyz, height=400, unit="normalized"), cfg=CFG_3D, h=400),
+            _chart("em3-plane", "Composite direction", fig_3d_error_plane(p1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("em3-twopole", "Dipole model along that direction", fig_3d_dipolch2f(p1_xyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
-        html.Div('Subtext',
+        html.Div("Correlation over the shared window. A strong value means they move together, not that one drives the other.",
                  className="validation-subcopy", style={"marginTop":"10px"}),
         html.Div([
-            _chart("p1-correlation", 'Title',
+            _chart("p1-correlation", f"{n2} activity against {n1} magnitude",
                    fig_c2_b_correlation(c1_hist, c2_rel), h=300),
         ], className="chart-grid chart-grid-primary", style={"marginTop":"14px"}),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div(['Subtext ', _hi("how they move together"),
-                  'Subtext'],
+        html.Div("ONE PATH THROUGH TIME", className="section-label", style={"marginTop":"30px"}),
+        html.Div([f"{n1} magnitude, {n2} activity and time as three axes, to show ", _hi("how they move together"),
+                  ". Its shadow on the floor drops time."],
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         _graph_block("p1-traj3d", fig_p1_trajectory_3d(c1_hist, c2_rel), 440, CFG_3D),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div('Subtext '
-                 + ('Subtext'
-                    if provisional else 'Subtext'),
+        html.Div("EACH CHANNEL'S DIRECTION", className="section-label", style={"marginTop":"30px"}),
+        html.Div(f"{n1} and {n2} directions side by side. "
+                 + (f"{n2} is in reference mode, so its direction is indicative only."
+                    if provisional else f"{n2}'s direction is only as good as its per-axis calibration."),
                  className="validation-subcopy", style={"marginTop":"-4px"}),
         html.Div([
-            _chart("p1-b-plane", 'Title', fig_3d_error_plane(c1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("p1-e-plane", 'Title', fig_3d_error_plane(exyz, height=430), cfg=CFG_3D, h=430),
-            _chart("p1-b-twopole", 'Title', fig_3d_dipolch2f(c1_xyz, height=430), cfg=CFG_3D, h=430),
-            _chart("p1-e-twopole", 'Title', fig_3d_dipolch2f(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-b-plane", f"{n1} direction", fig_3d_error_plane(c1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-plane", f"{n2} direction", fig_3d_error_plane(exyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-b-twopole", f"Dipole model along {n1}", fig_3d_dipolch2f(c1_xyz, height=430), cfg=CFG_3D, h=430),
+            _chart("p1-e-twopole", f"Dipole model along {n2}", fig_3d_dipolch2f(exyz, height=430), cfg=CFG_3D, h=430),
         ], className="chart-grid", style={"marginTop":"14px"}),
         dcc.Interval(id="p1-overlay-int", interval=3600, n_intervals=0),
         html.Div([
-            html.Div('LABEL', className="summary-tag"),
+            html.Div("READING THESE VIEWS", className="summary-tag"),
             html.Div(
-                'Paragraph. Enter your text here.',
+                "The two channels measure different quantities in different units. "
+                "Every view here compares their timing and shape; none adds them into one physical value.",
                 className="summary-text",
             ),
         ], className="summary-panel"),
@@ -758,7 +764,7 @@ def p1_page():
         html.Div([
             html.Button(T("ch1.name").upper(), id="p1-tab-c1", className="tab-btn active", n_clicks=0),
             html.Button(T("ch2.name").upper(), id="p1-tab-c2x", className="tab-btn", n_clicks=0),
-            html.Button('BUTTON', id="p1-tab-both", className="tab-btn", n_clicks=0),
+            html.Button("BOTH", id="p1-tab-both", className="tab-btn", n_clicks=0),
         ], className="tab-bar p1-mode-tabs"),
         html.Div(id="p1-subcontent", children=ch1_view()),
     ], style=PAD)
