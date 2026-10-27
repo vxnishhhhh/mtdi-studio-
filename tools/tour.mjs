@@ -56,6 +56,16 @@ try {
 } catch {
   problems.push("home: never signalled ready");
 }
+// A visitor scrolls through the startup intro before the nav can be used: the header is
+// pointer-events:none until then. element.click() below reaches the nav anyway, so without
+// this the tour browsed every page with the intro still active, its full-screen shader and the
+// hidden field background drawing behind each page (software GL then starved every page).
+await page.mouse.move(720, 450);   // the middle of the 1440 x 900 viewport, over the intro
+for (let i = 0; i < 60 && !(await page.evaluate(() => window.__introConsumed === true)); i++) {
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(150);
+}
+if (!(await page.evaluate(() => window.__introConsumed === true))) problems.push("home: the startup intro did not finish after scrolling it");
 for (const [name, nav, path] of pages) {
   await page.evaluate((id) => document.getElementById(id)?.click(), nav);
   let readyMs = null;
