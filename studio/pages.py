@@ -1263,37 +1263,47 @@ def mtdi_inspiration_section():
 # Every block is a pattern-matched Div {"type":"d4","block":kind,"where":page} refreshed by the
 # global d4-tick interval; graphs use {"type":"d4g",...}; buttons {"type":"d4btn","action":..}.
 D4_BLOCK_META = {
-    "headline": ('TEXT', 'Paragraph. Enter your text here.'),
-    "consensus": ('TEXT', 'Paragraph. Enter your text here.'),
-    "confidence": ('TEXT', 'Paragraph. Enter your text here.'),
-    "power": ('Text', 'Paragraph. Enter your text here.'),
-    "power_ch1": ('Text', 'Paragraph. Enter your text here.'),
-    "power_network": ('TEXT', 'Paragraph. Enter your text here.'),
-    "ch3": ('TEXT', 'Paragraph. Enter your text here.'),
-    "calibration": ('TEXT', 'Paragraph. Enter your text here.'),
-    "calhealth": ('TEXT', 'Paragraph. Enter your text here.'),
-    "transients": ('TEXT', 'Paragraph. Enter your text here.'),
-    "correlation": ('TEXT', 'Paragraph. Enter your text here.'),
-    "baseline": ('TEXT', 'Paragraph. Enter your text here.'),
-    "repeat": ('TEXT', 'Paragraph. Enter your text here.'),
-    "limits": ('TEXT', 'Paragraph. Enter your text here.'),
-    "exposure": ('TEXT', 'Paragraph. Enter your text here.'),
-    "noise": ('TEXT', 'Paragraph. Enter your text here.'),
-    "fingerprint": ('TEXT', 'Paragraph. Enter your text here.'),
-    "trend": ('TEXT', 'Paragraph. Enter your text here.'),
-    "events": ('TEXT', 'Paragraph. Enter your text here.'),
-    "config": ('TEXT', 'Paragraph. Enter your text here.'),
-    "references": ('TEXT', 'Paragraph. Enter your text here.'),
-    "classifier": ('TEXT', 'Paragraph. Enter your text here.'),
-    "validation": ('TEXT', 'Paragraph. Enter your text here.'),
-    "uncertainty": ('TEXT', 'Paragraph. Enter your text here.'),
+    "headline": ("D4 SCORE", "The MTDI 2.0 score, detection confidence, cross-source agreement and any open event, from the latest engine pass."),
+    "consensus": ("CROSS-SOURCE AGREEMENT", "Each source's anomaly score (0 to 100) and its z-score against its own baseline. Agreement is how closely the sources tell the same story."),
+    "confidence": ("DETECTION CONFIDENCE", "How far the current detection can be trusted, built from signal to noise, source agreement, deviation from baseline, repeatability and calibration health. The weights are listed under the factors."),
+    "power": ("{ch2} LINE FREQUENCY", "FFT of an uninterrupted {ch2} block: the mains fundamental, its harmonics, total harmonic distortion (THD) and other peaks."),
+    "power_ch1": ("{ch1} LINE FREQUENCY", "The same mains analysis on the {ch1} magnitude. Below twice the line frequency in sample rate it says so instead of guessing."),
+    "power_network": ("POWER NETWORK", "The line-frequency fundamental, distortion and even/odd harmonic balance on every channel that carries it, with findings and anything abnormal."),
+    "ch3": ("{ch3} SWEEP ANALYSIS", "Strongest peak, robust noise floor, signal to noise, occupied width, occupancy, activity islands and other peaks in the latest sweep."),
+    "calibration": ("{ch1} CALIBRATION", "Fits hard- and soft-iron correction to the last 120 s of {ch1} readings. Turn the sensor slowly through every direction first. FIT shows the result; FIT AND APPLY also writes it to i3_config.json."),
+    "calhealth": ("CALIBRATION HEALTH", "Whether the active {ch1} calibration still holds: quality, magnitude spread, offset drift and noise, and whether to recalibrate."),
+    "transients": ("TRANSIENTS", "Short excursions in {ch1} above a threshold set from its baseline and median absolute deviation (MAD), with their shape and repetition rate."),
+    "correlation": ("CORRELATION", "Pearson r between pairs of sources over the same window, and what the value means."),
+    "baseline": ("BASELINE METHODS", "Several baseline trackers run side by side on the {ch1} history: how closely each follows it and how far a disturbance drags it."),
+    "repeat": ("REPEATABILITY", "Takes several fresh readings of one channel while nothing changes and reports their spread. Keep everything still while it runs."),
+    "limits": ("DETECTION LIMITS", "The smallest change each channel can detect (3σ) and quantify (10σ), from its measured noise."),
+    "exposure": ("EXPOSURE REFERENCE", "The measured line-frequency levels against published public reference levels. A comparison, not a safety assessment."),
+    "noise": ("NOISE", "Noise on {ch2} and {ch1}: RMS, peak, standard deviation and noise spectral density (NSD)."),
+    "fingerprint": ("ENVIRONMENTAL FINGERPRINT", "The surroundings in a few numbers: {ch1}, {ch2}, the {ch3} floor and peak, the line frequency and the transient rate. Take a reference to compare later readings with it."),
+    "trend": ("TREND", "How the score and each source have moved over the recent windows, with drift and any periodic pattern."),
+    "events": ("EVENTS", "Each time the score crossed the event threshold: when, for how long, and every source's reading at the time. Newest first."),
+    "config": ("ENGINE CONFIGURATION", "The settings the engine runs with, from i3_config.json: calibration, weights, thresholds, baseline, sample rate and filter. Export a capture or load a new configuration here."),
+    "references": ("REFERENCE PROFILES", "Record the current readings under a device name; later readings are matched against every stored profile."),
+    "classifier": ("SOURCE CLASSIFIER", "Learns sources from labelled validation trials and gives the probability of each for the current reading. It needs 2 sources with 5 labelled trials each."),
+    "validation": ("VALIDATION TRIALS", "Record controlled trials: distance, source, measured and reference value, whether the engine detected it and whether a source was really there. The table compares the result with the D3 reference."),
+    "uncertainty": ("MEASUREMENT UNCERTAINTY", "Error against the reference values entered with the trials: mean error, bias, RMSE and the uncertainty budget."),
 }
 
 
-def d4_block(kind, where, graph=None):
+def d4_meta(kind):
+    """A block's title and subtitle in the project's channel words."""
+    words = {"ch1": T("ch1.name"), "ch2": T("ch2.name"), "ch3": T("ch3.name")}
     title, sub = D4_BLOCK_META[kind]
+    return title.format(**{k: v.upper() for k, v in words.items()}), sub.format(**words)
+
+
+D4_WAITING = "Waiting for the first engine pass"
+
+
+def d4_block(kind, where, graph=None):
+    title, sub = d4_meta(kind)
     kids = [html.Div(title, className="section-label"), html.Div(sub, className="validation-subcopy"),
-            html.Div('Text', id={"type": "d4", "block": kind, "where": where}, className="d4-block")]
+            html.Div(D4_WAITING, id={"type": "d4", "block": kind, "where": where}, className="d4-block")]
     if graph:
         kids.append(dcc.Graph(id={"type": "d4g", "block": kind, "where": where}, config={"displayModeBar": False}, style={"height": graph}))
     return html.Div(kids, className="chart-card d4-card", **{"data-d4-block": kind})
@@ -1321,24 +1331,25 @@ def d4_controls(where, *items):
 
 def d4_calibration_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["calibration"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["calibration"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "calibration", "where": where}, className="d4-block"),
-        d4_controls(where, d4_button("cal_fit", where, 'Label'), d4_button("cal_apply", where, 'Label')),
+        html.Div(d4_meta("calibration")[0], className="section-label"),
+        html.Div(d4_meta("calibration")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "calibration", "where": where}, className="d4-block"),
+        d4_controls(where, d4_button("cal_fit", where, "FIT", "Fit the last 120 s without changing the active calibration"),
+                    d4_button("cal_apply", where, "FIT AND APPLY", "Fit the last 120 s and write the result to i3_config.json")),
         dcc.Graph(id={"type": "d4g", "block": "calibration", "where": where}, config={"displayModeBar": False}, style={"height": "380px"}),
     ], className="chart-card d4-card")
 
 
 def d4_power_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["power"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["power"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "power", "where": where}, className="d4-block"),
-        d4_controls(where, d4_button("burst", where, 'Label')),
+        html.Div(d4_meta("power")[0], className="section-label"),
+        html.Div(d4_meta("power")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "power", "where": where}, className="d4-block"),
+        d4_controls(where, d4_button("burst", where, "CAPTURE A BLOCK", "Ask for 3440 uninterrupted samples on the next block")),
         dcc.Graph(id={"type": "d4g", "block": "power", "where": where}, config={"displayModeBar": False}, style={"height": "230px"}),
-        html.Div('LABEL', className="section-label", style={"marginTop": "18px"}),
-        html.Div(['Subtext ',
-                  _hi("ridge running the full depth"), ' Subtext'],
+        html.Div("LINE FREQUENCY OVER TIME", className="section-label", style={"marginTop": "18px"}),
+        html.Div(["A steady mains line shows as a ",
+                  _hi("ridge running the full depth"), " of the surface; a gap or a bend shows when it dropped out or drifted."],
                  className="validation-subcopy"),
         dcc.Graph(id={"type": "d4g", "block": "power_surface", "where": where},
                   config={"displayModeBar": False}, style={"height": "460px"}),
@@ -1347,48 +1358,48 @@ def d4_power_card(where):
 
 def d4_fingerprint_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["fingerprint"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["fingerprint"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "fingerprint", "where": where}, className="d4-block"),
-        d4_controls(where, d4_button("fingerprint", where, 'LABEL')),
+        html.Div(d4_meta("fingerprint")[0], className="section-label"),
+        html.Div(d4_meta("fingerprint")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "fingerprint", "where": where}, className="d4-block"),
+        d4_controls(where, d4_button("fingerprint", where, "TAKE REFERENCE", "Store the fingerprint now; later readings are compared with it")),
     ], className="chart-card d4-card")
 
 
 def d4_references_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["references"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["references"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "references", "where": where}, className="d4-block"),
-        d4_controls(where, d4_input("ref_name", where, 'Enter your text here', "220px"), d4_input("ref_note", where, 'Enter your text here', "220px"),
-                    d4_button("ref_record", where, 'LABEL'), d4_button("ref_delete", where, 'LABEL')),
+        html.Div(d4_meta("references")[0], className="section-label"),
+        html.Div(d4_meta("references")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "references", "where": where}, className="d4-block"),
+        d4_controls(where, d4_input("ref_name", where, "device name", "220px"), d4_input("ref_note", where, "note (optional)", "220px"),
+                    d4_button("ref_record", where, "RECORD"), d4_button("ref_delete", where, "DELETE", "Delete the profile with this name")),
     ], className="chart-card d4-card")
 
 
 def d4_classifier_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["classifier"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["classifier"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "classifier", "where": where}, className="d4-block"),
-        d4_controls(where, d4_button("train", where, 'LABEL')),
+        html.Div(d4_meta("classifier")[0], className="section-label"),
+        html.Div(d4_meta("classifier")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "classifier", "where": where}, className="d4-block"),
+        d4_controls(where, d4_button("train", where, "TRAIN")),
     ], className="chart-card d4-card")
 
 
 def d4_repeatability_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["repeat"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["repeat"][1], className="validation-subcopy"),
+        html.Div(d4_meta("repeat")[0], className="section-label"),
+        html.Div(d4_meta("repeat")[1], className="validation-subcopy"),
         html.Div([
             dcc.Dropdown(id={"type": "d4in", "field": "repeat_channel", "where": where},
-                         options=[{"label": 'Label', "value": "ch1"},
-                                  {"label": 'Label', "value": "ch2"}],
+                         options=[{"label": f"{T('ch1.name')} magnitude", "value": "ch1"},
+                                  {"label": f"{T('ch2.name')} block RMS", "value": "ch2"}],
                          value="ch1", clearable=False, style={"width": "220px"}),
-            d4_input("repeat_runs", where, 'Enter your text here', "120px"),
-            d4_input("repeat_window", where, 'Enter your text here', "160px"),
-            d4_button("repeat_start", where, 'LABEL',
-                      'Title'),
+            d4_input("repeat_runs", where, "readings (10)", "120px"),
+            d4_input("repeat_window", where, "window, s (3)", "160px"),
+            d4_button("repeat_start", where, "START",
+                      "Take the readings one after another; keep everything still until it finishes"),
             d4_status(where, "repeat_channel"),
         ], className="ch3-ctl-row"),
-        html.Div('Text', id={"type": "d4", "block": "repeat", "where": where}, className="d4-block"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "repeat", "where": where}, className="d4-block"),
         dcc.Graph(id={"type": "d4g", "block": "repeat", "where": where},
                   config={"displayModeBar": False}, style={"height": "300px"}),
     ], className="chart-card d4-card")
@@ -1396,22 +1407,22 @@ def d4_repeatability_card(where):
 
 def d4_validation_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["validation"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["validation"][1], className="validation-subcopy"),
+        html.Div(d4_meta("validation")[0], className="section-label"),
+        html.Div(d4_meta("validation")[1], className="validation-subcopy"),
         html.Div([
-            d4_input("trial_distance", where, 'Enter your text here', "110px"), d4_input("trial_source", where, 'Enter your text here', "200px"),
-            d4_input("trial_value", where, 'Enter your text here', "130px"), d4_input("trial_reference", where, 'Enter your text here', "130px"),
-            dcc.Dropdown(id={"type": "d4in", "field": "trial_detected", "where": where}, options=[{"label": "detected", "value": "1"}, {"label": 'Label', "value": "0"}], value="1", clearable=False, style={"width": "150px"}),
-            dcc.Dropdown(id={"type": "d4in", "field": "trial_actual", "where": where}, options=[{"label": 'Label', "value": "1"}, {"label": 'Label', "value": "0"}], value="1", clearable=False, style={"width": "170px"}),
-            d4_button("trial_add", where, 'LABEL'), d4_button("trial_clear", where, 'LABEL', 'Title'),
+            d4_input("trial_distance", where, "distance, cm", "110px"), d4_input("trial_source", where, "source", "200px"),
+            d4_input("trial_value", where, "measured value", "130px"), d4_input("trial_reference", where, "reference value", "130px"),
+            dcc.Dropdown(id={"type": "d4in", "field": "trial_detected", "where": where}, options=[{"label": "detected", "value": "1"}, {"label": "not detected", "value": "0"}], value="1", clearable=False, style={"width": "150px"}),
+            dcc.Dropdown(id={"type": "d4in", "field": "trial_actual", "where": where}, options=[{"label": "source present", "value": "1"}, {"label": "no source", "value": "0"}], value="1", clearable=False, style={"width": "170px"}),
+            d4_button("trial_add", where, "ADD TRIAL"), d4_button("trial_clear", where, "CLEAR", "Delete every recorded trial"),
             d4_status(where, "trial_add"),
         ], className="ch3-ctl-row"),
-        html.Div('Text', id={"type": "d4", "block": "validation", "where": where}, className="d4-block"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "validation", "where": where}, className="d4-block"),
         dcc.Graph(id={"type": "d4g", "block": "validation", "where": where}, config={"displayModeBar": False}, style={"height": "220px"}),
         html.Div([
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/report.pdf", target="_blank"),
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
+            html.A(html.Button("PDF REPORT", className="ch3-btn"), href="/api/d4/report.pdf", target="_blank"),
+            html.A(html.Button("EXPORT 5 MIN · JSON", className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
+            html.A(html.Button("EXPORT 5 MIN · CSV", className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
             d4_status(where, "links"),
         ], className="ch3-ctl-row", style={"marginTop": "8px"}),
     ], className="chart-card d4-card")
@@ -1419,21 +1430,21 @@ def d4_validation_card(where):
 
 def d4_config_card(where):
     return html.Div([
-        html.Div(D4_BLOCK_META["config"][0], className="section-label"),
-        html.Div(D4_BLOCK_META["config"][1], className="validation-subcopy"),
-        html.Div('Text', id={"type": "d4", "block": "config", "where": where}, className="d4-block"),
+        html.Div(d4_meta("config")[0], className="section-label"),
+        html.Div(d4_meta("config")[1], className="validation-subcopy"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "config", "where": where}, className="d4-block"),
         html.Div([
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
-            html.A(html.Button('BUTTON', className="ch3-btn"), href="/api/d4/stream", target="_blank"),
-            dcc.Upload(html.Button('Button', className="ch3-btn"), id={"type": "d4up", "where": where}, accept=".json", multiple=False),
+            html.A(html.Button("EXPORT 5 MIN · JSON", className="ch3-btn"), href="/api/d4/export?seconds=300", target="_blank"),
+            html.A(html.Button("EXPORT 5 MIN · CSV", className="ch3-btn"), href="/api/d4/export.csv?seconds=300", target="_blank"),
+            html.A(html.Button("LIVE STREAM", className="ch3-btn"), href="/api/d4/stream", target="_blank"),
+            dcc.Upload(html.Button("LOAD CONFIG (.json)", className="ch3-btn"), id={"type": "d4up", "where": where}, accept=".json", multiple=False),
             d4_status(where),
         ], className="ch3-ctl-row", style={"marginTop": "8px"}),
         html.Div([
-            html.Div('Subtext', className="validation-subcopy"),
-            d4_input("d3_detection", where, 'Enter your text here', "150px"), d4_input("d3_fp", where, 'Enter your text here', "150px"),
-            d4_input("d3_cal", where, 'Enter your text here', "160px"), d4_input("d3_mtdi", where, 'Enter your text here', "150px"),
-            d4_input("d3_time", where, 'Enter your text here', "140px"), d4_button("d3_save", where, 'LABEL'),
+            html.Div("D3 reference, for the validation comparison:", className="validation-subcopy"),
+            d4_input("d3_detection", where, "detection rate, %", "150px"), d4_input("d3_fp", where, "false positives, %", "150px"),
+            d4_input("d3_cal", where, "calibration error, %", "160px"), d4_input("d3_mtdi", where, "MTDI accuracy, %", "150px"),
+            d4_input("d3_time", where, "analysis time, s", "140px"), d4_button("d3_save", where, "SAVE"),
             d4_status(where, "d3_save"),
         ], className="ch3-ctl-row", style={"marginTop": "8px"}),
     ], className="chart-card d4-card")
@@ -1450,13 +1461,15 @@ def d4_engine_section():
     w = "core"
     return html.Div([
         html.Div([
-            html.Div('LABEL', className="mtdi-v2-kicker"),
-            html.Div('Title', className="mtdi-v2-title"),
-            html.Div('Paragraph. Enter your text here.',
+            html.Div("D4 ENGINE", className="mtdi-v2-kicker"),
+            html.Div("What the signals are doing", className="mtdi-v2-title"),
+            html.Div("MTDI asks whether the instrument can be trusted; D4 asks what the signals are actually doing. "
+                     "Every pass scores each source against its own baseline and combines the scores into one number.",
                      className="mtdi-v2-copy"),
-            html.Div("Paragraph. Enter your text here.", className="mtdi-v2-copy", style={"marginTop": "12px"}),
+            html.Div("This page shows the score, its parts and the stores. Each tab also carries the D4 analyses that belong to it.",
+                     className="mtdi-v2-copy", style={"marginTop": "12px"}),
         ], className="d4-hero"),
-        html.Div('Title', id={"type": "d4", "block": "headline", "where": w}, className="d4-headline"),
+        html.Div(D4_WAITING, id={"type": "d4", "block": "headline", "where": w}, className="d4-headline"),
         html.Div([d4_block("consensus", w), d4_block("confidence", w)], className="d4-grid two"),
         html.Div([d4_block("power_network", w), d4_block("events", w)], className="d4-grid two"),
         html.Div([d4_references_card(w), d4_classifier_card(w)], className="d4-grid two"),
@@ -1467,7 +1480,7 @@ def d4_engine_section():
 def d4_ch1_blocks():
     w = "c1"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div(f"D4 · {T('ch1.name').upper()}", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_calibration_card(w)], className="d4-grid one"),
         html.Div([d4_block("power_ch1", w, graph="200px"), d4_block("calhealth", w)], className="d4-grid two"),
         html.Div([d4_block("transients", w), d4_block("noise", w)], className="d4-grid two"),
@@ -1477,7 +1490,7 @@ def d4_ch1_blocks():
 def d4_ch2_blocks():
     w = "ef"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div(f"D4 · {T('ch2.name').upper()}", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_power_card(w)], className="d4-grid one"),
         html.Div([d4_block("power_network", w), d4_block("noise", w)], className="d4-grid two"),
     ], className="d4-section")
@@ -1486,7 +1499,7 @@ def d4_ch2_blocks():
 def d4_combined_blocks():
     w = "p1"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div("D4 · ALL SOURCES", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_block("exposure", w)], className="d4-grid one"),
         html.Div([d4_block("consensus", w), d4_block("correlation", w)], className="d4-grid two"),
         html.Div([d4_block("baseline", w), d4_fingerprint_card(w)], className="d4-grid two"),
@@ -1496,7 +1509,7 @@ def d4_combined_blocks():
 def d4_sweep3_blocks():
     w = "ch3"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div(f"D4 · {T('ch3.name').upper()}", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_block("ch3", w), d4_block("trend", w)], className="d4-grid two"),
     ], className="d4-section")
 
@@ -1504,7 +1517,7 @@ def d4_sweep3_blocks():
 def d4_environment_blocks():
     w = "env"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div("D4 · ENVIRONMENT", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_calibration_card(w)], className="d4-grid one"),
         html.Div([d4_block("calhealth", w), d4_block("baseline", w)], className="d4-grid two"),
         html.Div([d4_fingerprint_card(w), d4_block("trend", w)], className="d4-grid two"),
@@ -1514,7 +1527,7 @@ def d4_environment_blocks():
 def d4_validation_blocks():
     w = "val"
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div("D4 · VALIDATION", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_validation_card(w)], className="d4-grid one"),
         html.Div([d4_block("uncertainty", w), d4_block("noise", w)], className="d4-grid two"),
         html.Div([d4_block("limits", w)], className="d4-grid one"),
@@ -1524,7 +1537,7 @@ def d4_validation_blocks():
 
 def d4_settings_blocks():
     return html.Div([
-        html.Div('LABEL', className="section-label", style={"marginTop": "26px"}),
+        html.Div("D4 · ENGINE", className="section-label", style={"marginTop": "26px"}),
         html.Div([d4_config_card("set")], className="d4-grid one"),
     ], className="d4-section")
 

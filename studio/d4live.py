@@ -252,7 +252,8 @@ class D4Service:
             return None
         with lock:
             return {"freqs": list(data.get("freqs") or []), "levels": list(data.get("levels") or []),
-                    "trusted": bool(data.get("trusted")), "last_rx": data.get("last_rx"), "status": data.get("status")}
+                    "trusted": bool(data.get("trusted")), "last_rx": data.get("last_rx"), "status": data.get("status"),
+                    "x_unit": data.get("x_unit")}
 
     # ── repeatability on demand ──────────────────────────────────────────────
     REPEAT_CHANNELS = {
@@ -495,7 +496,8 @@ class D4Service:
         # CH3 analysis of the latest sweep
         sp = self._sweep3()
         if sp and len(sp["freqs"]) >= 8:
-            out["ch3"] = dict(d4.ch3_analysis(sp["freqs"], sp["levels"], cfg["ch3_threshold_db"]), trusted=sp["trusted"], status=sp["status"])
+            out["ch3"] = dict(d4.ch3_analysis(sp["freqs"], sp["levels"], cfg["ch3_threshold_db"]), trusted=sp["trusted"], status=sp["status"],
+                             x_unit=sp.get("x_unit"))
         else:
             out["ch3"] = {"error": "no sweep yet"}
 

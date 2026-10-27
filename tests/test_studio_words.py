@@ -38,10 +38,10 @@ dump = lambda c: json.dumps(c, cls=plotly.utils.PlotlyJSONEncoder)
 ui = sys.modules["studio.ui"]
 out = {"layout": dump(ns["app"].layout), "boot": ui.boot_html(), "words": ui.words_script()}
 out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
-# Page 1's three tabs (slice 6) and its tab bar, before any data: the engine blocks under each tab are a later slice
+# Page 1's three tabs (slice 6) and its tab bar, before any data (the engine blocks under each tab are checked below, slice 8)
 tabs = lambda: dump([ns["ch1_body"](), ns["ch2_body"](), ns["_combined_view_base"](), ns["p1_page"]().children[:5]])
 out["tabs"] = {"empty": tabs()}
-# Page 2's four views (slice 7) and its tab bar; the engine blocks under the sweep are a later slice
+# Page 2's four views (slice 7) and its tab bar (the engine blocks under the sweep: slice 8, below)
 sweep_tabs = ns["sweep3_page"]().children[1].children[3]
 peak = {"freq": 100.5e6, "over_floor_db": 12.0, "level_dbfs": -40.0, "band": "FM"}
 page2 = lambda: dump([ns["ch3_sweep_body"](), ns["sdr_view"](), ns["wifi_view"](), ns["bluetooth_view"](), sweep_tabs,
@@ -125,6 +125,27 @@ out["direction2"] = {"tab": dump(ns["update_ch2f_triaxial_3d"](1, None)),
                      "both": dump(ns["update_p1_overlays"](1, None, None))}
 ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", fed_source=None)   # the Uno path: reference mode, not fed
 out["tabs"]["reference"] = dump(ns["ch2_view"]())
+# the D4 engine blocks (slice 8): every section, then every readout from the live packet, a radio
+# sweep, a fed sweep and the repeatability run's three states
+d4m, rt = sys.modules["studio.d4"], ns["_d4_runtime"]()
+sections = [ns[n]() for n in ("d4_engine_section", "d4_ch1_blocks", "d4_ch2_blocks", "d4_combined_blocks",
+                              "d4_sweep3_blocks", "d4_environment_blocks", "d4_validation_blocks", "d4_settings_blocks")]
+live = rt.d4.snapshot()
+hz = [100.0e6 + i * 0.25e6 for i in range(24)]
+dbm = [-80.0] * 24
+dbm[8], dbm[16] = -30.0, -45.0
+radio3 = dict(d4m.ch3_analysis(hz, dbm), trusted=True, status="sweeping", x_unit=None)
+fed3 = dict(d4m.ch3_analysis([float(i) for i in range(1, 25)], dbm), trusted=False, status="TEST",
+            x_unit=os.environ["D4_TEST_XU"])
+rep = {"result": {"channel": "c", "n": 3, "window_s": 1, "text": "t", "sd": 0.1, "unit": "u", "range": 0.2,
+                  "min": 1, "max": 1.2, "rsd_pct": 5, "verdict": "v", "basis": "b", "conditions": "c"}}
+render = lambda d: dump([ns["_d4_render"](k, d, rt, "core") for k in ns["D4_BLOCK_META"]] + [ns["_d4_render"]("other", d, rt, "core")])
+packet = dict(live, exposure=d4m.exposure_comparison(None, 0.5), fingerprint={"ch1_val": 1, "ch2": 2, "ch3_floor_dbm": -80, "ch3_peak_hz": 1.0e8})
+out["d4"] = {"sections": dump(sections), "live": render(live),
+             "radio": render(dict(packet, ch3=radio3)), "fed": render(dict(packet, ch3=fed3)),
+             "repeat": dump([ns["_d4_render"]("repeat", dict(live, repeat_run=r), rt, "val")
+                             for r in ({}, {"running": True, "done": 1, "runs": 3, "label": "c", "window_s": 1}, rep)]),
+             "graphs": dump([ns["_d4_graph"](k, live, rt) for k in ("power", "power_ch1", "power_surface", "calibration", "validation", "repeat")])}
 print(json.dumps(out))
 '''
 
@@ -191,7 +212,8 @@ class SecondContentFile(unittest.TestCase):
             path = pathlib.Path(d, "words.json")
             path.write_text(json.dumps(words), encoding="utf-8")
             # a fresh home: an empty archive, as on a new install and in CI (the report must build from nothing)
-            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d)
+            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d,
+                       D4_TEST_XU=words["ch3.axis_unit"])
             res = subprocess.run([sys.executable, "-c", RENDER], cwd=ROOT, env=env,
                                  capture_output=True, text=True, timeout=300)
         self.assertEqual(res.returncode, 0, res.stderr[-2000:])
@@ -260,6 +282,23 @@ class SecondContentFile(unittest.TestCase):
         for radio_words in ("horizontal is frequency", "HOW A SWEEP IS TAKEN", "IF THE LEVELS LOOK WRONG"):
             self.assertNotIn(radio_words, rendered["page2"]["fed"], radio_words)
         self.assertIn(words["ch3.axis_unit"], rendered["page2"]["fed"])
+        # the D4 engine blocks (slice 8): every card, control and readout says what it is, in the project's
+        # channel words; a fed channel 3 sweep is read in its own units, with no radio hertz, dBm or bands
+        d4 = rendered["d4"]
+        for state, view in d4.items():
+            self.assertIsNone(placeholder.search(view), f"D4 {state}: {placeholder.search(view)}")
+            self.assertNotIn("Channel 1", view, state)
+            self.assertNotIn("CH 3", view, state)
+        for word in (n1, n2, words["ch3.name"]):
+            self.assertIn(word.lower(), d4["sections"].lower(), word)
+            self.assertIn(word, d4["radio"], word)
+        self.assertIn(" dBm", d4["radio"])
+        self.assertIn("per 100 MHz", d4["radio"])
+        self.assertIn(words["ch3.axis_unit"], d4["fed"])
+        self.assertIn(words["ch3.unit"], d4["fed"])
+        for radio_words in (" MHz", " dBm", "per 100 MHz", "Outside known bands", "consistent with activity"):
+            self.assertNotIn(radio_words, d4["fed"], radio_words)
+        self.assertIn(f"{n1}, 50 Hz component", d4["radio"])      # the exposure rows name the project's channels
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

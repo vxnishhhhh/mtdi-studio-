@@ -697,7 +697,7 @@ EXPOSURE_REFERENCES = {
     },
     "ch1_val": {
         "public": 200.0, "occupational": 1000.0, "public_1998": 100.0,
-        "source": 'ICNIRP 2010 reference levels at 50 Hz (ICNIRP 1998 public level was 100 unit)',
+        "source": 'ICNIRP 2010 reference levels at 50 Hz (ICNIRP 1998 public level was 100 uT)',
     },
 }
 
@@ -724,7 +724,7 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
     if linefreq_ch1_val is not None and math.isfinite(linefreq_ch1_val):
         pct = 100.0 * linefreq_ch1_val / c1_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 1, 50 Hz component', "value": _f(linefreq_ch1_val, 4), "unit": "uT",
+            "key": "ch1", "channel": 'Channel 1, 50 Hz component', "value": _f(linefreq_ch1_val, 4), "unit": "uT",
             "public_limit": c1_ref["public"], "occupational_limit": c1_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
@@ -733,14 +733,14 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
                      "ICNIRP 1998 public level of 100 uT"),
         })
     else:
-        out["channels"].append({"channel": 'Channel 1, 50 Hz component', "quantitative": False,
+        out["channels"].append({"key": "ch1", "channel": 'Channel 1, 50 Hz component', "quantitative": False,
                                 "reading": 'no 50 Hz channel 1 fundamental stands above the noise',
                                 "unit": "uT", "public_limit": c1_ref["public"]})
     e_ref = EXPOSURE_REFERENCES["ch2_vu"]
     if linefreq_ch2_vu is not None and math.isfinite(linefreq_ch2_vu) and calibrated:
         pct = 100.0 * linefreq_ch2_vu / e_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 2, 50 Hz component', "value": _f(linefreq_ch2_vu, 3), "unit": "V/m",
+            "key": "ch2", "channel": 'Channel 2, 50 Hz component', "value": _f(linefreq_ch2_vu, 3), "unit": "V/m",
             "public_limit": e_ref["public"], "occupational_limit": e_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
@@ -748,9 +748,9 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
         })
     else:
         out["channels"].append({
-            "channel": 'Channel 2, 50 Hz component', "quantitative": False, "unit": "V/m",
+            "key": "ch2", "channel": 'Channel 2, 50 Hz component', "quantitative": False, "unit": "V/m",
             "public_limit": e_ref["public"],
-            "reading": ("the Ch2 probe carries no absolute calibration, so no percentage of a "
+            "reading": ("the probe carries no absolute calibration, so no percentage of a "
                         "reference level is claimed. The published public level is 5 kV/m at 50 Hz; "
                         "stating where this reading sits against it needs a known-field fixture."),
         })
