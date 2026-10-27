@@ -2512,11 +2512,11 @@ def _d4_render(kind, d, rt, where):
         xu = fp["ch3_x_unit"] if "ch3_x_unit" in fp else (d.get("ch3") or {}).get("x_unit")
         u3 = "dBm" if xu is None else T("ch3.unit")
         pk = fp.get("ch3_peak_hz")
-        pk_s = "—" if not pk else (_freq_label(pk) if xu is None else f"{pk:g} {xu}")
+        pk_s = "—" if pk is None else (_freq_label(pk) if xu is None else f"{pk:g} {xu}")
         return [_d4_kv([(T("ch1.name"), f"{fp.get('ch1_val')} {T('ch1.unit')}"), (T("ch2.name"), f"{fp.get('ch2')}"),
                         (f"{T('ch3.name')} floor", f"{fp.get('ch3_floor_dbm')} {u3} · peak {pk_s}"),
                         ("Line frequency", f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ("Transients", f"{fp.get('transient_rate_per_min')} /min")]),
-                html.Div(("No reference yet: press TAKE REFERENCE to store one." if not ref else f"Change since the reference: {T('ch3.name')} floor " + ("not comparable" if chg.get("ch3_floor_db") is None else f"{chg.get('ch3_floor_db'):+} {'dB' if xu is None else u3}") + f" · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
+                html.Div(("No reference yet: press TAKE REFERENCE to store one." if not ref else f"Change since the reference: {T('ch3.name')} floor " + ("not comparable" if chg.get("ch3_floor_db") is None else f"{chg.get('ch3_floor_db'):+} dB") + f" · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
     if kind == "trend":
         t = d.get("trend"); hist = d.get("history") or {}
         rows = [("Score", f"{t['minutes']} min window · slope {t['mtdi_per_min']:+} per min · {t['text']}")] if t else [("Score", "collecting")]

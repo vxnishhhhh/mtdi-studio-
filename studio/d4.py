@@ -895,13 +895,14 @@ def validation_stats(values=None, detections=None):
 
 
 # ── 13. environmental fingerprint ────────────────────────────────────────────
-def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None, ch3_x_unit=None):
-    """ch3_x_unit: None for the radio (hertz, dBm), else a fed sweep's own x unit."""
+def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None,
+                ch3_x_unit=None, ch3_level_unit=None):
+    """ch3_x_unit and ch3_level_unit: None for the radio (hertz, dBm), else a fed sweep's own units."""
     def band(x):
         x = np.asarray([v for v in x if v is not None and math.isfinite(v)], dtype=float)
         return [_f(np.percentile(x, 10), 2), _f(np.percentile(x, 90), 2)] if x.size else None
     return {"taken_at": time.time(), "ch1_val": band(c1_mags), "ch2": band(e_values), "ch3_floor_dbm": _f(ch3_floor, 1),
-            "ch3_peak_hz": _f(ch3_peak_hz, 0 if ch3_x_unit is None else 6), "ch3_x_unit": ch3_x_unit,
+            "ch3_peak_hz": _f(ch3_peak_hz, 0 if ch3_x_unit is None else 6), "ch3_x_unit": ch3_x_unit, "ch3_level_unit": ch3_level_unit,
             "transient_rate_per_min": _f(transient_rate_per_min, 2), "linefreq": harmonics_summary}
 
 
@@ -917,7 +918,7 @@ def compare_fingerprints(old, new):
     # a channel 3 floor is compared only with one in the same kind of sweep (a reference taken on
     # the radio says nothing about a fed sweep's floor) and only when both have one
     a, b = old.get("ch3_floor_dbm"), new.get("ch3_floor_dbm")
-    same = old.get("ch3_x_unit") == new.get("ch3_x_unit")
+    same = all(old.get(k) == new.get(k) for k in ("ch3_x_unit", "ch3_level_unit"))
     return {"ch3_floor_db": _f(b - a, 1) if same and a is not None and b is not None else None,
             "ch1_pct": pct(old.get("ch1_val"), new.get("ch1_val")),
             "ch2_pct": pct(old.get("ch2"), new.get("ch2")),
@@ -1068,7 +1069,9 @@ def feature_vector(packet):
     sc = packet.get("scores") or {}
     v = [me.get("fundamental_amp") if me.get("fundamental_detected") else 0.0, me.get("thd_pct") or 0.0, rel(me, 2), rel(me, 3),
          mm.get("fundamental_amp") if mm.get("fundamental_detected") else 0.0, mm.get("thd_pct") or 0.0, rel(mm, 2),
-         ch3.get("snr_db"), ch3.get("occupancy_pct"), (ch3.get("primary_peak_hz") or 0) / 1e9,
+         ch3.get("snr_db"), ch3.get("occupancy_pct"),
+         # a fed sweep's peak is a position in its own unit, not a frequency: no GHz feature for it
+         None if ch3.get("x_unit") is not None else (ch3.get("primary_peak_hz") or 0) / 1e9,
          (packet.get("fingerprint") or {}).get("transient_rate_per_min"), sc.get("ch2"), sc.get("ch1"), sc.get("conducted")]
     # None (not NaN) for JSON safety; consumers convert back with _nanvec
     return [_f(x, 4) if x is not None else None for x in v]

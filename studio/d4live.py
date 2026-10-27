@@ -47,6 +47,7 @@ def ch3_packet(sp, threshold_db, level_unit=None):
     if level_unit is None:
         from .content import T
         level_unit = T("ch3.unit")
+    meta["level_unit"] = level_unit
     if "db" not in str(level_unit).lower():
         return dict(meta, error=f"The sweep analysis needs levels in decibels; this feed's levels are in {level_unit}, "
                                 f"so only the sweep itself is shown.")
@@ -573,7 +574,7 @@ class D4Service:
                             out["ch3"].get("noise_floor_dbm"), out["ch3"].get("primary_peak_hz"),
                             len([t for t in self.transient_times if now - t < 600]) / 10.0,
                             {"fundamental_hz": out.get("linefreq", {}).get("fundamental_hz"), "thd_pct": out.get("linefreq", {}).get("thd_pct")},
-                            ch3_x_unit=(sp or {}).get("x_unit"))
+                            ch3_x_unit=(sp or {}).get("x_unit"), ch3_level_unit=out["ch3"].get("level_unit"))
         out["fingerprint"] = fp
         out["fingerprint_reference"] = self.fingerprint_ref
         out["fingerprint_change"] = d4.compare_fingerprints(self.fingerprint_ref, fp)

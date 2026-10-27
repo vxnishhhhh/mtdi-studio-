@@ -45,3 +45,16 @@ class FedSweep(unittest.TestCase):
         self.assertEqual(d4.compare_fingerprints(radio, d4.fingerprint([], [], -70.0, 1.0e8, 0))["ch3_floor_db"], 10.0)
         self.assertIsNone(d4.compare_fingerprints(radio, fed)["ch3_floor_db"])
         self.assertIsNone(d4.compare_fingerprints(radio, d4.fingerprint([], [], None, None, 0))["ch3_floor_db"])
+        dbfs = d4.fingerprint([], [], -50.0, 2.5, 0, ch3_x_unit="mm", ch3_level_unit="dBFS")
+        dbm = d4.fingerprint([], [], -40.0, 2.5, 0, ch3_x_unit="mm", ch3_level_unit="dBm")
+        self.assertIsNone(d4.compare_fingerprints(dbfs, dbm)["ch3_floor_db"])      # same axis, other level unit
+        self.assertEqual(d4.compare_fingerprints(dbm, dict(dbm, ch3_floor_dbm=-35.0))["ch3_floor_db"], 5.0)
+
+    def test_a_fed_peak_is_not_a_frequency_feature(self):
+        from studio import d4
+        from studio.d4live import ch3_packet
+        fed = ch3_packet(self.sweep("mm", [0.5 + i * 0.25 for i in range(24)]), 10.0, level_unit="dB")
+        radio = ch3_packet(self.sweep(None), 10.0)
+        self.assertEqual(fed["level_unit"], "dB")
+        self.assertIsNone(d4.feature_vector({"ch3": fed})[9])
+        self.assertEqual(d4.feature_vector({"ch3": radio})[9], 0.102)
