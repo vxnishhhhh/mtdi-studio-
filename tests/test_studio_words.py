@@ -174,7 +174,7 @@ out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environ
                    environment=dump([ns["update_environmental_intelligence"](1, None), ns["_environmental_intelligence_base"]()]))
 # a sender's explicit null unit is the default, not "None"; then the baseline status for a settled Uno, unclipped and clipped
 ns["feed_ch2"](2.0, unit=None, source="TEST")
-status = ["None not stored as a unit" if ns["ch2f_data"]["input_unit"] != "None" else "stored None"]
+status = ["None not stored as a unit" if "None" not in (ns["ch2f_data"]["input_unit"], ns["ch2f_data"]["unit"]) else "stored None"]
 ns["ch1_data"]["baseline_calibrated"] = True
 ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", fed_source=None, calibrated=True, clipped=False, error=None,
                        warning="Uno USB ADC: the V/m figure is a nominal-reference estimate pending prototype calibration")

@@ -1023,8 +1023,9 @@ def install(ns, engine):
         if not math.isfinite(value):
             raise ValueError("ch2 takes one finite number")
         now = time.time() if now is None else float(now)
+        unit = "mV RMS relative" if unit is None else str(unit)   # an explicit null is the default, never "None"
         mono = _feed_mono("ch2")
-        ch2 = engine.ingest("ch2", value, now, str(unit), metadata={"monotonic": mono, "data_source": source})
+        ch2 = engine.ingest("ch2", value, now, unit, metadata={"monotonic": mono, "data_source": source})
         profile = ch2["calibration"]["profile"]
         baseline = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
         ratio = value / baseline if abs(baseline) > 1e-12 else 1.0
@@ -1038,7 +1039,7 @@ def install(ns, engine):
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
                         probe_calibrated=False, unit=ch2["unit"],
-                        input_unit=str(unit) if unit is not None else "mV RMS relative", fed_source=str(source),
+                        input_unit=unit, fed_source=str(source),
                         **_scalar_feed_fields())
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)
