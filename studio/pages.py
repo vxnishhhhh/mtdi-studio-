@@ -2041,7 +2041,9 @@ def environmental_values():
         live = ch2f_data.get("rms_mv")
         c2_live = (("≥ " if ch2f_data["clipped"] else "") + f"{live:.3f} {u2}"
                    if ch2f_data["last_rx"] is not None and live is not None and not ch2f_data["error"] else "—")
-        e2 = ch2f_data["error"] or ch2f_data.get("warning")   # an unstable or clipped reference is not settled
+        # an unstable or clipped reference is not settled; the Uno's unclipped warning is only its calibration notice
+        uno_notice = ch2f_data.get("data_source") == "ARDUINO_UNO_USB" and not ch2f_data["clipped"]
+        e2 = ch2f_data["error"] or (None if uno_notice else ch2f_data.get("warning"))
     if e1 or e2:
         status = (f"BASELINE WARNING · {T('ch1.name')}: {e1 or 'ready'} · "
                   f"{T('ch2.name')}: {e2 or 'ready'}")

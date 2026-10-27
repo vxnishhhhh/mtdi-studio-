@@ -603,7 +603,7 @@ def install(ns, engine):
                                       warning=(("Uno %s reached 0 or 1023; reference-estimated V/m = N/C and raw activity are lower bounds"
                                                 % "/".join(clipped_axes))
                                                if clipped else
-                                               'Source 6 USB ADC — unit = unit is a nominal-reference estimate pending prototype calibration'),
+                                               "Uno USB ADC: the V/m figure is a nominal-reference estimate pending prototype calibration"),
                                       probe_health="railed" if clipped else "ok",
                                       unit="ADC counts RMS relative", uncertainty=item["uncertainty"],
                                       sample_rate=sample_rate,
@@ -1037,7 +1037,8 @@ def install(ns, engine):
                         field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
-                        probe_calibrated=False, unit=ch2["unit"], input_unit=str(unit), fed_source=str(source),
+                        probe_calibrated=False, unit=ch2["unit"],
+                        input_unit=str(unit) if unit is not None else "mV RMS relative", fed_source=str(source),
                         **_scalar_feed_fields())
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)

@@ -172,6 +172,16 @@ out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environ
                                  ns["NVTRA_SUGGESTIONS"]]),
                    live=dump(ns["update_mtdi"](1, None)), descs=[item[4] for item in orbit],
                    environment=dump([ns["update_environmental_intelligence"](1, None), ns["_environmental_intelligence_base"]()]))
+# a sender's explicit null unit is the default, not "None"; then the baseline status for a settled Uno, unclipped and clipped
+ns["feed_ch2"](2.0, unit=None, source="TEST")
+status = ["None not stored as a unit" if ns["ch2f_data"]["input_unit"] != "None" else "stored None"]
+ns["ch1_data"]["baseline_calibrated"] = True
+ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", fed_source=None, calibrated=True, clipped=False, error=None,
+                       warning="Uno USB ADC: the V/m figure is a nominal-reference estimate pending prototype calibration")
+status.append(ns["environmental_values"]()[4])
+ns["ch2f_data"].update(clipped=True, warning="Uno A0 reached 0 or 1023")
+status.append(ns["environmental_values"]()[4])
+out["mtdi"]["status"] = status
 s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
 out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
 print(json.dumps(out))
@@ -357,6 +367,9 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn("fedunit", mtdi["live"])
         self.assertNotIn("V/m", mtdi["environment"])
         self.assertIn("UNVERIFIED", mtdi["live"])          # a fed sweep is not checked, but its levels are not wrong
+        self.assertEqual(mtdi["status"][0], "None not stored as a unit")
+        self.assertIn("BASELINES SETTLED", mtdi["status"][1])      # the Uno's calibration notice is not a fault
+        self.assertIn("BASELINE WARNING", mtdi["status"][2])       # a clipped Uno is
         for state in ("landing", "pillars", "live", "insane", "environment"):
             self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")
         self.assertEqual(sorted(mtdi["descs"]), sorted(p["desc"] for p in [*PILLARS, AETHER]))
