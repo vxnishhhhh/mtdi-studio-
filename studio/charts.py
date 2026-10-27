@@ -112,10 +112,12 @@ def _scene(height):
 
 def ch1_value_unit(data):
     """The unit of channel 1's values: a feed's own unit (an MTDI project, /api/ingest), else the
-    studio's own magnetometer, whose readings are converted to microtesla on the way in."""
+    studio's own magnetometer, whose readings are converted to microtesla on the way in. A feed
+    that names no unit was never converted to microtesla: it reads in the project's channel 1 word."""
     data = data or {}
-    fed = str(data.get("fed_unit") or "").strip() if data.get("fed_source") else ""
-    return fed or "µT"
+    if data.get("fed_source"):
+        return str(data.get("fed_unit") or "").strip() or T("ch1.unit")
+    return "µT"
 
 
 def ch2_axis_unit(data):

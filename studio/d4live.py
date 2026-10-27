@@ -353,12 +353,22 @@ class D4Service:
                 self.repeat_run.update(running=False, error=str(exc)[:160], finished_at=time.time())
 
     # ── calibration on demand ────────────────────────────────────────────────
+    def _ch1_unit(self):
+        """Channel 1's unit now: a feed's own (the project's word if it named none), else the
+        magnetometer's microtesla. Mirrors charts.ch1_value_unit."""
+        c1 = self.ns.get("ch1_data") or {}
+        if c1.get("fed_source"):
+            from .content import T
+            return str(c1.get("fed_unit") or "").strip() or T("ch1.unit")
+        return "µT"
+
     def calibrate_ch1probe(self, seconds=120):
         rows = self._ring("ch1_raw", seconds)
         pts = [r[1:4] for r in rows]
         result, err = d4.ellipsoid_fit(pts)
         if err:
             return None, err
+        result["unit"] = self._ch1_unit()   # the fit keeps the unit it was made in; the source can change later
         cfg_patch = {"c1_offsets": result["offsets_val"], "c1_soft_iron": result["soft_iron_matrix"],
                      "c1_scale": result["scale"], "c1_calibration_quality": result["quality"]}
         with self.lock:
@@ -494,8 +504,7 @@ class D4Service:
         # How small a change each channel can honestly claim to have seen, from its own
         # measured noise rather than a datasheet figure.
         limits = {}
-        c1 = self.ns.get("ch1_data") or {}
-        c1_unit = (str(c1.get("fed_unit") or "").strip() if c1.get("fed_source") else "") or "uT"
+        c1_unit = self._ch1_unit()
         for key, noise_key, unit in (("ch1", "noise_ch1", c1_unit),
                                      ("ch2", "noise_ch2", "ADC codes")):
             lim = d4.detection_limits(out.get(noise_key), unit)

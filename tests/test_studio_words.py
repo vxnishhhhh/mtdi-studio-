@@ -147,7 +147,8 @@ out["d4"] = {"sections": dump(sections), "live": render(live),
                              for r in ({}, {"running": True, "done": 1, "runs": 3, "label": "c", "window_s": 1}, rep)]),
              "graphs": dump([ns["_d4_graph"](k, live, rt) for k in ("power", "power_ch1", "power_surface", "calibration", "validation", "repeat")])}
 out["d4_units"] = {"fed_at": [ns["_fed_at"](v, "mm") for v in (1.000001, 2.5, 0.0, 120.0)],
-                   "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({})}
+                   "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({}),
+                   "ch1_unnamed": ns["ch1_value_unit"]({"fed_source": "TEST", "fed_unit": ""})}
 print(json.dumps(out))
 '''
 
@@ -307,6 +308,7 @@ class SecondContentFile(unittest.TestCase):
         units = rendered["d4_units"]
         self.assertEqual(units["fed_at"], ["1.000001 mm", "2.5 mm", "0 mm", "120 mm"])
         self.assertEqual((units["ch1"], units["ch1_own"]), ("fedunit1", "µT"))
+        self.assertEqual(units["ch1_unnamed"], words["ch1.unit"])   # a feed naming no unit is not microtesla
         self.assertIn("fedunit1", d4["radio"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")

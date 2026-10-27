@@ -2424,7 +2424,7 @@ def _d4_render(kind, d, rt, where):
             return [html.Div("No fit yet: turn the sensor slowly through every direction, then press FIT.", className="validation-subcopy"),
                     html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} {ch1_value_unit(ch1_data)} · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
         o, s_ = lc["offsets_val"], lc["scale"]
-        u1 = ch1_value_unit(ch1_data)
+        u1 = lc.get("unit") or ch1_value_unit(ch1_data)
         return [html.Pre(f"{T('ch1.name')} calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} {u1}\nY offset: {o[1]:+.1f} {u1}\nZ offset: {o[2]:+.1f} {u1}\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
                          f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_val']} {u1}\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
                 html.Pre(json.dumps({"x_offset": o[0], "y_offset": o[1], "z_offset": o[2], "soft_iron": lc["soft_iron_matrix"]}, separators=(",", ":")), className="d4-pre small")]
@@ -2624,7 +2624,7 @@ def _d4_graph(kind, d, rt):
         if not lc or not lc.get("raw"):
             return _d4_empty(380, "Press FIT to show the raw and corrected readings")
         raw, cor = lc["raw"], lc["corrected"]
-        u1 = ch1_value_unit(ch1_data)
+        u1 = lc.get("unit") or ch1_value_unit(ch1_data)
         fig = go.Figure()
         fig.add_trace(go.Scatter3d(x=[p[0] for p in raw], y=[p[1] for p in raw], z=[p[2] for p in raw], mode="markers", name="raw", marker=dict(size=2.2, color="#ff5252", opacity=.75)))
         fig.add_trace(go.Scatter3d(x=[p[0] for p in cor], y=[p[1] for p in cor], z=[p[2] for p in cor], mode="markers", name="corrected", marker=dict(size=2.2, color="#00e5ff", opacity=.85)))
@@ -2703,10 +2703,10 @@ def d4_actions(clicks, values, in_ids, status_ids):
                 msg = f"REJECTED · {patch}"
             elif action == "cal_apply":
                 path = rt.d4.update_config(patch)
-                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)}, quality {result['quality']} %")
-                msg = f"Fit applied: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)} · quality {result['quality']} % · written to {path}"
+                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)}, quality {result['quality']} %")
+                msg = f"Fit applied: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)} · quality {result['quality']} % · written to {path}"
             else:
-                msg = f"Fit done: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)} · quality {result['quality']} % (not applied)"
+                msg = f"Fit done: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)} · quality {result['quality']} % (not applied)"
         elif action == "burst":
             rt.d4.request_burst(3440, "ch2f"); msg = f"Burst requested: next {T('ch2.name')} block is 3440 contiguous samples"
         elif action == "repeat_start":

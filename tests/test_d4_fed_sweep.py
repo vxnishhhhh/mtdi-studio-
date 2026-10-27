@@ -58,3 +58,23 @@ class FedSweep(unittest.TestCase):
         self.assertEqual(fed["level_unit"], "dB")
         self.assertIsNone(d4.feature_vector({"ch3": fed})[9])
         self.assertEqual(d4.feature_vector({"ch3": radio})[9], 0.102)
+
+
+class FitUnit(unittest.TestCase):
+    """A channel 1 fit keeps the unit it was made in, whatever the source becomes later (CodeRabbit, #71)."""
+
+    def test_the_fit_records_the_unit_of_its_source(self):
+        import math
+        import threading
+        from studio.d4live import D4Service
+        rows = []
+        for i in range(400):                           # a sphere of radius 50, offset by (5, -3, 2)
+            th, ph = math.acos(1 - 2 * (i + 0.5) / 400), math.pi * (1 + 5 ** 0.5) * i
+            rows.append((float(i), 5 + 50 * math.sin(th) * math.cos(ph), -3 + 50 * math.sin(th) * math.sin(ph), 2 + 50 * math.cos(th)))
+        for data, unit in (({"fed_source": "TEST", "fed_unit": "nT"}, "nT"), ({}, "µT")):
+            service = D4Service.__new__(D4Service)      # skip __init__: no config or files needed
+            service.ns, service.lock = {"ch1_data": data, "RUNTIME": {}}, threading.Lock()
+            service._ring = lambda key, seconds: rows
+            result, _patch = service.calibrate_ch1probe(120)
+            self.assertIsNotNone(result, _patch)
+            self.assertEqual((result["unit"], service.last_calibration["unit"]), (unit, unit))
