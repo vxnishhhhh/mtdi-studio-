@@ -5,13 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 245 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** find why the MTDI page is slow in a headless browser (tour default limit fails on main), then S1-06 slice 8 (the D4 engine blocks under each tab, the MTDI page, Settings, typewriter lines, constellation and globe words), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 8 (the MTDI page's slow headless load is explained: the tour now scrolls through the intro and waits up to 420 s; see the 2026-10-27 report) (the D4 engine blocks under each tab, the MTDI page, Settings, typewriter lines, constellation and globe words), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
+* 2026-10-27 night · Tour (PR on auto/tour-intro): the MTDI page's slow headless load explained. The tour clicked the nav through the active startup intro (a visitor cannot: the header is pointer-events:none), so the intro's shader ran behind every page; it now scrolls the intro away first. In software GL the always-on shell (two full-screen background shaders and the full-screen scrub canvas) still holds animation near 1.5 fps, so the default page limit is 420 s. No loop leaks between pages.
 * 2026-10-27 night · Merged #67 (S1-06 slice 6, Page 1; CodeRabbit 5 findings and 1 nit over 4 reviews, all fixed, one with a different condition than suggested). Merged #68 (S1-06 slice 7): Page 2's four views and tab bar say what they show; the Bluetooth strongest-signal card read "unit" for dBm; CodeRabbit 7 findings and 1 nit, all fixed. The tour needed TOUR_PAGE_TIMEOUT_MS=420000: the MTDI page takes up to 233 s to be ready in a headless browser in this container, on main too (open item).
 * 2026-10-26 late · S1-06 slice 6 (PR on auto/S1-06-slice6): Page 1's three tabs say what they show in the project's channel words (section heads, cards, buttons, zoom and listen cards, chart titles, notes); channel 2's reference-scaled cards read `ch2.unit`, not a literal "unit = N/C"; the words test renders the tabs empty, fed and in reference mode, and its placeholder check now also catches padded and TITLE/Subtext/Button words.
 * 2026-10-26 night · Merged #64, S1-06 slice 5: every chart and table in studio/charts.py says what it shows (MHz, dBFS, µs, dBm for the studio's own instruments; `ch3.unit` for the radio's level); CodeRabbit 4 findings, all fixed. Merged #65: D4Service computed the packet in two callbacks at once (`deque mutated during iteration`, a 500 found by the tour); computes now run one at a time and a config reload waits for one in flight; CodeRabbit 2 findings + 1 nit, all fixed. Report: ops/reports/2026-10-26-night.md.

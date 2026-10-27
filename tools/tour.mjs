@@ -5,7 +5,7 @@
 //
 // Each page is judged once the studio says it is ready (<html data-page-ready="1">, see
 // studio/browser.py), never after a fixed sleep. The summary lists how long each page took
-// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 180000) is the deadline per page: software GL in
+// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 420000) is the deadline per page: software GL in
 // the cloud needs about 50 s for the 3D pages.
 //
 // Needs Playwright (resolved from NODE_PATH, /opt/node-tools or a local install) and Chromium
@@ -41,7 +41,13 @@ page.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("pageerror:
 page.on("console", (m) => { if (m.type() === "error" && !ignored(m.text())) problems.push("console: " + m.text().slice(0, 300)); });
 page.on("response", (r) => { if (r.status() >= 400 && !ignored(r.url())) problems.push(`${r.status()} ${r.url()}`); });
 
-const PAGE_TIMEOUT = Number(process.env.TOUR_PAGE_TIMEOUT_MS || 180000);
+// In software GL (a cloud container has no GPU: Chromium falls back to SwiftShader) the studio's
+// always-on shell, two full-screen background shaders and the full-screen scrub canvas, holds
+// every animation loop near 1.5 frames a second, so a 3D page can take minutes to settle. On
+// 2026-10-27 the MTDI page took 42-161 s on the desktop pass and 189-273 s on the phone pass
+// (its frame is 1180 px at 1.7x); runs vary a lot. The deadline is a measurement budget, not a
+// speed target.
+const PAGE_TIMEOUT = Number(process.env.TOUR_PAGE_TIMEOUT_MS || 420000);
 // Resolves with the page's own ready time once <html data-page=path data-page-ready="1">.
 async function ready(tab, path) {
   await tab.waitForFunction((p) => document.documentElement.dataset.page === p &&
@@ -56,6 +62,16 @@ try {
 } catch {
   problems.push("home: never signalled ready");
 }
+// A visitor scrolls through the startup intro before the nav can be used: the header is
+// pointer-events:none until then. element.click() below reaches the nav anyway, so without
+// this the tour browsed every page with the intro still active, its full-screen shader and the
+// hidden field background drawing behind each page (software GL then starved every page).
+await page.mouse.move(720, 450);   // the middle of the 1440 x 900 viewport, over the intro
+for (let i = 0; i < 60 && !(await page.evaluate(() => window.__introConsumed === true)); i++) {
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(150);
+}
+if (!(await page.evaluate(() => window.__introConsumed === true))) problems.push("home: the startup intro did not finish after scrolling it");
 for (const [name, nav, path] of pages) {
   await page.evaluate((id) => document.getElementById(id)?.click(), nav);
   let readyMs = null;
