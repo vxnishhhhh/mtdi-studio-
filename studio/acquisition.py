@@ -1037,7 +1037,7 @@ def install(ns, engine):
                         field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
-                        probe_calibrated=False, unit=ch2["unit"], fed_source=str(source),
+                        probe_calibrated=False, unit=ch2["unit"], input_unit=str(unit), fed_source=str(source),
                         **_scalar_feed_fields())
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)

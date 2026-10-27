@@ -2035,13 +2035,13 @@ def environmental_values():
         c1_delta = f"{ch1_data['baseline_delta']:.2f} {u1}" if ready1 else "—"
         e1 = ch1_data["error"]
     with ch2f_lock:
-        u2 = ch2_axis_unit(ch2f_data)
+        u2 = ch2_input_unit(ch2f_data)   # baseline_mv and rms_mv are the source's own numbers, never converted (CodeRabbit, #74)
         ready2 = ch2f_data["calibrated"] and ch2f_data.get("baseline_mv") is not None
         c2_base = f"{ch2f_data['baseline_mv']:.3f} {u2}" if ready2 else "LEARNING"
         live = ch2f_data.get("rms_mv")
         c2_live = (("≥ " if ch2f_data["clipped"] else "") + f"{live:.3f} {u2}"
                    if ch2f_data["last_rx"] is not None and live is not None and not ch2f_data["error"] else "—")
-        e2 = ch2f_data["error"]
+        e2 = ch2f_data["error"] or ch2f_data.get("warning")   # an unstable or clipped reference is not settled
     if e1 or e2:
         status = (f"BASELINE WARNING · {T('ch1.name')}: {e1 or 'ready'} · "
                   f"{T('ch2.name')}: {e2 or 'ready'}")

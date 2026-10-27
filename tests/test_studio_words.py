@@ -163,6 +163,10 @@ bodies = list(orbit)
 orbit[:] = [(*item[:6], lambda: html.Div()) for item in bodies]
 html = sys.modules["dash"].html
 out["mtdi"] = {"landing": dump(ns["mtdi_page"]())}
+# channel 2 fed again in its own unit, then given a calibrated output unit, as a V/m calibration profile does:
+# the cards' raw numbers keep the unit the source sent (CodeRabbit, #74)
+ns["feed_ch2"](2.0, unit="fedunit", source="TEST")
+ns["ch2f_data"]["unit"] = "V/m"
 orbit[:] = bodies
 out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environmental_intelligence_section"](),
                                  ns["NVTRA_SUGGESTIONS"]]),
@@ -351,7 +355,7 @@ class SecondContentFile(unittest.TestCase):
         # live callback say the same (CodeRabbit, #74)
         self.assertIn("fedunit", mtdi["environment"])
         self.assertIn("fedunit", mtdi["live"])
-        self.assertNotIn("V/m est.", mtdi["environment"])
+        self.assertNotIn("V/m", mtdi["environment"])
         self.assertIn("UNVERIFIED", mtdi["live"])          # a fed sweep is not checked, but its levels are not wrong
         for state in ("landing", "pillars", "live", "insane", "environment"):
             self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")

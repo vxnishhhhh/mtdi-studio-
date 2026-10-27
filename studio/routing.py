@@ -1259,10 +1259,10 @@ def update_mtdi(n, _refresh):
         _card(T('ch2.name').upper(),
               (f"{ed.get('rms_counts'):.2f} ADC counts RMS"
                if ed.get("data_source") == "ARDUINO_UNO_USB" and ed.get("rms_counts") is not None else
-               f"{ed['rms_mv']:.3f} {ch2_axis_unit(ed)}" if ed["last_rx"] and ed.get("rms_mv") is not None else "—"),
+               f"{ed['rms_mv']:.3f} {ch2_input_unit(ed)}" if ed["last_rx"] and ed.get("rms_mv") is not None else "—"),
               ("clipped: the input is at its limit" if ed["clipped"] else
                "raw ADC counts, no field scale" if ed.get("data_source") == "ARDUINO_UNO_USB" else
-               f"index {ed['rel_index']:.0f}% · base {ed['baseline_mv']:.3f} {ch2_axis_unit(ed)}"
+               f"index {ed['rel_index']:.0f}% · base {ed['baseline_mv']:.3f} {ch2_input_unit(ed)}"
                if ed["calibrated"] and ed.get("baseline_mv") is not None else "no baseline yet"),
               vc=RED if ed["clipped"] else CYAN),
         _card("SAMPLES", str(len(md["xyz_history"])), f"{T('ch1.name')} readings held in memory", vc=WHITE),
