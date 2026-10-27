@@ -359,10 +359,11 @@ CH3_BANDS = [
 ]
 
 
-def ch3_analysis(freqs, levels, threshold_db=10.0):
+def ch3_analysis(freqs, levels, threshold_db=10.0, digits=0):
     """Peak, robust noise floor, SNR, occupied bandwidth, peaks, harmonics of the primary
     peak, occupancy and interference density from one sweep in dBm. Band wording is
-    'consistent with', never an identification."""
+    'consistent with', never an identification. Positions are rounded to `digits`: whole
+    hertz for the radio, more for a fed sweep whose x axis is in its own unit."""
     f = np.asarray(freqs, dtype=float)
     L = np.asarray(levels, dtype=float)
     ok = np.isfinite(f) & np.isfinite(L)
@@ -407,20 +408,20 @@ def ch3_analysis(freqs, levels, threshold_db=10.0):
         ratio = q["hz"] / max(1.0, peak_f)
         k = round(ratio)
         if k >= 2 and abs(ratio - k) < 0.02:
-            harm.append({"order": int(k), "hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1)})
+            harm.append({"order": int(k), "hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1)})
     # interference density: activity islands per 100 MHz
     islands = int(np.sum(np.diff(above.astype(int)) == 1) + (1 if above[0] else 0))
     span_mhz = max(1e-3, (f.max() - f.min()) / 1e6)
     bands = [name for lo, hi, name in CH3_BANDS if lo <= peak_f <= hi]
     return {
-        "points": int(f.size), "span_hz": [_f(f.min(), 0), _f(f.max(), 0)],
-        "primary_peak_hz": _f(peak_f, 0), "primary_peak_dbm": _f(peak_l, 1),
+        "points": int(f.size), "span_hz": [_f(f.min(), digits), _f(f.max(), digits)],
+        "primary_peak_hz": _f(peak_f, digits), "primary_peak_dbm": _f(peak_l, 1),
         "noise_floor_dbm": _f(floor, 1), "noise_mad_db": _f(mad, 2), "snr_db": _f(snr, 1),
-        "occupied_bandwidth_hz": _f(obw, 0), "occupancy_pct": _f(occupancy, 1),
+        "occupied_bandwidth_hz": _f(obw, digits), "occupancy_pct": _f(occupancy, 1),
         "interference_islands": islands, "interference_density_per_100mhz": _f(islands / span_mhz * 100, 3),
-        "peaks": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1), "snr_db": _f(q["level"] - floor, 1)} for q in peaks[:10]],
+        "peaks": [{"hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1), "snr_db": _f(q["level"] - floor, 1)} for q in peaks[:10]],
         "harmonics_of_primary": harm[:5],
-        "unexpected": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1)} for q in peaks[:10]
+        "unexpected": [{"hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1)} for q in peaks[:10]
                        if not any(lo <= q["hz"] <= hi for lo, hi, _ in CH3_BANDS)][:5],
         "band_note": ("Signal characteristics are consistent with activity in the " + bands[0] + ".") if bands and snr >= threshold_db
                      else ("Primary peak falls outside the listed allocations; source not identified." if snr >= threshold_db else "No peak clears the activity threshold above the noise floor."),
@@ -894,13 +895,14 @@ def validation_stats(values=None, detections=None):
 
 
 # ── 13. environmental fingerprint ────────────────────────────────────────────
-def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None):
+def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None, ch3_x_unit=None):
+    """ch3_x_unit: None for the radio (hertz, dBm), else a fed sweep's own x unit."""
     def band(x):
         x = np.asarray([v for v in x if v is not None and math.isfinite(v)], dtype=float)
         return [_f(np.percentile(x, 10), 2), _f(np.percentile(x, 90), 2)] if x.size else None
     return {"taken_at": time.time(), "ch1_val": band(c1_mags), "ch2": band(e_values), "ch3_floor_dbm": _f(ch3_floor, 1),
-            "ch3_peak_hz": _f(ch3_peak_hz, 0), "transient_rate_per_min": _f(transient_rate_per_min, 2),
-            "linefreq": harmonics_summary}
+            "ch3_peak_hz": _f(ch3_peak_hz, 0 if ch3_x_unit is None else 6), "ch3_x_unit": ch3_x_unit,
+            "transient_rate_per_min": _f(transient_rate_per_min, 2), "linefreq": harmonics_summary}
 
 
 def compare_fingerprints(old, new):
@@ -912,7 +914,11 @@ def compare_fingerprints(old, new):
             return _f(100 * (b - a) / abs(a), 1) if a else None
         except (TypeError, ValueError):
             return None
-    return {"ch3_floor_db": _f((new.get("ch3_floor_dbm") or 0) - (old.get("ch3_floor_dbm") or 0), 1),
+    # a channel 3 floor is compared only with one in the same kind of sweep (a reference taken on
+    # the radio says nothing about a fed sweep's floor) and only when both have one
+    a, b = old.get("ch3_floor_dbm"), new.get("ch3_floor_dbm")
+    same = old.get("ch3_x_unit") == new.get("ch3_x_unit")
+    return {"ch3_floor_db": _f(b - a, 1) if same and a is not None and b is not None else None,
             "ch1_pct": pct(old.get("ch1_val"), new.get("ch1_val")),
             "ch2_pct": pct(old.get("ch2"), new.get("ch2")),
             "transient_rate_pct": pct(old.get("transient_rate_per_min"), new.get("transient_rate_per_min"))}

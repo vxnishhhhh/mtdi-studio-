@@ -36,6 +36,23 @@ def longest_contiguous(rows, gap_factor=4.0):
     return list(rows[bounds[best]:bounds[best + 1]])
 
 
+def ch3_packet(sp, threshold_db, level_unit=None):
+    """The D4 analysis of the latest channel 3 sweep. The radio's sweep is in hertz and dBm. A
+    fed sweep keeps its own x unit, and is analysed only when its levels are in decibels: the
+    floor threshold and the occupied width are decibel arithmetic, meaningless on other units."""
+    xu = sp.get("x_unit")
+    meta = {"trusted": sp["trusted"], "status": sp["status"], "x_unit": xu}
+    if xu is None:
+        return dict(d4.ch3_analysis(sp["freqs"], sp["levels"], threshold_db), **meta)
+    if level_unit is None:
+        from .content import T
+        level_unit = T("ch3.unit")
+    if "db" not in str(level_unit).lower():
+        return dict(meta, error=f"The sweep analysis needs levels in decibels; this feed's levels are in {level_unit}, "
+                                f"so only the sweep itself is shown.")
+    return dict(d4.ch3_analysis(sp["freqs"], sp["levels"], threshold_db, digits=6), **meta)
+
+
 class D4Service:
     def __init__(self, ns, engine):
         self.ns = ns
@@ -496,8 +513,7 @@ class D4Service:
         # CH3 analysis of the latest sweep
         sp = self._sweep3()
         if sp and len(sp["freqs"]) >= 8:
-            out["ch3"] = dict(d4.ch3_analysis(sp["freqs"], sp["levels"], cfg["ch3_threshold_db"]), trusted=sp["trusted"], status=sp["status"],
-                             x_unit=sp.get("x_unit"))
+            out["ch3"] = ch3_packet(sp, cfg["ch3_threshold_db"])
         else:
             out["ch3"] = {"error": "no sweep yet"}
 
@@ -556,7 +572,8 @@ class D4Service:
         fp = d4.fingerprint([np.linalg.norm(r[1:4]) for r in c1_cal] if c1_cal else [], series.get("ch2", []),
                             out["ch3"].get("noise_floor_dbm"), out["ch3"].get("primary_peak_hz"),
                             len([t for t in self.transient_times if now - t < 600]) / 10.0,
-                            {"fundamental_hz": out.get("linefreq", {}).get("fundamental_hz"), "thd_pct": out.get("linefreq", {}).get("thd_pct")})
+                            {"fundamental_hz": out.get("linefreq", {}).get("fundamental_hz"), "thd_pct": out.get("linefreq", {}).get("thd_pct")},
+                            ch3_x_unit=(sp or {}).get("x_unit"))
         out["fingerprint"] = fp
         out["fingerprint_reference"] = self.fingerprint_ref
         out["fingerprint_change"] = d4.compare_fingerprints(self.fingerprint_ref, fp)
