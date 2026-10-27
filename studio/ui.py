@@ -2932,7 +2932,7 @@ def restructure_ch3(children, html):
             c.style = {**(getattr(c, "style", None) or {}), "marginTop": "0", "marginBottom": "12px"}
     band = html.Div([
         html.Div(guide, className="ch3-guide"),
-        html.Div([html.Div('LABEL', className="section-label", style={"marginTop": "0"})] + controls, className="ch3-controls chart-card"),
+        html.Div([html.Div("CONTROLS", className="section-label", style={"marginTop": "0"})] + controls, className="ch3-controls chart-card"),
     ], className="ch3-layout")
     return action + head + [band] + stores + rest
 

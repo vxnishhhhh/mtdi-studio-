@@ -41,10 +41,17 @@ out.update({path: dump(build()) for path, build in ns["PAGES"].items()})
 # Page 1's three tabs (slice 6) and its tab bar, before any data: the engine blocks under each tab are a later slice
 tabs = lambda: dump([ns["ch1_body"](), ns["ch2_body"](), ns["_combined_view_base"](), ns["p1_page"]().children[:5]])
 out["tabs"] = {"empty": tabs()}
+# Page 2's four views (slice 7) and its tab bar; the engine blocks under the sweep are a later slice
+sweep_tabs = ns["sweep3_page"]().children[1].children[3]
+peak = {"freq": 100.5e6, "over_floor_db": 12.0, "level_dbfs": -40.0, "band": "FM"}
+page2 = lambda: dump([ns["ch3_sweep_body"](), ns["sdr_view"](), ns["wifi_view"](), ns["bluetooth_view"](), sweep_tabs,
+                      ns["_sdr_rows"]([]), ns["_sdr_rows"]([peak]), ns["_sdr_detail"]({})])
+out["page2"] = {"empty": page2()}
 out["report"] = json.dumps(sys.modules["studio.reports"]._gather_report_blocks(row_cap=3), default=str)
 s3, fig = ns["sweep3_data"], ns["fig_sweep3"]
 radio = fig([88.0e6, 98.0e6, 108.0e6], [-60.0, -30.0, -60.0], [], [], -60.0)    # the radio's own sweep
 ns["feed_ch3"]([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 4.0, 2.0, 6.0, 1.0], source="TEST")
+out["page2"]["fed"] = page2()
 fed = fig(s3["freqs"], s3["levels"], s3["maxhold"], s3["peaks"], s3["floor"])
 out["fed"] = dump(fed)
 out["sweeps"] = {"radio_x": list(radio.data[-1].x), "radio_hover": radio.data[-1].hovertemplate,
@@ -210,8 +217,8 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual(len(set(sw["bar_rows"])), len(sw["bar_rows"]))   # one row per peak, by position
         # the channel charts say what they plot, in the project's words: no placeholder and no bare "unit"
         # (a dumped layout names each component's class, "type": "Button"; that is not on-screen text)
-        placeholder = re.compile(r'(?<!"type": )"\s*(?:Text|TEXT|Title|TITLE|Label|LABEL|Subtext|Button|BUTTON|Heading)\s*"'
-                                 r'|Paragraph\. Enter your text here|\bunit\b')
+        placeholder = re.compile(r'(?<!"type": )"\s*(?:Text|TEXT|Title|TITLE|Label|LABEL|Subtext|SUBTEXT|Button|BUTTON|Heading)\s*"'
+                                 r'|Enter your text here|\bunit\b')
         for name, chart in rendered["charts"].items():
             self.assertIsNone(placeholder.search(chart), f"{name}: {placeholder.search(chart)}")
         n1, n2 = words["ch1.name"], words["ch2.name"]
@@ -243,6 +250,16 @@ class SecondContentFile(unittest.TestCase):
         self.assertNotIn(f"{n1.upper()} DIRECTION", tab2)
         for who in (n1.upper(), n2.upper(), "COMPOSITE"):   # the both-channels tab draws all three directions
             self.assertIn(f"{who} DIRECTION", both2, who)
+        # Page 2's views (slice 7): every head, card, control, table header and note says what it is
+        for state, view in rendered["page2"].items():
+            self.assertIsNone(placeholder.search(view), f"Page 2 {state}: {placeholder.search(view)}")
+            for word in (words["ch3.name"], words["ch3.unit"]):
+                self.assertIn(word.lower(), view.lower(), f"Page 2 {state}: {word}")
+        # the radio's guidance is for the radio: a fed sweep is read in its own axes (CodeRabbit, #68)
+        self.assertIn("horizontal is frequency", rendered["page2"]["empty"])
+        for radio_words in ("horizontal is frequency", "HOW A SWEEP IS TAKEN", "IF THE LEVELS LOOK WRONG"):
+            self.assertNotIn(radio_words, rendered["page2"]["fed"], radio_words)
+        self.assertIn(words["ch3.axis_unit"], rendered["page2"]["fed"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

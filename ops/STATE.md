@@ -5,13 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 245 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** S1-06 slice 7 (the D4 engine blocks under each tab, Page 2's views, the MTDI page, Settings, typewriter lines, constellation and globe words), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 8 (the D4 engine blocks under each tab, the MTDI page, Settings, typewriter lines, constellation and globe words), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
+* 2026-10-27 night · Merged #67 (S1-06 slice 6, Page 1; CodeRabbit 5 findings and 1 nit over 4 reviews, all fixed, one with a different condition than suggested). S1-06 slice 7 (PR on auto/S1-06-slice7): Page 2's four views and tab bar say what they show; the Bluetooth strongest-signal card read "unit" for dBm.
 * 2026-10-26 late · S1-06 slice 6 (PR on auto/S1-06-slice6): Page 1's three tabs say what they show in the project's channel words (section heads, cards, buttons, zoom and listen cards, chart titles, notes); channel 2's reference-scaled cards read `ch2.unit`, not a literal "unit = N/C"; the words test renders the tabs empty, fed and in reference mode, and its placeholder check now also catches padded and TITLE/Subtext/Button words.
 * 2026-10-26 night · Merged #64, S1-06 slice 5: every chart and table in studio/charts.py says what it shows (MHz, dBFS, µs, dBm for the studio's own instruments; `ch3.unit` for the radio's level); CodeRabbit 4 findings, all fixed. Merged #65: D4Service computed the packet in two callbacks at once (`deque mutated during iteration`, a 500 found by the tour); computes now run one at a time and a config reload waits for one in flight; CodeRabbit 2 findings + 1 nit, all fixed. Report: ops/reports/2026-10-26-night.md.
 
