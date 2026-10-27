@@ -44,8 +44,9 @@ page.on("response", (r) => { if (r.status() >= 400 && !ignored(r.url())) problem
 // In software GL (a cloud container has no GPU: Chromium falls back to SwiftShader) the studio's
 // always-on shell, two full-screen background shaders and the full-screen scrub canvas, holds
 // every animation loop near 1.5 frames a second, so a 3D page can take minutes to settle. On
-// 2026-10-27 the MTDI page took 42-71 s on the desktop pass and over 180 s on the phone pass
-// (its frame is 1180 px at 1.7x). The deadline is a measurement budget, not a speed target.
+// 2026-10-27 the MTDI page took 42-161 s on the desktop pass and 189-273 s on the phone pass
+// (its frame is 1180 px at 1.7x); runs vary a lot. The deadline is a measurement budget, not a
+// speed target.
 const PAGE_TIMEOUT = Number(process.env.TOUR_PAGE_TIMEOUT_MS || 420000);
 // Resolves with the page's own ready time once <html data-page=path data-page-ready="1">.
 async function ready(tab, path) {
