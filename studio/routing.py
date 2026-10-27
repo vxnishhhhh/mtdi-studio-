@@ -566,7 +566,7 @@ def update_sweep3_numbers(n, _refresh):
     elif "paused" in s["status"].lower():
         st = f"{T('ch3.name').upper()} PAUSED · last valid sweep retained"; sc = AMBER; dot = "online-dot warn"
     elif s["last_rx"] is None:
-        st = 'SOURCE 3 CONNECTED · waiting for the first sweep…'; sc = AMBER; dot = "online-dot warn"
+        st = f"{T('ch3.name').upper()} CONNECTED · waiting for the first sweep…"; sc = AMBER; dot = "online-dot warn"
     else:
         age = time.time() - s["last_rx"]
         st = f"{T('ch3.name').upper()} ONLINE · {s['device']} · sweep {s['sweep_s']:.1f}s · {age:.1f}s ago"
@@ -852,7 +852,7 @@ def update_bt(n, _refresh):
         sc = GREEN; dot = "online-dot on"
     closest = "—"
     if devs and devs[0]["rssi"] is not None:
-        closest = f"{devs[0]['rssi']} unit"
+        closest = f"{devs[0]['rssi']} dBm"
     elif devs:
         closest = devs[0]["name"][:18]
     named = sum(1 for d in devs if d["name"] and not d["name"].startswith("("))
@@ -867,14 +867,14 @@ def update_bt(n, _refresh):
               prevent_initial_call=True)
 def wifi_sweep_now(_n):
     wifi_scan_now.set()
-    return 'Fresh Channel 5 discovery requested'
+    return "Fresh Wi-Fi scan requested"
 
 
 @app.callback(Output("bt-sweep-note", "children"), Input("bt-sweep-now", "n_clicks"),
               prevent_initial_call=True)
 def bluetooth_sweep_now(_n):
     bt_scan_now.set()
-    return 'Fresh Channel 6 discovery requested'
+    return "Fresh Bluetooth scan requested"
 
 
 # ── NVTRA chat: word-by-word, append-only (no whole-section re-render) ──
@@ -2753,11 +2753,11 @@ def d4_config_upload_cb(contents, filenames, status_ids):
 # ════════════════════════════════════════════════════════
 def _sdr_rows(peaks):
     if not peaks:
-        return [html.Div('Subtext',
+        return [html.Div("No carrier stands clearly above the noise floor in this slice.",
                          className="validation-subcopy", style={"padding":"10px 0"})]
-    rows = [html.Div([html.Div('TEXT'), html.Div('TEXT'),
-                      html.Div('TEXT', className="scan-hide-sm"),
-                      html.Div('TEXT', className="scan-hide-sm")],
+    rows = [html.Div([html.Div("FREQUENCY"), html.Div("ABOVE FLOOR"),
+                      html.Div("LEVEL", className="scan-hide-sm"),
+                      html.Div("BAND", className="scan-hide-sm")],
                      className="scan-row scan-head")]
     for peak in peaks:
         rows.append(html.Div([
@@ -2775,28 +2775,28 @@ def _sdr_detail(snap):
         ("Device", snap.get("device") or "not detected"),
         ("Tuner", snap.get("tuner") or "unknown"),
         ("Serial", snap.get("serial") or "—"),
-        ('Text', f"{limits.get('rate_hz', 0)/1e6:.3f} MS/s complex"),
+        ("Sample rate", f"{limits.get('rate_hz', 0)/1e6:.3f} MS/s complex"),
         ("Resolution", f"{limits.get('bin_hz', 0):.0f} Hz per bin"),
-        ('Text', f"{snap.get('span_hz', 0)/1e6:.3f} MHz after edge trim"),
-        ('Text', f"{limits.get('min_hz', 0)/1e6:.0f} – {limits.get('max_hz', 0)/1e6:.0f} MHz"),
+        ("Usable span", f"{snap.get('span_hz', 0)/1e6:.3f} MHz after edge trim"),
+        ("Tuning range", f"{limits.get('min_hz', 0)/1e6:.0f} – {limits.get('max_hz', 0)/1e6:.0f} MHz"),
         ("Gain", (f"{snap.get('gain_db')} dB, managed by the instrument"
                   if snap.get("gain_mode") == "auto" else f"{snap.get('gain_db')} dB, fixed")),
-        ('Text', f"{snap.get('rms_fullscale', 0)*100:.1f}% of full scale RMS"),
+        ("Signal level", f"{snap.get('rms_fullscale', 0)*100:.1f}% of full scale RMS"),
         ("Duty", ("streaming; the tab is open" if snap.get("watched")
                   else "idle; opens this tab to stream. The receiver costs the sensor threads "
                        "time, so it does not run unwatched")),
         ("Capture", ("trusted" if snap.get("trusted")
                      else (snap.get("untrusted_reason") or "no capture yet"))),
-        ('Text', f"{snap.get('bursts', 0)}"),
-        ('Text', f"{snap.get('megabytes', 0):.1f} MB this session"),
-        ('Text', f"{snap['capture_s']:.2f} s per burst" if snap.get("capture_s") else "—"),
-        ('Text', ("none" if not snap.get("clipped")
+        ("Bursts", f"{snap.get('bursts', 0)}"),
+        ("Data", f"{snap.get('megabytes', 0):.1f} MB this session"),
+        ("Burst length", f"{snap['capture_s']:.2f} s per burst" if snap.get("capture_s") else "—"),
+        ("Clipping", ("none" if not snap.get("clipped")
                           else f"{snap.get('clip_fraction', 0)*100:.2f}% of samples at the rail")),
-        ('Text', f"{snap.get('dc_offset', 0):.4f} of full scale (removed)"),
-        ('Text', (f"{snap['papr_db']:.1f} dB within the burst"
+        ("DC offset", f"{snap.get('dc_offset', 0):.4f} of full scale (removed)"),
+        ("Peak to average", (f"{snap['papr_db']:.1f} dB within the burst"
                              if snap.get("papr_db") is not None
                              else "computed while this tab is open")),
-        ('Text', (f"{snap['phase_offset_hz']:+,.0f} Hz from the phase slope"
+        ("Frequency offset", (f"{snap['phase_offset_hz']:+,.0f} Hz from the phase slope"
                                        if snap.get("phase_offset_hz") is not None
                                        else "computed while this tab is open")),
     ]
@@ -2900,12 +2900,14 @@ def sdr_sweep_cb(_go, _now, _stop, start_mhz, stop_mhz):
     trigger = dash.callback_context.triggered_id
     if trigger == "sdr-sweep-stop":
         sdr_command(cancel_sweep=True)
-        return "stopping…", 'Text'
+        return "stopping…", "Sweep stop requested"
     if start_mhz is None or stop_mhz is None:
-        return 'Text', 'Text'
+        note = "Enter a start and a stop frequency in MHz"
+        return note, note
     try:
         sdr_command(sweep=(float(start_mhz) * 1e6, float(stop_mhz) * 1e6))
     except (ValueError, TypeError) as exc:
         note = str(exc)[:90]
         return note, note
-    return 'Text', 'Text'
+    note = f"Sweep queued: {float(start_mhz):g}–{float(stop_mhz):g} MHz"
+    return note, note
