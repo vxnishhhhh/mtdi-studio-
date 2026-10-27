@@ -149,6 +149,7 @@ out["d4"] = {"sections": dump(sections), "live": render(live),
 # Settings, the AI key manager and the system grid (slice 9), without and with Notion set up
 settings = lambda: dump([ns["_settings_page_base"](), ns["_pi_grid"](), ns["_render_key_list"](), ns["_render_nvtra_key_bar"](),
                          ns["_render_model_picker"](), ns["_render_chat_sessions"]()])
+sys.modules["studio.common"]._keychain_value = lambda name: ""   # never the host's saved secrets
 out["settings"] = {"plain": settings()}
 os.environ.update(NOTION_API_KEY="test", NOTION_REPORT_PAGE_ID="test")
 out["settings"]["notion"] = settings()
@@ -223,6 +224,8 @@ class SecondContentFile(unittest.TestCase):
             # a fresh home: an empty archive, as on a new install and in CI (the report must build from nothing)
             env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d,
                        D4_TEST_XU=words["ch3.axis_unit"])
+            for name in ("NOTION_API_KEY", "NOTION_REPORT_PAGE_ID"):   # the unconfigured render must not see the host's
+                env.pop(name, None)
             res = subprocess.run([sys.executable, "-c", RENDER], cwd=ROOT, env=env,
                                  capture_output=True, text=True, timeout=300)
         self.assertEqual(res.returncode, 0, res.stderr[-2000:])
@@ -322,6 +325,7 @@ class SecondContentFile(unittest.TestCase):
             self.assertIsNone(placeholder.search(view), f"Settings {state}: {placeholder.search(view)}")
             self.assertIn("DOWNLOAD LOCAL PDF", view)          # it never contacted Notion: the label no longer says so
             self.assertIn(words["nav.page3"], view)
+            self.assertIn(f"{words['ch3.name'].upper()} SWEEPS \\u00b7 CSV", view)   # the CSV is channel 3's sweeps, not the archive
         self.assertIn("Notion is not set up", rendered["settings"]["plain"])
         self.assertIn("Notion is set up", rendered["settings"]["notion"])
         fed2 = rendered["ch2_fed"]

@@ -1476,6 +1476,12 @@ def key_add_or_test(add_n, test_n, key_val, label_val, provider_val):
             return key_val, label_val, provider_val or "auto", error
         kid = nvtra_add_key(label_val, key_val, provider)
         active_model = _active_ai_model()
+        in_use, in_use_provider = _active_ai_credential()
+        if in_use != key_val:      # a provider key in the environment is always used first
+            return "", "", "auto", (
+                f"{_provider_label(key_val, provider)} key added and selected, but chat still uses the "
+                f"{_provider_label(in_use, in_use_provider)} key set in the environment, which always comes first."
+            )
         return "", "", "auto", (
             f"{_provider_label(key_val, provider)} key added and made active. "
             f"Model: {active_model or 'provider default'}. "

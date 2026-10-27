@@ -2396,7 +2396,8 @@ def _settings_page_base():
                 html.Button("TEST ACTIVE", id="key-test-btn", className="key-btn key-btn-test", n_clicks=0,
                             title="Send one short question with the active key"),
             ], className="key-add-row"),
-            html.Div("A key you add becomes the active one straight away.",
+            html.Div("A key you add becomes the active one, unless a provider key is set in the environment "
+                     "(GEMINI_API_KEY, OPENAI_API_KEY and the like): that one is always used first.",
                      id="key-status", className="key-status"),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
         ]),
@@ -2451,15 +2452,16 @@ def _settings_page_base():
         html.Div("REPORTS AND ARCHIVE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
                 html.Div([html.B("EXPORT"),
-                      html.Span("The PDF report covers every channel and the archive; JSON and CSV download the raw "
-                                f"archive. Downloading never contacts Notion: Upload report to Notion, on {T('nav.page3')}, sends it there.")],
+                      html.Span("The PDF report covers every channel and the archive. ARCHIVE downloads the raw "
+                                f"archive as JSON; CSV downloads the {T('ch3.name')} sweeps. Downloading never contacts Notion: "
+                                f"Upload report to Notion, on {T('nav.page3')}, sends it there.")],
                      className="set-lab"),
             html.Div([
                 html.A("DOWNLOAD LOCAL PDF", id="export-btn", className="key-btn key-btn-add",
                        href="/download/studio-report.pdf", download="mtdi_studio_report.pdf",
                        style={"textDecoration":"none","display":"inline-flex","alignItems":"center"}),
                 html.Button("ARCHIVE · JSON", id="archive-json-btn", className="key-btn key-btn-test", n_clicks=0),
-                html.Button("ARCHIVE · CSV", id="archive-csv-btn", className="key-btn key-btn-test", n_clicks=0),
+                html.Button(f"{T('ch3.name').upper()} SWEEPS · CSV", id="archive-csv-btn", className="key-btn key-btn-test", n_clicks=0),
             ], style={"display":"flex","gap":"8px","flexWrap":"wrap"}),
             html.Div(
                 f"Notion is set up: Upload report to Notion on {T('nav.page3')} sends the report to your Notion page." if (
