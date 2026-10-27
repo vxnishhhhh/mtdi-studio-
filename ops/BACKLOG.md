@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–5: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py)
+### S1-06 · Project-driven studio words · in progress (slices 1–6: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py; Page 1's three tabs)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
@@ -66,9 +66,14 @@ Slice 5: the receiver, scan and reference charts and the peak, finding and scan 
 had placeholder titles and empty-state notes, and a literal "unit" for levels. Each now names
 what it shows. The receiver's own measurements keep their physical units (MHz, dBFS, µs). Wi-Fi
 and BLE signal is dBm. The radio's level and its plain-language scale use `ch3.unit`.
-studio/charts.py has no placeholder left. Next slices: section heads and cards on each page,
-tab and button labels, typewriter lines, constellation and globe words (in pages.py, ui.py and
-the browser layer).
+studio/charts.py has no placeholder left. Slice 6: Page 1's three tabs (channel 1, channel 2, both).
+Their section heads, metric cards, buttons, zoom and listen cards, chart titles and notes were
+"LABEL", "Title", "Subtext" and "Paragraph…". Each now says what it shows, in the project's channel
+names, and channel 2's reference-scaled cards read `ch2.unit` instead of a literal "unit = N/C".
+The shared listen card (ui.py) names its level in dBFS. The words test renders the tabs empty, fed
+and in channel 2's reference mode. Next slices: the engine (D4) blocks under each tab, Page 2's
+receiver, Wi-Fi and Bluetooth views, the MTDI page, Settings, typewriter lines, constellation and
+globe words (pages.py, ui.py and the browser layer).
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

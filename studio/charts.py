@@ -433,8 +433,10 @@ def _mesh_trace(points, faces, color, hovertext):
     )
 
 
-def fig_3d_error_plane(xyz, height=300, direction_state=None):
-    n1, u1 = T('ch1.name'), T('ch1.unit')   # the project's channel words (S1-06)
+def fig_3d_error_plane(xyz, height=300, direction_state=None, name=None, unit=None):
+    # whose direction this is: channel 1 unless a caller names another (channel 2, the composite)
+    n1 = T('ch1.name') if name is None else name
+    u1 = T('ch1.unit') if unit is None else unit
     fig = go.Figure()
     # Hollow XYZ framework: all twelve cube edges in one lightweight trace.
     corners = [
@@ -506,7 +508,7 @@ def fig_3d_error_plane(xyz, height=300, direction_state=None):
     return fig
 
 
-def fig_3d_dipolch2f(xyz, height=420, direction_state=None):
+def fig_3d_dipolch2f(xyz, height=420, direction_state=None, name=None):
     """Twopole field lines plus floor needles for the current smoothed B direction."""
     fig = go.Figure()
     state = direction_state or _direction_plot_state(xyz)
@@ -586,7 +588,7 @@ def fig_3d_dipolch2f(xyz, height=420, direction_state=None):
         xaxis_range=[-1.15,1.15],yaxis_range=[-1.15,1.15],zaxis_range=[-1.15,1.15]
     )
     fig.add_annotation(
-        text=f"MODEL · dipole field along {T('ch1.name')}'s current direction",
+        text=f"MODEL · dipole field along {T('ch1.name') if name is None else name}'s current direction",
         x=0.02,y=0.98,xref="paper",yref="paper",showarrow=False,
         font=dict(family=FONT,color=AMBER,size=10),
     )
