@@ -2336,6 +2336,13 @@ def _linefreq_fig(m, height=230):
     return fig
 
 
+def _fed_at(v, unit):
+    """A fed sweep's position, at the six decimals the analysis keeps (`:g` would cut it to six
+    significant digits: 1.000001 mm read as 1 mm)."""
+    text = f"{float(v):.6f}".rstrip("0").rstrip(".")
+    return f"{'0' if text in ('', '-0') else text} {unit}"
+
+
 def _d4_render(kind, d, rt, where):
     """Children for one block kind from the live packet."""
     sim = " · SIMULATED" if d.get("simulated") else ""
@@ -2393,7 +2400,7 @@ def _d4_render(kind, d, rt, where):
         if xu is None:
             at, lvl, db = _freq_label, "dBm", "dB"
         else:
-            at, lvl, db = (lambda v: f"{v:g} {xu}"), T("ch3.unit"), T("ch3.unit")
+            at, lvl, db = (lambda v: _fed_at(v, xu)), T("ch3.unit"), T("ch3.unit")
         rows = [("Strongest peak", f"{at(r['primary_peak_hz'])} · {r['primary_peak_dbm']} {lvl}"),
                 ("Noise floor", f"{r['noise_floor_dbm']} {lvl} (MAD {r['noise_mad_db']} {db})"), ("SNR", f"{r['snr_db']} {db}"),
                 ("Occupied width", at(r["occupied_bandwidth_hz"]) if r.get("occupied_bandwidth_hz") else "—"),
@@ -2415,16 +2422,16 @@ def _d4_render(kind, d, rt, where):
         lc = d.get("last_calibration")
         if not lc:
             return [html.Div("No fit yet: turn the sensor slowly through every direction, then press FIT.", className="validation-subcopy"),
-                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} {T('ch1.unit')} · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
+                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} {ch1_value_unit(ch1_data)} · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
         o, s_ = lc["offsets_val"], lc["scale"]
-        u1 = T("ch1.unit")
+        u1 = ch1_value_unit(ch1_data)
         return [html.Pre(f"{T('ch1.name')} calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} {u1}\nY offset: {o[1]:+.1f} {u1}\nZ offset: {o[2]:+.1f} {u1}\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
                          f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_val']} {u1}\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
                 html.Pre(json.dumps({"x_offset": o[0], "y_offset": o[1], "z_offset": o[2], "soft_iron": lc["soft_iron_matrix"]}, separators=(",", ":")), className="d4-pre small")]
     if kind == "calhealth":
         ch = d.get("calibration_health") or {}
         return [_d4_kv([("Status", str(ch.get("status", "—")).upper()), ("Quality", f"{ch['quality']} %" if ch.get("quality") is not None else "—"), ("Magnitude spread", f"{ch.get('magnitude_spread_pct')} %"),
-                        ("Offset drift", f"{ch.get('offset_drift_val')} {T('ch1.unit')}"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} {T('ch1.unit')} RMS"), ("Recalibration", _slot_words(ch.get("recalibration", ch.get("text", "—")))), ("Profile", cfg.get("source") or "defaults")])]
+                        ("Offset drift", f"{ch.get('offset_drift_val')} {ch1_value_unit(ch1_data)}"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} {ch1_value_unit(ch1_data)} RMS"), ("Recalibration", _slot_words(ch.get("recalibration", ch.get("text", "—")))), ("Profile", cfg.get("source") or "defaults")])]
     if kind == "transients":
         tr = d.get("transients") or {}; ev = tr.get("events") or []
         return [_d4_kv([("Count", f"{tr.get('count', 0)} in {tr.get('window_s') or 0} s"), ("Threshold", f"{tr.get('threshold')} (baseline {tr.get('baseline')}, MAD {tr.get('noise_mad')})"), ("Repetition", f"{tr['repetition_hz']} Hz" if tr.get("repetition_hz") else "—")]),
@@ -2445,7 +2452,7 @@ def _d4_render(kind, d, rt, where):
                                     "Each reading is the mean of a fresh window of live data.")])]
         if rep.get("running"):
             return [_d4_kv([("Status", f"running — reading {rep.get('done', 0)} of {rep.get('runs')} "
-                                       f"on {rep.get('label')}"),
+                                       f"on {_slot_words(rep.get('label'))}"),
                             ("Each reading", f"a fresh {rep.get('window_s')} s window of live data"),
                             ("Meanwhile", "Keep the sensor and everything near it still until it finishes.")])]
         if rep.get("error"):
@@ -2453,7 +2460,7 @@ def _d4_render(kind, d, rt, where):
         r = rep.get("result") or {}
         if r.get("error"):
             return [_d4_kv([("Status", f"not enough readings — {r['error']}")])]
-        rows = [("Channel", r.get("channel", "—")),
+        rows = [("Channel", _slot_words(r.get("channel", "—"))),
                 ("Readings", f"{r.get('n')} x {r.get('window_s')} s windows"
                              + (f" ({r['skipped']} skipped for want of samples)" if r.get("skipped") else "")),
                 ("Result", f"{r.get('text')}"),
@@ -2505,15 +2512,15 @@ def _d4_render(kind, d, rt, where):
     if kind == "noise":
         ne, nm = d.get("noise_ch2") or {}, d.get("noise_ch1") or {}
         return [_d4_kv([(T("ch2.name"), f"RMS {ne.get('rms')} · peak {ne.get('peak')} · σ {ne.get('std')} · NSD {ne.get('nsd_per_sqrt_hz')} /√Hz @ {ne.get('fs')} Hz" if ne else "—"),
-                        (T("ch1.name"), f"RMS {nm.get('rms')} · peak {nm.get('peak')} · σ {nm.get('std')} · NSD {nm.get('nsd_per_sqrt_hz')} {T('ch1.unit')}/√Hz @ {nm.get('fs')} Hz" if nm else "—")])]
+                        (T("ch1.name"), f"RMS {nm.get('rms')} · peak {nm.get('peak')} · σ {nm.get('std')} · NSD {nm.get('nsd_per_sqrt_hz')} {ch1_value_unit(ch1_data)}/√Hz @ {nm.get('fs')} Hz" if nm else "—")])]
     if kind == "fingerprint":
         fp = d.get("fingerprint") or {}; ref = d.get("fingerprint_reference"); chg = d.get("fingerprint_change") or {}
         # the fingerprint's own sweep kind (a fed sweep has no hertz and no dBm)
         xu = fp["ch3_x_unit"] if "ch3_x_unit" in fp else (d.get("ch3") or {}).get("x_unit")
         u3 = "dBm" if xu is None else T("ch3.unit")
         pk = fp.get("ch3_peak_hz")
-        pk_s = "—" if pk is None else (_freq_label(pk) if xu is None else f"{pk:g} {xu}")
-        return [_d4_kv([(T("ch1.name"), f"{fp.get('ch1_val')} {T('ch1.unit')}"), (T("ch2.name"), f"{fp.get('ch2')}"),
+        pk_s = "—" if pk is None else (_freq_label(pk) if xu is None else _fed_at(pk, xu))
+        return [_d4_kv([(T("ch1.name"), f"{fp.get('ch1_val')} {ch1_value_unit(ch1_data)}"), (T("ch2.name"), f"{fp.get('ch2')}"),
                         (f"{T('ch3.name')} floor", f"{fp.get('ch3_floor_dbm')} {u3} · peak {pk_s}"),
                         ("Line frequency", f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ("Transients", f"{fp.get('transient_rate_per_min')} /min")]),
                 html.Div(("No reference yet: press TAKE REFERENCE to store one." if not ref else f"Change since the reference: {T('ch3.name')} floor " + ("not comparable" if chg.get("ch3_floor_db") is None else f"{chg.get('ch3_floor_db'):+} dB") + f" · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
@@ -2617,7 +2624,7 @@ def _d4_graph(kind, d, rt):
         if not lc or not lc.get("raw"):
             return _d4_empty(380, "Press FIT to show the raw and corrected readings")
         raw, cor = lc["raw"], lc["corrected"]
-        u1 = T("ch1.unit")
+        u1 = ch1_value_unit(ch1_data)
         fig = go.Figure()
         fig.add_trace(go.Scatter3d(x=[p[0] for p in raw], y=[p[1] for p in raw], z=[p[2] for p in raw], mode="markers", name="raw", marker=dict(size=2.2, color="#ff5252", opacity=.75)))
         fig.add_trace(go.Scatter3d(x=[p[0] for p in cor], y=[p[1] for p in cor], z=[p[2] for p in cor], mode="markers", name="corrected", marker=dict(size=2.2, color="#00e5ff", opacity=.85)))
@@ -2696,10 +2703,10 @@ def d4_actions(clicks, values, in_ids, status_ids):
                 msg = f"REJECTED · {patch}"
             elif action == "cal_apply":
                 path = rt.d4.update_config(patch)
-                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {T('ch1.unit')}, quality {result['quality']} %")
-                msg = f"Fit applied: offsets {result['offsets_val']} {T('ch1.unit')} · quality {result['quality']} % · written to {path}"
+                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)}, quality {result['quality']} %")
+                msg = f"Fit applied: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)} · quality {result['quality']} % · written to {path}"
             else:
-                msg = f"Fit done: offsets {result['offsets_val']} {T('ch1.unit')} · quality {result['quality']} % (not applied)"
+                msg = f"Fit done: offsets {result['offsets_val']} {ch1_value_unit(ch1_data)} · quality {result['quality']} % (not applied)"
         elif action == "burst":
             rt.d4.request_burst(3440, "ch2f"); msg = f"Burst requested: next {T('ch2.name')} block is 3440 contiguous samples"
         elif action == "repeat_start":

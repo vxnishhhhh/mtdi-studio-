@@ -110,6 +110,14 @@ def _scene(height):
                            camera=dict(eye=dict(x=1.5, y=1.5, z=1.2))))
 
 
+def ch1_value_unit(data):
+    """The unit of channel 1's values: a feed's own unit (an MTDI project, /api/ingest), else the
+    studio's own magnetometer, whose readings are converted to microtesla on the way in."""
+    data = data or {}
+    fed = str(data.get("fed_unit") or "").strip() if data.get("fed_source") else ""
+    return fed or "µT"
+
+
 def ch2_axis_unit(data):
     """The unit channel 2's charts show. Data fed in (an MTDI project, /api/ingest) carries its own
     unit; the studio's own ADC paths keep their labels. "mV RMS relative" is feed_ch2's default when a

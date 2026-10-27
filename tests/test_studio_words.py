@@ -137,7 +137,7 @@ dbm[8], dbm[16] = -30.0, -45.0
 radio3 = dict(d4m.ch3_analysis(hz, dbm), trusted=True, status="sweeping", x_unit=None)
 fed3 = dict(d4m.ch3_analysis([float(i) for i in range(1, 25)], dbm), trusted=False, status="TEST",
             x_unit=os.environ["D4_TEST_XU"])
-rep = {"result": {"channel": "c", "n": 3, "window_s": 1, "text": "t", "sd": 0.1, "unit": "u", "range": 0.2,
+rep = {"result": {"channel": "Channel 1 magnitude", "n": 3, "window_s": 1, "text": "t", "sd": 0.1, "unit": "u", "range": 0.2,
                   "min": 1, "max": 1.2, "rsd_pct": 5, "verdict": "v", "basis": "b", "conditions": "c"}}
 render = lambda d: dump([ns["_d4_render"](k, d, rt, "core") for k in ns["D4_BLOCK_META"]] + [ns["_d4_render"]("other", d, rt, "core")])
 packet = dict(live, exposure=d4m.exposure_comparison(None, 0.5), fingerprint={"ch1_val": 1, "ch2": 2, "ch3_floor_dbm": -80, "ch3_peak_hz": 1.0e8})
@@ -146,6 +146,8 @@ out["d4"] = {"sections": dump(sections), "live": render(live),
              "repeat": dump([ns["_d4_render"]("repeat", dict(live, repeat_run=r), rt, "val")
                              for r in ({}, {"running": True, "done": 1, "runs": 3, "label": "c", "window_s": 1}, rep)]),
              "graphs": dump([ns["_d4_graph"](k, live, rt) for k in ("power", "power_ch1", "power_surface", "calibration", "validation", "repeat")])}
+out["d4_units"] = {"fed_at": [ns["_fed_at"](v, "mm") for v in (1.000001, 2.5, 0.0, 120.0)],
+                   "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({})}
 print(json.dumps(out))
 '''
 
@@ -299,6 +301,13 @@ class SecondContentFile(unittest.TestCase):
         for radio_words in (" MHz", " dBm", "per 100 MHz", "Outside known bands", "consistent with activity"):
             self.assertNotIn(radio_words, d4["fed"], radio_words)
         self.assertIn(f"{n1}, 50 Hz component", d4["radio"])      # the exposure rows name the project's channels
+        self.assertIn(f"{n1} magnitude", d4["repeat"])             # the engine's slot words, in the project's names
+        # channel 1's values carry their source's unit: a feed's own (fed here), else the magnetometer's µT;
+        # a fed sweep's positions keep the six decimals the analysis keeps (CodeRabbit, #71)
+        units = rendered["d4_units"]
+        self.assertEqual(units["fed_at"], ["1.000001 mm", "2.5 mm", "0 mm", "120 mm"])
+        self.assertEqual((units["ch1"], units["ch1_own"]), ("fedunit1", "µT"))
+        self.assertIn("fedunit1", d4["radio"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

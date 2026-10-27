@@ -494,7 +494,9 @@ class D4Service:
         # How small a change each channel can honestly claim to have seen, from its own
         # measured noise rather than a datasheet figure.
         limits = {}
-        for key, noise_key, unit in (("ch1", "noise_ch1", "uT"),
+        c1 = self.ns.get("ch1_data") or {}
+        c1_unit = (str(c1.get("fed_unit") or "").strip() if c1.get("fed_source") else "") or "uT"
+        for key, noise_key, unit in (("ch1", "noise_ch1", c1_unit),
                                      ("ch2", "noise_ch2", "ADC codes")):
             lim = d4.detection_limits(out.get(noise_key), unit)
             if lim:
