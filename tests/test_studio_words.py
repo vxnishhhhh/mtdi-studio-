@@ -146,6 +146,12 @@ out["d4"] = {"sections": dump(sections), "live": render(live),
              "repeat": dump([ns["_d4_render"]("repeat", dict(live, repeat_run=r), rt, "val")
                              for r in ({}, {"running": True, "done": 1, "runs": 3, "label": "c", "window_s": 1}, rep)]),
              "graphs": dump([ns["_d4_graph"](k, live, rt) for k in ("power", "power_ch1", "power_surface", "calibration", "validation", "repeat")])}
+# Settings, the AI key manager and the system grid (slice 9), without and with Notion set up
+settings = lambda: dump([ns["_settings_page_base"](), ns["_pi_grid"](), ns["_render_key_list"](), ns["_render_nvtra_key_bar"](),
+                         ns["_render_model_picker"](), ns["_render_chat_sessions"]()])
+out["settings"] = {"plain": settings()}
+os.environ.update(NOTION_API_KEY="test", NOTION_REPORT_PAGE_ID="test")
+out["settings"]["notion"] = settings()
 out["d4_units"] = {"fed_at": [ns["_fed_at"](v, "mm") for v in (1.000001, 2.5, 0.0, 120.0)],
                    "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({}),
                    "ch1_unnamed": ns["ch1_value_unit"]({"fed_source": "TEST", "fed_unit": ""})}
@@ -310,6 +316,14 @@ class SecondContentFile(unittest.TestCase):
         self.assertEqual((units["ch1"], units["ch1_own"]), ("fedunit1", "µT"))
         self.assertEqual(units["ch1_unnamed"], words["ch1.unit"])   # a feed naming no unit is not microtesla
         self.assertIn("fedunit1", d4["radio"])
+        # Settings (slice 9): every row, button, hint and card says what it is; the Notion line follows the
+        # real settings (it read a placeholder name, so Notion never showed as set up)
+        for state, view in rendered["settings"].items():
+            self.assertIsNone(placeholder.search(view), f"Settings {state}: {placeholder.search(view)}")
+            self.assertIn("DOWNLOAD LOCAL PDF", view)          # it never contacted Notion: the label no longer says so
+            self.assertIn(words["nav.page3"], view)
+        self.assertIn("Notion is not set up", rendered["settings"]["plain"])
+        self.assertIn("Notion is set up", rendered["settings"]["notion"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):
