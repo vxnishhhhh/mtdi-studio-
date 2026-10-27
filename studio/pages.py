@@ -813,7 +813,7 @@ def ch3_sweep_body():
         guide = html.Div([html.Div("HOW TO READ THIS SWEEP", className="summary-tag"),
                           html.Div([f"This sweep comes from {s['device']}. Across the chart, horizontal is ",
                                     _hi(s["x_unit"]), " and vertical is ", _hi(u3),
-                                    ". The flat band along the bottom is its noise floor; a peak is anything that rises clearly above it."],
+                                    ". The flat line is the median of its values; a peak is anything that rises clearly above it."],
                                    className="summary-text")],
                          className="summary-panel", style={"marginTop":"0"})
     else:
