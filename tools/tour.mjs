@@ -5,7 +5,7 @@
 //
 // Each page is judged once the studio says it is ready (<html data-page-ready="1">, see
 // studio/browser.py), never after a fixed sleep. The summary lists how long each page took
-// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 180000) is the deadline per page: software GL in
+// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 420000) is the deadline per page: software GL in
 // the cloud needs about 50 s for the 3D pages.
 //
 // Needs Playwright (resolved from NODE_PATH, /opt/node-tools or a local install) and Chromium
