@@ -2308,14 +2308,14 @@ def _d4_empty(height=200, text=""):
 
 def _linefreq_rows(m, label):
     if not m:
-        return [(label, 'Text')]
+        return [(label, "waiting for samples")]
     if m.get("error"):
         return [(label, m["error"])]
     return [(f"{label} sample rate", f"{m.get('fs')} Hz · Nyquist {m.get('nyquist_hz')} Hz · resolution {m.get('resolution_hz')} Hz"),
             ("Fundamental", f"{m['fundamental_hz']} Hz" if m.get("fundamental_detected") else f"not detected above the noise (dominant {m.get('dominant_hz')} Hz)"),
-            ('Text', f"{m['thd_pct']} %" if m.get("thd_pct") is not None else "—"),
+            ("THD", f"{m['thd_pct']} %" if m.get("thd_pct") is not None else "—"),
             ("Harmonics", ", ".join(f"{h['hz']} Hz ({h['rel_db']} dB)" for h in m.get("harmonics", []) if h.get("present")) or "none above the noise"),
-            ('Text', ", ".join(f"{p['hz']} Hz" for p in m.get("other_peaks", [])[:4]) or "none"),
+            ("Other peaks", ", ".join(f"{p['hz']} Hz" for p in m.get("other_peaks", [])[:4]) or "none"),
             ("Window", f"{m.get('contiguous_s') or ''} s · {m.get('samples')} samples" + (f" · {m['note']}" if m.get("note") else ""))]
 
 
@@ -2331,9 +2331,16 @@ def _linefreq_fig(m, height=230):
     if m.get("fundamental_detected"):
         fig.add_vline(x=m["fundamental_hz"], line=dict(color="#00e676", width=1))
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=height, margin=dict(l=0, r=0, t=6, b=0),
-                      xaxis=dict(title='Title', tickfont=dict(size=9), showgrid=False, range=[0, min(450, (m.get("nyquist_hz") or 450))]),
+                      xaxis=dict(title="frequency (Hz)", tickfont=dict(size=9), showgrid=False, range=[0, min(450, (m.get("nyquist_hz") or 450))]),
                       yaxis=dict(type="log", tickfont=dict(size=9), gridcolor="rgba(255,255,255,.06)"), transition=NO_TRANSITION)
     return fig
+
+
+def _fed_at(v, unit):
+    """A fed sweep's position, at the six decimals the analysis keeps (`:g` would cut it to six
+    significant digits: 1.000001 mm read as 1 mm)."""
+    text = f"{float(v):.6f}".rstrip("0").rstrip(".")
+    return f"{'0' if text in ('', '-0') else text} {unit}"
 
 
 def _d4_render(kind, d, rt, where):
@@ -2343,10 +2350,10 @@ def _d4_render(kind, d, rt, where):
     if kind == "headline":
         mt, cf, cs = d.get("mtdi"), d.get("confidence"), d.get("consensus")
         ev = d.get("events") or []
-        return [html.Div([html.Div('LABEL', className="d4-big-k"), html.Div("—" if mt is None else f"{mt:.0f}", className="d4-big-v")], className="d4-big"),
+        return [html.Div([html.Div("MTDI 2.0", className="d4-big-k"), html.Div("—" if mt is None else f"{mt:.0f}", className="d4-big-v")], className="d4-big"),
                 html.Div([html.Div("CONFIDENCE", className="d4-big-k"), html.Div("—" if cf is None else f"{cf:.0f}%", className="d4-big-v")], className="d4-big"),
-                html.Div([html.Div('LABEL', className="d4-big-k"), html.Div("—" if cs is None else f"{cs:.0f}%", className="d4-big-v")], className="d4-big"),
-                html.Div([html.Div('LABEL', className="d4-big-k"), html.Div(("#%05d OPEN" % ev[0]["id"]) if ev and ev[0].get("open") else 'Text', className="d4-big-v small")], className="d4-big"),
+                html.Div([html.Div("AGREEMENT", className="d4-big-k"), html.Div("—" if cs is None else f"{cs:.0f}%", className="d4-big-v")], className="d4-big"),
+                html.Div([html.Div("EVENT", className="d4-big-k"), html.Div(("#%05d OPEN" % ev[0]["id"]) if ev and ev[0].get("open") else "none open", className="d4-big-v small")], className="d4-big"),
                 html.Div(f"weights {' · '.join(f'{k} {v:.2f}' for k, v in d['weights'].items())} · engine {rt.d4.compute_seconds or 0} s per pass{sim}", className="validation-subcopy d4-weights")]
     if kind == "consensus":
         cs = d.get("consensus")
@@ -2367,7 +2374,7 @@ def _d4_render(kind, d, rt, where):
         weights_line = ("weights " + " · ".join(parts) + f" · sum {sum(cw.values()):.2f}") if cw else ""
         return [html.Div("—" if cf is None else f"Detection confidence: {cf:.0f}%", className="d4-line"), html.Ul([html.Li(f) for f in d.get("confidence_factors", [])], className="d4-list"),
                 html.Div(weights_line, className="validation-subcopy") if weights_line else None,
-                html.Div('Subtext ' + ("—" if d.get("repeatability") is None else f"{d['repeatability']*100:.0f}%"), className="validation-subcopy")]
+                html.Div("Repeatability " + ("—" if d.get("repeatability") is None else f"{d['repeatability']*100:.0f}%"), className="validation-subcopy")]
     if kind == "power":
         # The Window row above says how long the analysed block was; state how the
         # uninterrupted Ch2 block is obtained.
@@ -2375,83 +2382,101 @@ def _d4_render(kind, d, rt, where):
         burst_note = (f"Contiguous capture: an uninterrupted block is requested automatically every "
                       f"{burst:.0f} s so the FFT always receives a continuous sample window."
                       if burst else "")
-        return [_d4_kv(_linefreq_rows(d.get("linefreq"), 'Label')),
+        return [_d4_kv(_linefreq_rows(d.get("linefreq"), T("ch2.name"))),
                 html.Div(burst_note, className="validation-subcopy") if burst_note else None]
     if kind == "power_ch1":
         mm = d.get("linefreq_ch1") or {}
-        return [_d4_kv(_linefreq_rows(mm, 'Label')), html.Div(f"ODR configured {cfg.get('c1_odr_hz')} Hz · measured {d.get('ch1_rate_hz')} Hz", className="validation-subcopy")]
+        return [_d4_kv(_linefreq_rows(mm, T("ch1.name"))), html.Div(f"ODR configured {cfg.get('c1_odr_hz')} Hz · measured {d.get('ch1_rate_hz')} Hz", className="validation-subcopy")]
     if kind == "power_network":
         pn = d.get("power_network") or {}
         rows = [(k, (f"{v.get('fundamental_hz')} Hz · THD {v.get('thd_pct')} % · even {v.get('even_amp')} / odd {v.get('odd_amp')} · harmonics {v.get('harmonics')}" if v.get("present") else v.get("note", "—"))) for k, v in (pn.get("channels") or {}).items()]
         return [_d4_kv(rows), html.Ul([html.Li(f) for f in pn.get("findings", [])], className="d4-list"),
-                html.Div([html.Div("⚠ " + a, className="d4-line") for a in pn.get("abnormal", [])] or [html.Div('Subtext', className="validation-subcopy")])]
+                html.Div([html.Div("⚠ " + a, className="d4-line") for a in pn.get("abnormal", [])] or [html.Div("Nothing abnormal on the line frequency.", className="validation-subcopy")])]
     if kind == "ch3":
         r = d.get("ch3") or {}
         if r.get("error"):
             return [html.Div(r["error"], className="validation-subcopy")]
-        return [_d4_kv([('Text', f"{_freq_label(r['primary_peak_hz'])} · {r['primary_peak_dbm']} unit"), ('Text', f"{r['noise_floor_dbm']} unit (MAD {r['noise_mad_db']} dB)"), ("SNR", f"{r['snr_db']} dB"),
-                        ('Text', _freq_label(r["occupied_bandwidth_hz"]) if r.get("occupied_bandwidth_hz") else "—"), ("Occupancy", f"{r['occupancy_pct']} % of bins above floor + threshold"),
-                        ('Text', f"{r['interference_islands']} islands · {r['interference_density_per_100mhz']} per 100 MHz"),
-                        ('Text', ", ".join(f"{h['order']}× {_freq_label(h['hz'])}" for h in r.get("harmonics_of_primary", [])) or "none"),
-                        ('Text', ", ".join(f"{_freq_label(p['hz'])} ({p['level_dbm']})" for p in r.get("peaks", [])[:5]) or "none"),
-                        ('Text', ", ".join(_freq_label(p["hz"]) for p in r.get("unexpected", [])) or "none")]),
-                html.Div(r.get("band_note", ""), className="d4-line"), html.Div(('Subtext' if r.get("trusted") else 'Subtext') + f" · {r.get('status') or ''}", className="validation-subcopy")]
+        xu = r.get("x_unit")   # None: the studio's radio, in Hz and dBm; text: a fed sweep's own units
+        if xu is None:
+            at, lvl, db = _freq_label, "dBm", "dB"
+        else:
+            at, lvl, db = (lambda v: _fed_at(v, xu)), T("ch3.unit"), T("ch3.unit")
+        rows = [("Strongest peak", f"{at(r['primary_peak_hz'])} · {r['primary_peak_dbm']} {lvl}"),
+                ("Noise floor", f"{r['noise_floor_dbm']} {lvl} (MAD {r['noise_mad_db']} {db})"), ("SNR", f"{r['snr_db']} {db}"),
+                ("Occupied width", at(r["occupied_bandwidth_hz"]) if r.get("occupied_bandwidth_hz") else "—"),
+                ("Occupancy", f"{r['occupancy_pct']} % of points above floor + threshold"),
+                ("Activity", f"{r['interference_islands']} islands" + (f" · {r['interference_density_per_100mhz']} per 100 MHz" if xu is None else "")),
+                ("Harmonics of the peak", ", ".join(f"{h['order']}× {at(h['hz'])}" for h in r.get("harmonics_of_primary", [])) or "none"),
+                ("Other peaks", ", ".join(f"{at(p['hz'])} ({p['level_dbm']})" for p in r.get("peaks", [])[:5]) or "none")]
+        if xu is None:   # the band table is the radio's: it says nothing about a fed axis
+            rows.append(("Outside known bands", ", ".join(at(p["hz"]) for p in r.get("unexpected", [])) or "none"))
+        if xu is not None:
+            trust = "From the project feed: shown here, not checked as a radio sweep"
+        elif r.get("trusted"):
+            trust = "Trusted sweep: level sane, no receiver warnings"
+        else:
+            trust = "Untrusted sweep: shown, but kept out of max hold, trend and the score's health"
+        return [_d4_kv(rows), html.Div(r.get("band_note", "") if xu is None else "", className="d4-line"),
+                html.Div(trust + f" · {r.get('status') or ''}", className="validation-subcopy")]
     if kind == "calibration":
         lc = d.get("last_calibration")
         if not lc:
-            return [html.Div('Subtext', className="validation-subcopy"),
-                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} unit · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
+            return [html.Div("No fit yet: turn the sensor slowly through every direction, then press FIT.", className="validation-subcopy"),
+                    html.Div(f"Active profile: {cfg.get('source')} · offsets {cfg.get('c1_offsets')} {ch1_value_unit(ch1_data)} · quality {cfg.get('c1_calibration_quality')}", className="validation-subcopy")]
         o, s_ = lc["offsets_val"], lc["scale"]
-        return [html.Pre(f"Ch1 Calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} unit\nY offset: {o[1]:+.1f} unit\nZ offset: {o[2]:+.1f} unit\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
-                         f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_val']} unit\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
+        u1 = lc.get("unit") or ch1_value_unit(ch1_data)
+        return [html.Pre(f"{T('ch1.name')} calibration{'  (SIMULATED)' if lc.get('simulated') else ''}\nX offset: {o[0]:+.1f} {u1}\nY offset: {o[1]:+.1f} {u1}\nZ offset: {o[2]:+.1f} {u1}\n\nScale:\nX = {s_[0]:.3f}\nY = {s_[1]:.3f}\nZ = {s_[2]:.3f}\n\n"
+                         f"Axis misalignment: {lc['misalignment_deg']}°\nField magnitude: {lc['field_magnitude_val']} {u1}\nSphericity residual: {lc['residual_before_pct']} % → {lc['residual_after_pct']} %\nCoverage: {lc['coverage']} %\nCalibration quality: {lc['quality']} %\nSamples: {lc['samples']} over {lc.get('window_s')} s", className="d4-pre"),
                 html.Pre(json.dumps({"x_offset": o[0], "y_offset": o[1], "z_offset": o[2], "soft_iron": lc["soft_iron_matrix"]}, separators=(",", ":")), className="d4-pre small")]
     if kind == "calhealth":
         ch = d.get("calibration_health") or {}
-        return [_d4_kv([("Status", str(ch.get("status", "—")).upper()), ('Text', f"{ch['quality']} %" if ch.get("quality") is not None else "—"), ('Text', f"{ch.get('magnitude_spread_pct')} %"),
-                        ('Text', f"{ch.get('offset_drift_val')} {T('ch1.unit')}"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} {T('ch1.unit')} RMS"), ("Recalibration", _slot_words(ch.get("recalibration", ch.get("text", "—")))), ('Text', cfg.get("source") or "defaults")])]
+        return [_d4_kv([("Status", str(ch.get("status", "—")).upper()), ("Quality", f"{ch['quality']} %" if ch.get("quality") is not None else "—"), ("Magnitude spread", f"{ch.get('magnitude_spread_pct')} %"),
+                        ("Offset drift", f"{ch.get('offset_drift_val')} {ch1_value_unit(ch1_data)}"), ("Noise", f"{(d.get('noise_ch1') or {}).get('rms')} {ch1_value_unit(ch1_data)} RMS"), ("Recalibration", _slot_words(ch.get("recalibration", ch.get("text", "—")))), ("Profile", cfg.get("source") or "defaults")])]
     if kind == "transients":
         tr = d.get("transients") or {}; ev = tr.get("events") or []
-        return [_d4_kv([('Text', f"{tr.get('count', 0)} in {tr.get('window_s') or 0} s"), ("Threshold", f"{tr.get('threshold')} (baseline {tr.get('baseline')}, MAD {tr.get('noise_mad')})"), ("Repetition", f"{tr['repetition_hz']} Hz" if tr.get("repetition_hz") else "—")]),
+        return [_d4_kv([("Count", f"{tr.get('count', 0)} in {tr.get('window_s') or 0} s"), ("Threshold", f"{tr.get('threshold')} (baseline {tr.get('baseline')}, MAD {tr.get('noise_mad')})"), ("Repetition", f"{tr['repetition_hz']} Hz" if tr.get("repetition_hz") else "—")]),
                 html.Div([html.Div(f"Peak {e['peak']} · {e['duration_ms']} ms · rise {e['rise_ms']} ms · fall {e['fall_ms']} ms · energy {e['energy']}", className="validation-subcopy") for e in ev[-4:]])]
     if kind == "correlation":
         return [_d4_kv([(k.replace("_", " / "), f"r = {v['r']}  ·  {v['text']}" if v.get("r") is not None else v["text"]) for k, v in (d.get("correlation") or {}).items()])]
     if kind == "baseline":
         bm = d.get("baseline_methods") or {}
         if not bm:
-            return [html.Div('Subtext', className="validation-subcopy")]
+            return [html.Div(f"Waiting for enough {T('ch1.name')} history to compare the methods.", className="validation-subcopy")]
         return [_d4_kv([(k, f"final {v['final']} · tracking RMSE {v['tracking_rmse']} · max excursion {v['max_excursion']}") for k, v in (bm.get("methods") or {}).items()]
-                       + [('Text', bm.get("most_disturbance_resistant", "—")), ('Text', f"{cfg.get('baseline_method')} (α {cfg.get('baseline_alpha')})")])]
+                       + [("Most disturbance-resistant", bm.get("most_disturbance_resistant", "—")), ("In use", f"{cfg.get('baseline_method')} (α {cfg.get('baseline_alpha')})")])]
     if kind == "repeat":
         rep = d.get("repeat_run") or {}
         if not rep:
-            return [_d4_kv([("Status", 'Text'),
-                            ('Text', 'Paragraph. Enter your text here.')])]
+            return [_d4_kv([("Status", "not run yet"),
+                            ("How", "Pick a channel, the number of readings and the window length, then press START. "
+                                    "Each reading is the mean of a fresh window of live data.")])]
         if rep.get("running"):
             return [_d4_kv([("Status", f"running — reading {rep.get('done', 0)} of {rep.get('runs')} "
-                                       f"on {rep.get('label')}"),
-                            ('Text', f"a fresh {rep.get('window_s')} s window of live data"),
-                            ('Text', 'Paragraph. Enter your text here.')])]
+                                       f"on {_slot_words(rep.get('label'))}"),
+                            ("Each reading", f"a fresh {rep.get('window_s')} s window of live data"),
+                            ("Meanwhile", "Keep the sensor and everything near it still until it finishes.")])]
         if rep.get("error"):
             return [_d4_kv([("Status", f"failed — {rep['error']}")])]
         r = rep.get("result") or {}
         if r.get("error"):
             return [_d4_kv([("Status", f"not enough readings — {r['error']}")])]
-        rows = [("Channel", r.get("channel", "—")),
+        rows = [("Channel", _slot_words(r.get("channel", "—"))),
                 ("Readings", f"{r.get('n')} x {r.get('window_s')} s windows"
                              + (f" ({r['skipped']} skipped for want of samples)" if r.get("skipped") else "")),
                 ("Result", f"{r.get('text')}"),
                 ("Spread", f"σ {r.get('sd')} {r.get('unit')} · range {r.get('range')} · "
                            f"min {r.get('min')} · max {r.get('max')}"),
-                ('Text', (f"{r.get('rsd_pct')} % — {r.get('verdict')}"
+                ("Relative spread", (f"{r.get('rsd_pct')} % — {r.get('verdict')}"
                                          if r.get("rsd_pct") is not None else "mean too near zero to state")),
                 ("Method", r.get("basis", "—")),
                 ("Conditions", r.get("conditions", "—")),
-                ('Text', 'Paragraph. Enter your text here.')]
+                ("Meaning", "A small spread means the channel gives the same answer when nothing changes. "
+                            "It says nothing about accuracy against a reference; the validation trials do that.")]
         return [_d4_kv(rows)]
     if kind == "limits":
         lim = d.get("detection_limits") or {}
         rows = []
-        for key, label in (("ch1", T("ch1.name")), ("ch2", 'Text')):
+        for key, label in (("ch1", T("ch1.name")), ("ch2", T("ch2.name"))):
             v = lim.get(key) or {}
             if v.get("error") or not v.get("lod"):
                 rows.append((label, v.get("error") or "not measured yet"))
@@ -2463,7 +2488,8 @@ def _d4_render(kind, d, rt, where):
             if v.get("nsd_per_sqrt_hz"):
                 text += f" · {v['nsd_per_sqrt_hz']} {unit}/√Hz"
             rows.append((label, text))
-        rows.append(("Method", 'Paragraph. Enter your text here.'))
+        rows.append(("Method", "3σ and 10σ of the channel's measured noise (limit of detection and of quantification). "
+                               "Longer averaging lowers both."))
         return [_d4_kv(rows)]
     if kind == "exposure":
         exp = d.get("exposure") or {}
@@ -2476,54 +2502,62 @@ def _d4_render(kind, d, rt, where):
                     text += f" · {ch['note']}"
             else:
                 text = ch.get("reading") or "—"
-            rows.append((ch.get("channel", "—"), text))
+            name = f"{T(ch['key'] + '.name')}, 50 Hz component" if ch.get("key") else ch.get("channel", "—")
+            rows.append((name, text))
         if exp.get("source"):
             rows.append(("Reference", exp["source"]))
             rows.append(("Compared", exp.get("basis", "—")))
-            rows.append(('Text', exp.get("caveat", "—")))
-        return [_d4_kv(rows or [("Exposure", 'Text')])]
+            rows.append(("Caveat", exp.get("caveat", "—")))
+        return [_d4_kv(rows or [("Exposure", "no line-frequency reading yet")])]
     if kind == "noise":
         ne, nm = d.get("noise_ch2") or {}, d.get("noise_ch1") or {}
-        return [_d4_kv([('Text', f"RMS {ne.get('rms')} · peak {ne.get('peak')} · σ {ne.get('std')} · NSD {ne.get('nsd_per_sqrt_hz')} /√Hz @ {ne.get('fs')} Hz" if ne else "—"),
-                        ('Text', f"RMS {nm.get('rms')} · peak {nm.get('peak')} · σ {nm.get('std')} · NSD {nm.get('nsd_per_sqrt_hz')} unit/√Hz @ {nm.get('fs')} Hz" if nm else "—")])]
+        return [_d4_kv([(T("ch2.name"), f"RMS {ne.get('rms')} · peak {ne.get('peak')} · σ {ne.get('std')} · NSD {ne.get('nsd_per_sqrt_hz')} /√Hz @ {ne.get('fs')} Hz" if ne else "—"),
+                        (T("ch1.name"), f"RMS {nm.get('rms')} · peak {nm.get('peak')} · σ {nm.get('std')} · NSD {nm.get('nsd_per_sqrt_hz')} {ch1_value_unit(ch1_data)}/√Hz @ {nm.get('fs')} Hz" if nm else "—")])]
     if kind == "fingerprint":
         fp = d.get("fingerprint") or {}; ref = d.get("fingerprint_reference"); chg = d.get("fingerprint_change") or {}
-        return [_d4_kv([('Text', f"{fp.get('ch1_val')} unit"), ('Text', f"{fp.get('ch2')}"), ('Text', f"{fp.get('ch3_floor_dbm')} unit · peak {_freq_label(fp['ch3_peak_hz']) if fp.get('ch3_peak_hz') else '—'}"),
-                        ('Reference', f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ('Text', f"{fp.get('transient_rate_per_min')} /min")]),
-                html.Div(('Text' if not ref else f"Environmental change vs reference: CH 3 floor {chg.get('ch3_floor_db'):+} dB · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
+        # the fingerprint's own sweep kind (a fed sweep has no hertz and no dBm)
+        xu = fp["ch3_x_unit"] if "ch3_x_unit" in fp else (d.get("ch3") or {}).get("x_unit")
+        u3 = "dBm" if xu is None else T("ch3.unit")
+        pk = fp.get("ch3_peak_hz")
+        pk_s = "—" if pk is None else (_freq_label(pk) if xu is None else _fed_at(pk, xu))
+        return [_d4_kv([(T("ch1.name"), f"{fp.get('ch1_val')} {ch1_value_unit(ch1_data)}"), (T("ch2.name"), f"{fp.get('ch2')}"),
+                        (f"{T('ch3.name')} floor", f"{fp.get('ch3_floor_dbm')} {u3} · peak {pk_s}"),
+                        ("Line frequency", f"{(fp.get('linefreq') or {}).get('fundamental_hz')} Hz · THD {(fp.get('linefreq') or {}).get('thd_pct')} %"), ("Transients", f"{fp.get('transient_rate_per_min')} /min")]),
+                html.Div(("No reference yet: press TAKE REFERENCE to store one." if not ref else f"Change since the reference: {T('ch3.name')} floor " + ("not comparable" if chg.get("ch3_floor_db") is None else f"{chg.get('ch3_floor_db'):+} dB") + f" · {T('ch1.name').lower()} {chg.get('ch1_pct')} % · {T('ch2.name').lower()} {chg.get('ch2_pct')} % · transients {chg.get('transient_rate_pct')} %"), className="d4-line")]
     if kind == "trend":
         t = d.get("trend"); hist = d.get("history") or {}
-        rows = [('TEXT', f"{t['minutes']} min window · slope {t['mtdi_per_min']:+} per min · {t['text']}")] if t else [('TEXT', "collecting")]
-        for key in ("ch1probe", "ch2f", "ch3"):
+        rows = [("Score", f"{t['minutes']} min window · slope {t['mtdi_per_min']:+} per min · {t['text']}")] if t else [("Score", "collecting")]
+        for key, name in (("ch1probe", T("ch1.name")), ("ch2f", T("ch2.name")), ("ch3", T("ch3.name"))):
             h = hist.get(key)
             if h:
-                rows.append((key, " · ".join(f"{w['label']}: {w.get('text')}" + (f" ({w['change_pct']:+} %)" if w.get("change_pct") is not None else "") for w in h.get("windows", [])) + f" · drift {h.get('drift_per_min')}/min · {(h.get('periodic') or {}).get('text', '')}"))
+                rows.append((name, " · ".join(f"{w['label']}: {w.get('text')}" + (f" ({w['change_pct']:+} %)" if w.get("change_pct") is not None else "") for w in h.get("windows", [])) + f" · drift {h.get('drift_per_min')}/min · {(h.get('periodic') or {}).get('text', '')}"))
         if hist.get("error"):
-            rows.append(("archive", hist["error"]))
+            rows.append(("Archive", hist["error"]))
         return [_d4_kv(rows)]
     if kind == "events":
         evs = d.get("events") or []
-        return [html.Div([html.B(f"EVENT #{e['id']:05d} · {e['time']}" + (' TEXT' if e.get("open") else f" · {e.get('duration_s')} s")),
-                          html.Div(f"CH 3 {e['ch3']} · {T('ch1.name')} {e['ch1']} · {T('ch2.name')} {e['ch2']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
-            or [html.Div('Subtext', className="validation-subcopy")]
+        return [html.Div([html.B(f"EVENT #{e['id']:05d} · {e['time']}" + (" · OPEN" if e.get("open") else f" · {e.get('duration_s')} s")),
+                          html.Div(f"{T('ch3.name')} {e['ch3']} · {T('ch1.name')} {e['ch1']} · {T('ch2.name')} {e['ch2']} · MTDI {e['mtdi']} · confidence {e['confidence']}%", className="validation-subcopy")], className="d4-event") for e in evs[:8]] \
+            or [html.Div("No events yet: the score has not crossed the event threshold.", className="validation-subcopy")]
     if kind == "config":
-        return [_d4_kv([("Source", cfg.get("source")), ('Text', str(cfg.get("c1_offsets"))), ("Scale", str(cfg.get("c1_scale"))), ('Text', f"{cfg.get('c1_calibration_quality')} %" if cfg.get("c1_calibration_quality") is not None else "—"),
-                        ('Text', str(cfg.get("mtdi_weights"))), ("Thresholds", f"CH 3 {cfg.get('ch3_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')}σ · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')}×MAD"),
-                        ("Baseline", f"{cfg.get('baseline_method')} α={cfg.get('baseline_alpha')}"), ('Text', f"{cfg.get('c1_odr_hz')} Hz"),
+        return [_d4_kv([("Source", cfg.get("source")), (f"{T('ch1.name')} offsets", str(cfg.get("c1_offsets"))), ("Scale", str(cfg.get("c1_scale"))), ("Calibration quality", f"{cfg.get('c1_calibration_quality')} %" if cfg.get("c1_calibration_quality") is not None else "—"),
+                        ("Score weights", str(cfg.get("mtdi_weights"))), ("Thresholds", f"{T('ch3.name')} {cfg.get('ch3_threshold_db')} dB · anomaly {cfg.get('anomaly_sigma')}σ · event {cfg.get('event_mtdi')} · transient {cfg.get('transient_threshold')}×MAD"),
+                        ("Baseline", f"{cfg.get('baseline_method')} α={cfg.get('baseline_alpha')}"), (f"{T('ch1.name')} sample rate", f"{cfg.get('c1_odr_hz')} Hz"),
                         ("Filter", f"{cfg['filter'].get('type')} order {cfg['filter'].get('order')} cutoff {cfg['filter'].get('cutoff_hz')} Hz" + (" · coefficients loaded" if cfg["filter"].get("b") else " · not designed yet") + (' · APPLIED to channel 1 magnitude' if cfg["filter"].get("apply") else " · not applied")),
-                        ('Text', str(cfg.get("d3_reference") or "not entered")), ("Error", d.get("config_error") or "none")])]
+                        ("D3 reference", str(cfg.get("d3_reference") or "not entered")), ("Error", d.get("config_error") or "none")])]
     if kind == "references":
         refs = d.get("references") or {}; simr = d.get("similarity") or []
         rows = [(k, f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(v.get('recorded_at') or 0))} · {v.get('note') or ''}" + (" · SIMULATED" if v.get("simulated") else "")) for k, v in refs.items()]
-        return [_d4_kv(rows) if rows else html.Div('Subtext', className="validation-subcopy"),
-                html.Div(('Text ' + ", ".join(f"{q['name']} · similarity {q['similarity_pct']} % ({q['features_compared']} features)" for q in simr[:3])) if simr else "", className="d4-line"),
-                html.Div('Subtext ' + ", ".join(f"{k} {v}" for k, v in (d.get("features") or {}).items() if v is not None), className="validation-subcopy")]
+        return [_d4_kv(rows) if rows else html.Div("No profiles yet: enter a device name and press RECORD.", className="validation-subcopy"),
+                html.Div(("Closest: " + ", ".join(f"{q['name']} · similarity {q['similarity_pct']} % ({q['features_compared']} features)" for q in simr[:3])) if simr else "", className="d4-line"),
+                html.Div("Features now: " + ", ".join(f"{k} {v}" for k, v in (d.get("features") or {}).items() if v is not None), className="validation-subcopy")]
     if kind == "classifier":
         c = d.get("classifier") or {}
         if not c.get("trained_at"):
             return [html.Div(c.get("note", "not trained"), className="d4-line"), html.Div(f"Labelled trials by source: {c.get('labelled') or {}}", className="validation-subcopy")]
         return [html.Div(f"Trained {time.strftime('%Y-%m-%d %H:%M', time.localtime(c['trained_at']))} on {c.get('n')} trials · classes {c.get('classes')}", className="validation-subcopy"),
-                _d4_kv([(q["label"], f"{q['probability_pct']} %") for q in c.get("prediction", [])]), html.Div('Subtext', className="validation-subcopy")]
+                _d4_kv([(q["label"], f"{q['probability_pct']} %") for q in c.get("prediction", [])]),
+                html.Div("Probabilities for the current reading. Only sources it was trained on can appear.", className="validation-subcopy")]
     if kind == "validation":
         try:
             st = _d4_trial_stats(rt)
@@ -2532,20 +2566,20 @@ def _d4_render(kind, d, rt, where):
         ms, ds = st.get("measurements") or {}, st.get("detection") or {}
         rows = [("Trials", f"{d.get('trials_count', 0)} recorded")]
         if ms:
-            rows += [("Values", f"n {ms['n']} · mean {ms['mean']} · median {ms['median']} · σ {ms['std']} · var {ms['variance']} · CV {ms['cv_pct']} %"), ('TEXT', f"{ms['ci95']}")]
+            rows += [("Values", f"n {ms['n']} · mean {ms['mean']} · median {ms['median']} · σ {ms['std']} · var {ms['variance']} · CV {ms['cv_pct']} %"), ("95 % interval of the mean", f"{ms['ci95']}")]
         if ds:
             rows += [("Detection", f"rate {ds['detection_rate_pct']} % · false positives {ds['false_positive_rate_pct']} % · accuracy {ds['accuracy_pct']} % · precision {ds['precision_pct']} % · recall {ds['recall_pct']} % · F1 {ds['f1_pct']} % (n {ds['n']})")]
-        cmp_rows = [html.Tr([html.Th('Label'), html.Th("D3"), html.Th("D4")])] + [html.Tr([html.Td(c["metric"]), html.Td("—" if c["d3"] is None else f"{c['d3']} {c['unit']}"), html.Td("—" if c["d4"] is None else f"{c['d4']} {c['unit']}")]) for c in st.get("comparison", [])]
-        return [_d4_kv(rows), html.Div('Text', className="d4-line"), html.Table(cmp_rows, className="d4-table"),
-                html.Div('Text', className="d4-line"), html.Ul([html.Li(r["text"]) for r in st.get("recommendations", [])], className="d4-list")]
+        cmp_rows = [html.Tr([html.Th("Metric"), html.Th("D3"), html.Th("D4")])] + [html.Tr([html.Td(c["metric"]), html.Td("—" if c["d3"] is None else f"{c['d3']} {c['unit']}"), html.Td("—" if c["d4"] is None else f"{c['d4']} {c['unit']}")]) for c in st.get("comparison", [])]
+        return [_d4_kv(rows), html.Div("D3 against D4", className="d4-line"), html.Table(cmp_rows, className="d4-table"),
+                html.Div("Tests to run next", className="d4-line"), html.Ul([html.Li(r["text"]) for r in st.get("recommendations", [])], className="d4-list")]
     if kind == "uncertainty":
         st = _d4_trial_stats(rt)
         err, u = st.get("error"), st.get("uncertainty")
         if not err:
-            return [html.Div('Subtext', className="validation-subcopy")]
-        return [_d4_kv([("Pairs", err["pairs"]), ('Text', f"{err['mean_abs_error']}"), ('Text', f"{err['mean_pct_error']} %"), ("Bias", f"{err['bias']}"), ("RMSE", f"{err['rmse']}"),
+            return [html.Div("Enter reference values with the trials to see the error and uncertainty.", className="validation-subcopy")]
+        return [_d4_kv([("Pairs", err["pairs"]), ("Mean absolute error", f"{err['mean_abs_error']}"), ("Mean error", f"{err['mean_pct_error']} %"), ("Bias", f"{err['bias']}"), ("RMSE", f"{err['rmse']}"),
                         ("Result", u["text"] if u else "—"), ("Budget", str(u["budget"]) if u else "—")])]
-    return [html.Div('Subtext', className="validation-subcopy")]
+    return [html.Div(f"No view for the {kind} block.", className="validation-subcopy")]
 
 
 def _d4_trial_stats(rt):
@@ -2588,20 +2622,21 @@ def _d4_graph(kind, d, rt):
     if kind == "calibration":
         lc = d.get("last_calibration")
         if not lc or not lc.get("raw"):
-            return _d4_empty(380, 'Paragraph. Enter your text here.')
+            return _d4_empty(380, "Press FIT to show the raw and corrected readings")
         raw, cor = lc["raw"], lc["corrected"]
+        u1 = lc.get("unit") or ch1_value_unit(ch1_data)
         fig = go.Figure()
-        fig.add_trace(go.Scatter3d(x=[p[0] for p in raw], y=[p[1] for p in raw], z=[p[2] for p in raw], mode="markers", name='Label', marker=dict(size=2.2, color="#ff5252", opacity=.75)))
-        fig.add_trace(go.Scatter3d(x=[p[0] for p in cor], y=[p[1] for p in cor], z=[p[2] for p in cor], mode="markers", name='Label', marker=dict(size=2.2, color="#00e5ff", opacity=.85)))
+        fig.add_trace(go.Scatter3d(x=[p[0] for p in raw], y=[p[1] for p in raw], z=[p[2] for p in raw], mode="markers", name="raw", marker=dict(size=2.2, color="#ff5252", opacity=.75)))
+        fig.add_trace(go.Scatter3d(x=[p[0] for p in cor], y=[p[1] for p in cor], z=[p[2] for p in cor], mode="markers", name="corrected", marker=dict(size=2.2, color="#00e5ff", opacity=.85)))
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=380, margin=dict(l=0, r=0, t=8, b=0), legend=dict(orientation="h", y=1.02, font=dict(size=9)), uirevision="cal",
-                          scene=dict(bgcolor="rgba(0,0,0,0)", xaxis=dict(title="X unit", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"), yaxis=dict(title="Y unit", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"),
-                                     zaxis=dict(title="Z unit", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"), aspectmode="data"))
+                          scene=dict(bgcolor="rgba(0,0,0,0)", xaxis=dict(title=f"X ({u1})", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"), yaxis=dict(title=f"Y ({u1})", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"),
+                                     zaxis=dict(title=f"Z ({u1})", gridcolor="rgba(255,255,255,.08)", backgroundcolor="rgba(0,0,0,0)"), aspectmode="data"))
         return fig
     if kind == "validation":
         trials = rt.d4.trials
         vals = [(i, t["value"]) for i, t in enumerate(trials) if t.get("value") is not None]
         if not vals:
-            return _d4_empty(220, 'Text')
+            return _d4_empty(220, "No trials yet")
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=[i for i, _ in vals], y=[v for _, v in vals], mode="lines+markers", line=dict(color="#00e5ff", width=1), name="value"))
         st = validation_stats([v for _, v in vals])
@@ -2621,7 +2656,7 @@ def d4_blocks(_n, ids):
         raise dash.exceptions.PreventUpdate
     rt = _d4_runtime()
     if rt is None:
-        return [html.Div('Subtext', className="validation-subcopy") for _ in ids]
+        return [html.Div("The D4 engine is not running.", className="validation-subcopy") for _ in ids]
     d = rt.d4.snapshot()
     out = []
     for ident in ids:
@@ -2668,10 +2703,10 @@ def d4_actions(clicks, values, in_ids, status_ids):
                 msg = f"REJECTED · {patch}"
             elif action == "cal_apply":
                 path = rt.d4.update_config(patch)
-                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {T('ch1.unit')}, quality {result['quality']} %")
-                msg = f"Fit applied: offsets {result['offsets_val']} unit · quality {result['quality']} % · written to {path}"
+                rt.note("d4", f"{T('ch1.name').lower()} calibration applied: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)}, quality {result['quality']} %")
+                msg = f"Fit applied: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)} · quality {result['quality']} % · written to {path}"
             else:
-                msg = f"Fit done: offsets {result['offsets_val']} unit · quality {result['quality']} % (not applied)"
+                msg = f"Fit done: offsets {result['offsets_val']} {result.get('unit') or ch1_value_unit(ch1_data)} · quality {result['quality']} % (not applied)"
         elif action == "burst":
             rt.d4.request_burst(3440, "ch2f"); msg = f"Burst requested: next {T('ch2.name')} block is 3440 contiguous samples"
         elif action == "repeat_start":
