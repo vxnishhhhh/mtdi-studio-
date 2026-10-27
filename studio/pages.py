@@ -1615,7 +1615,7 @@ def _render_key_list():
     rows = []
     if not items:
         return [html.Div(
-            'Paragraph. Enter your text here.',
+            "No keys yet. Paste one below; until then NVTRA uses the local model if one is installed.",
             className="key-empty",
         )]
     for it in items:
@@ -1632,15 +1632,15 @@ def _render_key_list():
         if it.get("model"):
             label_children.append(html.Span(it["model"], className="key-model"))
         if it["builtin"]:
-            label_children.append(html.Span('LABEL', className="key-badge"))
+            label_children.append(html.Span("BUILT IN", className="key-badge"))
         elif it.get("source") == "manual-config":
-            label_children.append(html.Span('LABEL', className="key-badge"))
+            label_children.append(html.Span("CONFIGURED", className="key-badge", title="Set in the studio's key configuration, not added here"))
         row_children = [
             html.Button(html.Span(className="key-radio-dot") if is_active else "",
                         id={"type": "key-use", "id": it["id"]}, className="key-radio", n_clicks=0),
             html.Div([html.Div(label_children, className="key-label"),
                       html.Div(_mask_key(it["key"]), className="key-mask")], className="key-info"),
-            html.Button('BUTTON', id={"type": "key-name-save", "id": it["id"]},
+            html.Button("RENAME", id={"type": "key-name-save", "id": it["id"]},
                         className="key-name-save", n_clicks=0),
         ]
         if is_active:
@@ -1659,14 +1659,14 @@ def _render_nvtra_key_bar():
         local = local_ai_status()
         label = ("LOCAL MODEL · " + str(local["model"])) if local["available"] else "LOCAL MODEL · NOT INSTALLED"
         return [html.Span("OFFLINE", className="nvtra-key-cap"), html.Span(label, className="nvtra-key-pill nkp-active")]
-    pills = [html.Span('LABEL', className="nvtra-key-cap")]
+    pills = [html.Span("MODEL", className="nvtra-key-cap")]
     if not items and local_ai_status()["available"]:
-        pills.append(html.Span('LABEL ' + str(local_ai_status()["model"]), className="nvtra-key-pill nkp-active"))
+        pills.append(html.Span("LOCAL · " + str(local_ai_status()["model"]), className="nvtra-key-pill nkp-active"))
     for it in items:
         cls = "nvtra-key-pill" + (" nkp-active" if it["id"] == active else "")
         pills.append(html.Button(it["label"], id={"type": "key-use", "id": it["id"]},
                                  className=cls, n_clicks=0))
-    pills.append(dcc.Link(html.Button('BUTTON', className="nvtra-key-pill"),
+    pills.append(dcc.Link(html.Button("KEYS", className="nvtra-key-pill", title="Manage AI keys in Settings"),
                           href="/settings", style={"textDecoration": "none"}))
     return pills
 
@@ -1684,8 +1684,8 @@ def _render_model_picker():
     if local_active:
         current = "Local · " + str(local["model"] or "no model").upper()
     choices.append(html.Button([
-        html.Span('Label', className="model-choice-name"),
-        html.Span(str(local["model"] or "not installed") + (' Text' if local["available"] else ""), className="model-choice-id"),
+        html.Span("Local", className="model-choice-name"),
+        html.Span(str(local["model"] or "not installed") + (" · on this machine" if local["available"] else ""), className="model-choice-id"),
         html.Span("✓" if local_active else "", className="model-choice-check"),
     ], id={"type": "chat-model-use", "id": "local"},
        className="model-choice" + (" active" if local_active else ""), n_clicks=0))
@@ -1698,10 +1698,10 @@ def _render_model_picker():
         ], id={"type": "chat-model-use", "id": item["id"]},
            className="model-choice" + (" active" if (item["id"] == active and not local_active) else ""),
            n_clicks=0))
-    choices.append(dcc.Link('TEXT', href="/settings",
+    choices.append(dcc.Link("MANAGE KEYS", href="/settings",
                             className="model-config-link"))
     return html.Details([
-        html.Summary([html.Span('TEXT', className="model-picker-cap"),
+        html.Summary([html.Span("MODEL", className="model-picker-cap"),
                       html.Span(current, className="model-picker-current"),
                       html.Span("⌄", className="model-picker-chevron")]),
         html.Div(choices, className="model-picker-menu"),
@@ -1714,7 +1714,7 @@ def _render_chat_sessions():
         active = nvtra_active_session[0]
     if not sessions:
         return [html.Div(
-            'Text',
+            "No saved chats yet.",
             className="nvtra-history-empty",
         )]
     rows = []
@@ -2325,7 +2325,7 @@ def _offline_keys_notice():
                 "never used while offline; switch to online mode in the header to use them.")
     else:
         body = "No local model is running. Start the studio-local-ai service on this host, or switch to online mode."
-    return [html.Div([html.Div([html.Div([html.B('Text'), html.Span(body)], className="set-lab")],
+    return [html.Div([html.Div([html.Div([html.B("OFFLINE MODE"), html.Span(body)], className="set-lab")],
                               className="set-row")], className="set-card")]
 
 
@@ -2343,135 +2343,145 @@ def _settings_page_base():
         html.Hr(className="divider"),
         html.Div([
             html.Div([
-                html.Div([html.B('Text'), html.Span('Paragraph. Enter your text here.')], className="set-lab"),
+                html.Div([html.B("ANIMATIONS"), html.Span("Moving backgrounds and transitions. Turn them off if pages run slowly; "
+                                                             "this browser remembers the choice.")], className="set-lab"),
                 html.Div([html.Button("On", id="anim-on", className="set-seg-btn", n_clicks=0),
                           html.Button("Off", id="anim-off", className="set-seg-btn", n_clicks=0)], className="set-seg"),
             ], className="set-row"),
             html.Div([
-                html.Div([html.B('Text'),
-                          html.Span('Paragraph. Enter your text here.')], className="set-lab"),
+                html.Div([html.B("PHONE LAYOUT"),
+                          html.Span("Desktop shows the whole studio on a phone, turned sideways; Mobile reflows it "
+                                    "into one column. This browser remembers the choice.")], className="set-lab"),
                 html.Div([html.Button("Desktop", id="phone-layout-desktop", className="set-seg-btn", n_clicks=0),
                           html.Button("Mobile", id="phone-layout-mobile", className="set-seg-btn", n_clicks=0)],
                          className="set-seg"),
             ], className="set-row"),
             html.Div([
-                html.Div([html.B('Text'), html.Span('Paragraph. Enter your text here.', **{"data-i3-replay-note": "true"})], className="set-lab"),
-                html.Span('SUBTEXT', className="set-note"),
+                html.Div([html.B("STARTUP INTRO"), html.Span("Plays each time Home loads; scroll through it to reach the studio. "
+                                                                "It is skipped on phones and when the system asks for reduced motion.",
+                                                                **{"data-i3-replay-note": "true"})], className="set-lab"),
+                html.Span("RELOAD HOME TO SEE IT AGAIN", className="set-note"),
             ], className="set-row"),
         ], className="set-card"),
 
         html.Div(id="settings-phone-layout-dummy", style={"display": "none"}),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("AI KEYS", className="section-label", style={"marginTop":"30px"}),
         *_offline_keys_notice(),
         *([] if instrument_offline() else [
-        html.Div('Title',
+        html.Div("Keys for the cloud models NVTRA can answer with: Gemini, OpenAI, Claude, Grok, Groq or Kimi. "
+                 "The active key answers in chat; with no key, NVTRA uses the local model if one is installed.",
                  className="page-subtitle", style={"marginBottom":"16px","maxWidth":"760px"}),
         html.Div([
             html.Div(_render_key_list(), id="key-list", className="key-mgr"),
             html.Div([
                 dcc.Input(id="key-add-input", type="text", value="", autoComplete="off",
-                          placeholder='Enter your text here'),
+                          placeholder="paste an API key"),
                 dcc.Input(id="key-label-input", type="text", value="", autoComplete="off",
-                          placeholder='Enter your text here'),
+                          placeholder="name (optional)"),
                 dcc.Dropdown(
                     id="key-provider-input", value="auto", clearable=False, searchable=False,
                     options=[
-                        {"label":'Label',"value":"auto"},
-                        {"label":'Label',"value":"gemini"},
-                        {"label":'Label',"value":"openai"},
-                        {"label":'Label',"value":"anthropic"},
-                        {"label":'Label',"value":"xai"},
-                        {"label":'Label',"value":"groq"},
-                        {"label":'Label',"value":"kimi"},
+                        {"label":"Detect from the key","value":"auto"},
+                        {"label":"Gemini","value":"gemini"},
+                        {"label":"OpenAI","value":"openai"},
+                        {"label":"Claude","value":"anthropic"},
+                        {"label":"Grok","value":"xai"},
+                        {"label":"Groq","value":"groq"},
+                        {"label":"Kimi","value":"kimi"},
                     ],
                     className="key-provider-select",
                 ),
-                html.Button('BUTTON', id="key-add-btn", className="key-btn key-btn-add", n_clicks=0),
-                html.Button('BUTTON', id="key-test-btn", className="key-btn key-btn-test", n_clicks=0),
+                html.Button("ADD KEY", id="key-add-btn", className="key-btn key-btn-add", n_clicks=0),
+                html.Button("TEST ACTIVE", id="key-test-btn", className="key-btn key-btn-test", n_clicks=0,
+                            title="Send one short question with the active key"),
             ], className="key-add-row"),
-            html.Div('Paragraph. Enter your text here.',
+            html.Div("A key you add becomes the active one, unless a provider key is set in the environment "
+                     "(GEMINI_API_KEY, OPENAI_API_KEY and the like): that one is always used first.",
                      id="key-status", className="key-status"),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
         ]),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div('Title',
+        html.Div("HAND CONTROL", className="section-label", style={"marginTop":"30px"}),
+        html.Div("Point, pinch and scroll with your hands through the camera. Calibrate once with the camera on "
+                 "so pinches and pauses are read reliably.",
                  className="page-subtitle", style={"marginBottom":"16px","maxWidth":"760px"}),
         html.Div([
             html.Div([
-                html.Button('BUTTON', type="button", className="key-btn key-btn-add", title='Title', **{"data-i3-action": "hand_tracking"}),
+                html.Button("HAND TRACKING: OFF", type="button", className="key-btn key-btn-add", title="Turn the camera on or off (shortcut C)", **{"data-i3-action": "hand_tracking"}),
                 html.Button("3D HAND CONTROL: ON", type="button", className="key-btn key-btn-add", **{"data-i3-action": "hand3d", "aria-pressed": "true"}),
                 html.Div("Pinch on the Earth or the constellation to hold, spin and zoom it with your hands.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-i3-hand3d-note": "true"}),
             ], className="key-add-row"),
             html.Div([
-                html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "hand_calibrate"}),
-                html.Button('BUTTON', type="button", className="key-btn", **{"data-i3-action": "hand_debug", "aria-pressed": "false"}),
-                html.Button('BUTTON', type="button", className="key-btn", **{"data-i3-action": "hand_profile_reset"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "left_handed", "aria-pressed": "false"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "cursor_mode"}),
-                html.Button('BUTTON', type="button", className="key-btn", title='Title', **{"data-i3-action": "buddy_toggle", "aria-pressed": "true"}),
+                html.Button("CALIBRATE HANDS", type="button", className="key-btn key-btn-add", **{"data-i3-action": "hand_calibrate"}),
+                html.Button("GESTURE DEBUG: OFF", type="button", className="key-btn", **{"data-i3-action": "hand_debug", "aria-pressed": "false"}),
+                html.Button("RESET HAND PROFILE", type="button", className="key-btn", **{"data-i3-action": "hand_profile_reset"}),
+                html.Button("LEFT-HANDED: OFF", type="button", className="key-btn", title="Swap which hand points and which hand scrolls", **{"data-i3-action": "left_handed", "aria-pressed": "false"}),
+                html.Button("CURSOR: IV", type="button", className="key-btn", title="IV hides the system pointer; MAC keeps it and shows the IV cursor only for the hand", **{"data-i3-action": "cursor_mode"}),
+                html.Button("NVTRA CHARACTER: ON", type="button", className="key-btn", title="Show or hide the NVTRA character at the edge of the screen", **{"data-i3-action": "buddy_toggle", "aria-pressed": "true"}),
                 html.Div("Using default thresholds. Calibrate once with the camera on for reliable pinch, thumbs and pause.", className="key-status", style={"flex":"1","minWidth":"240px"}, **{"data-i3-hand-profile-note": "true"}),
             ], className="key-add-row", style={"marginTop":"10px"}),
             html.Div([
-                html.Div('TEXT', className="key-status", style={"letterSpacing":".18em","fontSize":"10px","marginBottom":"6px"}),
+                html.Div("SAVED CALIBRATIONS", className="key-status", style={"letterSpacing":".18em","fontSize":"10px","marginBottom":"6px"}),
                 html.Div("No saved calibrations yet.", className="i3-hand-profiles", **{"data-i3-hand-profiles": "true"}),
             ], style={"marginTop":"12px"}),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
-        html.Div('Title',
+        html.Div("NVTRA VOICE", className="section-label", style={"marginTop":"30px"}),
+        html.Div("With an ElevenLabs key NVTRA speaks in an ElevenLabs voice you choose; without one it uses this browser's voice.",
                  className="page-subtitle", style={"marginBottom":"16px","maxWidth":"760px"}),
         html.Div([
             html.Form([
                 html.Div([
                     dcc.Input(name="key", type="password", value="", autoComplete="off",
-                              placeholder='Enter your text here', className="i3-voice-key-input"),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_key"}),
+                              placeholder="ElevenLabs API key", className="i3-voice-key-input"),
+                    html.Button("SAVE KEY", type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_key"}),
                 ], className="key-add-row"),
                 html.Div(_voice_key_status(), className="key-status", **{"data-i3-result": "true"}),
             ], className="i3-form", **{"data-i3-form": "voice"}),
             html.Form([
                 html.Div([
-                    html.Select([html.Option('Text', value="")], name="voice", className="i3-voice-select", **{"data-i3-voices": "true"}),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_voice"}),
-                    html.Button('BUTTON', type="button", className="key-btn key-btn-test", **{"data-i3-action": "voice_preview"}),
+                    html.Select([html.Option("Choose a voice", value="")], name="voice", className="i3-voice-select", **{"data-i3-voices": "true"}),
+                    html.Button("USE VOICE", type="button", className="key-btn key-btn-add", **{"data-i3-action": "elevenlabs_voice"}),
+                    html.Button("PREVIEW", type="button", className="key-btn key-btn-test", **{"data-i3-action": "voice_preview"}),
                 ], className="key-add-row", style={"marginTop": "14px"}),
-                html.Div('Paragraph. Enter your text here.', className="key-status", **{"data-i3-result": "true"}),
+                html.Div("Pick a voice, preview it, then make it NVTRA's voice.", className="key-status", **{"data-i3-result": "true"}),
             ], className="i3-form", **{"data-i3-form": "voice-pick"}),
         ], className="set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("REPORTS AND ARCHIVE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-                html.Div([html.B('Text'),
-                      html.Span('Paragraph. Enter your text here.')],
+                html.Div([html.B("EXPORT"),
+                      html.Span("The PDF report covers every channel and the archive. ARCHIVE downloads the raw "
+                                f"archive as JSON; CSV downloads the {T('ch3.name')} sweeps. Downloading never contacts Notion: "
+                                f"Upload report to Notion, on {T('nav.page3')}, sends it there.")],
                      className="set-lab"),
             html.Div([
-                html.A("EXPORT PDF + NOTION", id="export-btn", className="key-btn key-btn-add",
+                html.A("DOWNLOAD LOCAL PDF", id="export-btn", className="key-btn key-btn-add",
                        href="/download/studio-report.pdf", download="mtdi_studio_report.pdf",
                        style={"textDecoration":"none","display":"inline-flex","alignItems":"center"}),
-                html.Button('BUTTON', id="archive-json-btn", className="key-btn key-btn-test", n_clicks=0),
-                html.Button('BUTTON', id="archive-csv-btn", className="key-btn key-btn-test", n_clicks=0),
+                html.Button("ARCHIVE · JSON", id="archive-json-btn", className="key-btn key-btn-test", n_clicks=0),
+                html.Button(f"{T('ch3.name').upper()} SWEEPS · CSV", id="archive-csv-btn", className="key-btn key-btn-test", n_clicks=0),
             ], style={"display":"flex","gap":"8px","flexWrap":"wrap"}),
             html.Div(
-                'TEXT' if (
-                    _notion_setting('LABEL') and
-                    _notion_setting('LABEL')
-                ) else 'Paragraph. Enter your text here.',
+                f"Notion is set up: Upload report to Notion on {T('nav.page3')} sends the report to your Notion page." if (
+                    _notion_setting("NOTION_API_KEY") and
+                    _notion_setting("NOTION_REPORT_PAGE_ID")
+                ) else "Notion is not set up: set NOTION_API_KEY and NOTION_REPORT_PAGE_ID to upload reports there.",
                 className="key-status",
                 style={"width":"100%","marginTop":"10px"},
             ),
         ], className="set-row set-card", style={"paddingTop":"18px","paddingBottom":"18px"}),
 
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("THIS COMPUTER", className="section-label", style={"marginTop":"30px"}),
         html.Div(id="settings-sys-grid", className="sys-grid"),
-        html.Div('LABEL', className="section-label", style={"marginTop":"30px"}),
+        html.Div("ABOUT", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div([html.Div("Title", className="sys-value", style={"fontSize":"18px"}),
+            html.Div([html.Div(T("brand.title"), className="sys-value", style={"fontSize":"18px"}),
                       html.Div(f"Build {APP_VERSION}", className="sys-sub", style={"marginTop":"6px"}),
-                      html.Div("Paragraph. Enter your text here.", className="sys-sub", style={"marginTop":"10px","lineHeight":"1.7"})], className="sys-card"),
-            html.Div([html.Div('Text', className="sys-value", style={"fontSize":"18px"}),
-                      html.Div('Subtext', className="sys-sub", style={"marginTop":"6px"})], className="sys-card"),
+                      html.Div("Built on MTDI, open source under the MIT License.", className="sys-sub", style={"marginTop":"10px","lineHeight":"1.7"})], className="sys-card"),
+            html.Div([html.Div(T("brand.credit"), className="sys-value", style={"fontSize":"18px"}),
+                      html.Div("Author", className="sys-sub", style={"marginTop":"6px"})], className="sys-card"),
         ], style={"display":"grid","gridTemplateColumns":"repeat(auto-fill,minmax(280px,1fr))","gap":"14px"}),
         dcc.Interval(id="settings-interval", interval=2000, n_intervals=0),
     ], className="settings-page", style=PAD)

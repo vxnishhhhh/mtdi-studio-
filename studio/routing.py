@@ -1176,15 +1176,15 @@ def _pi_grid():
     temp_ready = bool(sd.get("temperature_available"))
     tempc = RED if temp > 75 else AMBER if temp > 60 else GREEN
     return [
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{sd['cpu_usage']}%", className=f"sys-value {_cls(_pc(sd['cpu_usage']))}"), _bar(sd['cpu_usage'], _pc(sd['cpu_usage']))], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{temp:.1f} °C" if temp_ready else 'TEXT', className=f"sys-value {_cls(tempc if temp_ready else SUBTEXT)}"), html.Div(sd.get("telemetry_source", "host sensor"), className="sys-sub")], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{sd['ram_used_mb']} MB", className="sys-value"), html.Div(f"of {sd['ram_total_mb']} MB  ({sd['ram_pct']}%)", className="sys-sub"), _bar(sd['ram_pct'], _pc(sd['ram_pct']))], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{sd['disk_used_gb']} GB", className="sys-value"), html.Div(f"of {sd['disk_total_gb']} GB  ({sd['disk_pct']}%)", className="sys-sub"), _bar(sd['disk_pct'], _pc(sd['disk_pct']))], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(sd["uptime_str"], className="sys-value")], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{sd['load_1']}", className="sys-value"), html.Div(f"5m: {sd['load_5']}  15m: {sd['load_15']}", className="sys-sub")], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(sd["wifi_ip"], className="sys-value", style={"fontSize":"18px"}), html.Div(f"open :{RUNTIME['port']} here", className="sys-sub")], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"{sd['py_mem_mb']} MB", className="sys-value"), html.Div('Subtext', className="sys-sub")], className="sys-card"),
-        html.Div([html.Div('LABEL', className="sys-name"), html.Div(f"v{sd['app_version']}", className="sys-value"), html.Div(sd.get("host_model", "host detecting"), className="sys-sub"), html.Div(f"{sd['worker_count']} workers · {sd['thread_count']} threads · live {max(0.0,time.time()-(sd.get('last_rx') or time.time())):.1f}s ago", className="sys-sub")], className="sys-card"),
+        html.Div([html.Div("CPU", className="sys-name"), html.Div(f"{sd['cpu_usage']}%", className=f"sys-value {_cls(_pc(sd['cpu_usage']))}"), _bar(sd['cpu_usage'], _pc(sd['cpu_usage']))], className="sys-card"),
+        html.Div([html.Div("CPU TEMPERATURE", className="sys-name"), html.Div(f"{temp:.1f} °C" if temp_ready else "not reported", className=f"sys-value {_cls(tempc if temp_ready else SUBTEXT)}"), html.Div(sd.get("telemetry_source", "host sensor"), className="sys-sub")], className="sys-card"),
+        html.Div([html.Div("MEMORY", className="sys-name"), html.Div(f"{sd['ram_used_mb']} MB", className="sys-value"), html.Div(f"of {sd['ram_total_mb']} MB  ({sd['ram_pct']}%)", className="sys-sub"), _bar(sd['ram_pct'], _pc(sd['ram_pct']))], className="sys-card"),
+        html.Div([html.Div("STORAGE", className="sys-name"), html.Div(f"{sd['disk_used_gb']} GB", className="sys-value"), html.Div(f"of {sd['disk_total_gb']} GB  ({sd['disk_pct']}%)", className="sys-sub"), _bar(sd['disk_pct'], _pc(sd['disk_pct']))], className="sys-card"),
+        html.Div([html.Div("UPTIME", className="sys-name"), html.Div(sd["uptime_str"], className="sys-value")], className="sys-card"),
+        html.Div([html.Div("LOAD · 1 MIN", className="sys-name"), html.Div(f"{sd['load_1']}", className="sys-value"), html.Div(f"5m: {sd['load_5']}  15m: {sd['load_15']}", className="sys-sub")], className="sys-card"),
+        html.Div([html.Div("ADDRESS", className="sys-name"), html.Div(sd["wifi_ip"], className="sys-value", style={"fontSize":"18px"}), html.Div(f"open :{RUNTIME['port']} here", className="sys-sub")], className="sys-card"),
+        html.Div([html.Div("STUDIO MEMORY", className="sys-name"), html.Div(f"{sd['py_mem_mb']} MB", className="sys-value"), html.Div("this studio's own process", className="sys-sub")], className="sys-card"),
+        html.Div([html.Div("STUDIO", className="sys-name"), html.Div(f"v{sd['app_version']}", className="sys-value"), html.Div(sd.get("host_model", "host detecting"), className="sys-sub"), html.Div(f"{sd['worker_count']} workers · {sd['thread_count']} threads · live {max(0.0,time.time()-(sd.get('last_rx') or time.time())):.1f}s ago", className="sys-sub")], className="sys-card"),
         html.Div([html.Div("ARCHIVE", className="sys-name"), html.Div(f"{sd['db_size_mb']} MB", className="sys-value"), html.Div(f"queue {sd['archive_queue']} · {'writer active' if sd['last_db_write'] else 'write pending'}", className="sys-sub")], className="sys-card"),
     ]
 
@@ -1476,6 +1476,12 @@ def key_add_or_test(add_n, test_n, key_val, label_val, provider_val):
             return key_val, label_val, provider_val or "auto", error
         kid = nvtra_add_key(label_val, key_val, provider)
         active_model = _active_ai_model()
+        in_use, in_use_provider = _active_ai_credential()
+        if in_use != key_val:      # a provider key in the environment is always used first
+            return "", "", "auto", (
+                f"{_provider_label(key_val, provider)} key added and selected, but chat still uses the "
+                f"{_provider_label(in_use, in_use_provider)} key set in the environment, which always comes first."
+            )
         return "", "", "auto", (
             f"{_provider_label(key_val, provider)} key added and made active. "
             f"Model: {active_model or 'provider default'}. "
@@ -1486,7 +1492,7 @@ def key_add_or_test(add_n, test_n, key_val, label_val, provider_val):
         return key_val, label_val, provider_val or "auto", _nvtra_error_text("no-key")
     active_key, active_provider = _active_ai_credential()
     prov = _provider_label(active_key, active_provider)
-    reply, err = _gemini_generate([{"role": "user", "text": 'Text'}])
+    reply, err = _gemini_generate([{"role": "user", "text": "Reply with the single word: ready"}])
     if reply:
         return key_val, label_val, provider_val or "auto", f"Active {prov} key works — NVTRA is ready."
     return key_val, label_val, provider_val or "auto", _nvtra_error_text(err)
