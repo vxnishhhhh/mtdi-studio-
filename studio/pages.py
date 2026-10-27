@@ -807,12 +807,23 @@ def ch3_sweep_body():
             list(sweep3_data["freqs"]),
         )
     n3, u3 = T('ch3.name'), T('ch3.unit')   # the project's channel words (S1-06)
+    fed = s.get("x_unit") is not None   # a project's or /api/ingest's sweep: its own axes, not the radio's
+    radio_only = (lambda part: None if fed else part)
+    if fed:
+        guide = html.Div([html.Div("HOW TO READ THIS SWEEP", className="summary-tag"),
+                          html.Div([f"This sweep comes from {s['device']}. Across the chart, horizontal is ",
+                                    _hi(s["x_unit"]), " and vertical is ", _hi(u3),
+                                    ". The flat band along the bottom is its noise floor; a peak is anything that rises clearly above it."],
+                                   className="summary-text")],
+                         className="summary-panel", style={"marginTop":"0"})
+    else:
+        guide = None   # the radio's own guide is built in place below
     return [
         html.Div([html.Button("SWEEP NOW", id="ch3-sweep-now", className="ch3-btn ch3-on", n_clicks=0),
                   html.Span("", id="ch3-sweep-top-note", className="validation-subcopy")],
                  className="sweep3-sweep-action"),
         # ── orientation panel: this instrument is unreadable without it ──
-        html.Div([html.Div("HOW TO READ A SWEEP", className="summary-tag"),
+        guide if fed else html.Div([html.Div("HOW TO READ A SWEEP", className="summary-tag"),
                   html.Div(["Across the chart, ",
                             _hi("horizontal is frequency"), " and ",
                             _hi(f"vertical is power in {u3}"), ". The flat band along the bottom is the ",
@@ -931,7 +942,7 @@ def ch3_sweep_body():
 
         html.Div("PEAK ARCHIVE", className="section-label", style={"marginTop":"30px"}),
         html.Div([
-            html.Div("The strongest peak of every sweep this session.",
+            html.Div("The strongest peak of every trusted radio sweep this session; untrusted and fed sweeps are left out.",
                      className="validation-subcopy"),
             html.Div([
                 html.Div([html.Div("0", id="ch3-arch-count", className="arch-stat-val"),
@@ -947,22 +958,22 @@ def ch3_sweep_body():
             ], id="ch3-arch-stats", className="arch-stats"),
         ], className="arch-shell"),
 
-        html.Div([html.Div("HOW A SWEEP IS TAKEN", className="summary-tag"),
+        radio_only(html.Div([html.Div("HOW A SWEEP IS TAKEN", className="summary-tag"),
                   html.Div(["Each sweep sends the analyser ",
                             _hi("scan <start> <stop> <points> 3"), ". It answers with up to ",
                             _hi("three"), " columns per point (frequency, level, a reserved field); the first two are read. ",
                             "The binary ", _hi("scanraw"), " command is not used, and each sweep's measured time is shown above. ",
-                            _hi("max hold"), " keeps the highest level seen at each point until you reset it or change band."],
+                            _hi("max hold"), " keeps the highest level seen at each point until you reset it, press SWEEP NOW, or change the span, points or band."],
                            className="summary-text")],
-                 className="summary-panel"),
-        html.Div([html.Div("IF THE LEVELS LOOK WRONG", className="summary-tag"),
+                 className="summary-panel")),
+        radio_only(html.Div([html.Div("IF THE LEVELS LOOK WRONG", className="summary-tag"),
                   html.Div(["A sweep is checked before it is shown. ",
                             "If its median reads near ", _hi(f"+20 {u3}"),
                             ", there is usually no antenna connected or a stale level offset, and the sweep is marked ", _hi("untrusted"), ". The software does not infer a physical cause; "
                             "the parser, units, analyser state and CH3 setup require verification. MTDI lowers sweep3 health and the device strip shows the queried level-offset state. ",
                             "To clear a stale offset, send ", _hi("leveloffset 0"), " and reconnect the antenna."],
                            className="summary-text")],
-                 className="summary-panel"),
+                 className="summary-panel")),
         html.Div(id="ch3-error"),
 
         # Staggered: the sweep itself takes seconds, so polling faster only wastes CPU.
@@ -1093,7 +1104,7 @@ def wifi_view():
                  className="online-bar"),
 
         html.Div("CHANNELS", className="section-label"),
-        html.Div("Each network drawn over the channels it occupies, by signal.",
+        html.Div("Each network drawn at its centre frequency with an assumed 20 MHz width, by signal. Only 2.4 and 5 GHz are shown.",
                  className="validation-subcopy", style={"marginTop": "-4px"}),
         html.Div([
             _chart("wf-chan-24", "2.4 GHz channels",

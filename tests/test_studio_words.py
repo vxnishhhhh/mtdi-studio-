@@ -255,6 +255,11 @@ class SecondContentFile(unittest.TestCase):
             self.assertIsNone(placeholder.search(view), f"Page 2 {state}: {placeholder.search(view)}")
             for word in (words["ch3.name"], words["ch3.unit"]):
                 self.assertIn(word.lower(), view.lower(), f"Page 2 {state}: {word}")
+        # the radio's guidance is for the radio: a fed sweep is read in its own axes (CodeRabbit, #68)
+        self.assertIn("horizontal is frequency", rendered["page2"]["empty"])
+        for radio_words in ("horizontal is frequency", "HOW A SWEEP IS TAKEN", "IF THE LEVELS LOOK WRONG"):
+            self.assertNotIn(radio_words, rendered["page2"]["fed"], radio_words)
+        self.assertIn(words["ch3.axis_unit"], rendered["page2"]["fed"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

@@ -867,7 +867,7 @@ def update_bt(n, _refresh):
               prevent_initial_call=True)
 def wifi_sweep_now(_n):
     wifi_scan_now.set()
-    return "Fresh Wi-Fi scan requested"
+    return "Wi-Fi refresh requested; it may read the cached list rather than a fresh scan"
 
 
 @app.callback(Output("bt-sweep-note", "children"), Input("bt-sweep-now", "n_clicks"),
