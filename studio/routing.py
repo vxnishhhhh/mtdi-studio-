@@ -576,9 +576,10 @@ def update_sweep3_numbers(n, _refresh):
     warn = None
     if s["last_rx"] is not None and not s["level_sane"]:
         warn = html.Div([
-            'TEXT  ', s["level_note"],
+            "LEVELS LOOK WRONG  ", s["level_note"] or "",
             html.Br(),
-            'Paragraph. Enter your text here.',
+            "These levels are shown as read and not trusted. Check the source's gain and connection, "
+            "then let a few sweeps settle.",
         ], className="error-box", style={"marginBottom":"16px"})
 
     err = (html.Div(f"STATUS: {s['error']}", className="error-box", style={"marginTop":"16px"})
@@ -1225,16 +1226,17 @@ def update_mtdi(n, _refresh):
                                                   "borderRadius":"2px","background":_cc(val)}),
                                   className="sys-bar-track")], className="sensor-conf-card")
     sensor_grid = [
-        _conf_card('LABEL', mc, mn_),
-        _conf_card('LABEL', ec, en_),
-        _conf_card('LABEL', rc, rn_),
-        _conf_card('LABEL', completeness, 'Paragraph. Enter your text here.'),
+        _conf_card(T("ch1.name").upper(), mc, mn_),
+        _conf_card(T("ch2.name").upper(), ec, en_),
+        _conf_card(T("ch3.name").upper(), rc, rn_),
+        _conf_card("COMPLETENESS", completeness, "Share of the studio's sources and services running: "
+                                                  "three channels, Wi-Fi, Bluetooth, the archive and system telemetry."),
     ]
     mo_ = md["error"] is None and md["last_rx"] is not None
     ma = round(time.time() - md["last_rx"], 1) if md["last_rx"] else None
     if len(h10) >= 2:
         mean = sum(h10)/len(h10); std = (sum((v-mean)**2 for v in h10)/len(h10))**0.5
-        vs = f"{std:.2f} unit"; vc_ = GREEN if std < 0.5 else AMBER if std < 2.0 else RED
+        vs = f"{std:.2f} {ch1_value_unit(md)}"; vc_ = GREEN if std < 0.5 else AMBER if std < 2.0 else RED
     else:
         vs = "—"; vc_ = SUBTEXT
     def _card(nm, val, sub=None, vc=WHITE):
@@ -1243,38 +1245,40 @@ def update_mtdi(n, _refresh):
         return html.Div(ch, className="sys-card")
     sensor_side = [
         _card('SOURCE LINK', ("SIMULATED" if _simulated_label(md.get("fed_source")) else "ONLINE") if mo_ else "OFFLINE",
-              (f"{md.get('fed_source') or 'Source 1 @ 0x2C'}  {ma}s ago") if ma is not None else 'Text',
+              (f"{md.get('fed_source') or 'Source 1 @ 0x2C'}  {ma}s ago") if ma is not None else "no reading yet",
               vc=(AMBER if md["chip_warning"] or _simulated_label(md.get("fed_source")) else GREEN) if mo_ else RED),
-        _card("CALIBRATION", 'TITLE' if md["calibrated"] else 'TITLE',
-              'Text' if md["calibrated"] else 'Text',
+        _card("CALIBRATION", "CALIBRATED" if md["calibrated"] else "UNCALIBRATED",
+              "offsets and scale applied" if md["calibrated"] else "raw readings, no calibration applied",
               vc=CYAN if md["calibrated"] else SUBTEXT),
-        _card("MAGNITUDE", f"{md['magnitude']:.2f} unit" if mo_ else "—",
+        _card("MAGNITUDE", f"{md['magnitude']:.2f} {ch1_value_unit(md)}" if mo_ else "—",
               f"Min {md['min_c1']:.2f}  Max {md['max_c1']:.2f}" if md['min_c1'] != float('inf') else "—",
               vc=CYAN if mo_ else SUBTEXT),
-        _card("NOISE σ", vs, 'Text', vc=vc_),
-        _card(f"{T('ch2.name').upper()} LINK", "ONLINE" if eonline else ('TITLE' if ed["error"] is None else "OFFLINE"),
+        _card("NOISE σ", vs, "spread of the last 10 readings", vc=vc_),
+        _card(f"{T('ch2.name').upper()} LINK", "ONLINE" if eonline else ("WARMING UP" if ed["error"] is None else "OFFLINE"),
               f"diff A0-A1 · {_gain_label(ed['gain'])} · {ed['level']}" if eonline else (ed["error"] or "warming up")[:40],
               vc=GREEN if eonline else (AMBER if ed["error"] is None else RED)),
         _card(T('ch2.name').upper(),
               (f"{ed.get('rms_counts'):.2f} ADC counts RMS"
                if ed.get("data_source") == "ARDUINO_UNO_USB" and ed.get("rms_counts") is not None else
-               f"{ed['field_vu']:.3f} unit = N/C" if ed["last_rx"] and ed["field_vu"] is not None else "—"),
-              ('Text' if ed["clipped"] else
-               'Text' if ed.get("data_source") == "ARDUINO_UNO_USB" else
-               f"index {ed['rel_index']:.0f}% · base {ed['baseline_vu']:.3f} unit"),
+               f"{ed['field_vu']:.3f} {CH2_REFERENCE_UNIT}" if ed["last_rx"] and ed["field_vu"] is not None else "—"),
+              ("clipped: the input is at its limit" if ed["clipped"] else
+               "raw ADC counts, no field scale" if ed.get("data_source") == "ARDUINO_UNO_USB" else
+               f"index {ed['rel_index']:.0f}% · base {ed['baseline_vu']:.3f} {CH2_REFERENCE_UNIT}"
+               if ed.get("baseline_vu") is not None else "no baseline yet"),
               vc=RED if ed["clipped"] else CYAN),
-        _card("SAMPLES", str(len(md["xyz_history"])), 'Text', vc=WHITE),
-        _card(f"{T('ch3.name').upper()} LINK", ('TITLE' if sd_ch3["trusted"] else 'TITLE') if ronline else "OFFLINE",
+        _card("SAMPLES", str(len(md["xyz_history"])), f"{T('ch1.name')} readings held in memory", vc=WHITE),
+        _card(f"{T('ch3.name').upper()} LINK", ("TRUSTED" if sd_ch3["trusted"] else "CHECK LEVELS") if ronline else "OFFLINE",
               f"{sd_ch3['device'][:28]} · {sd_ch3['sweeps']} sweeps" if ronline
               else (sd_ch3["error"] or "waiting")[:40],
               vc=(GREEN if sd_ch3["trusted"] else AMBER) if ronline else RED),
-        _card('CH 3 PEAK', f"{sd_ch3['peak_level']:+.1f} unit" if ronline else "—",
-              (f"{_freq_label(sd_ch3['peak_freq'])} · {_band_of(sd_ch3['peak_freq'])}" if ronline else 'Text'),
+        _card(f"{T('ch3.name').upper()} PEAK", f"{sd_ch3['peak_level']:+.1f} {T('ch3.unit')}" if ronline else "—",
+              ((_ch3_at(sd_ch3['peak_freq'], sd_ch3) if sd_ch3.get("x_unit") is not None
+                else f"{_freq_label(sd_ch3['peak_freq'])} · {_band_of(sd_ch3['peak_freq'])}") if ronline else "no sweep yet"),
               vc=(CYAN if sd_ch3["level_sane"] else RED) if ronline else SUBTEXT),
-        _card('BROAD EST. CH 3 FLOOR', f"{sd_ch3['floor']:+.1f} unit" if ronline else "—",
-              (sd_ch3["level_note"][:42] if ronline else "—"),
+        _card(f"{T('ch3.name').upper()} FLOOR · BROAD ESTIMATE", f"{sd_ch3['floor']:+.1f} {T('ch3.unit')}" if ronline else "—",
+              ((sd_ch3["level_note"] or "—")[:42] if ronline else "—"),
               vc=(WHITE if sd_ch3["level_sane"] else RED) if ronline else SUBTEXT),
-        _card('CH 3 SPAN', _span_label(sd_ch3["span_start"], sd_ch3["span_stop"]) if ronline else "—",
+        _card(f"{T('ch3.name').upper()} SPAN", _ch3_span(sd_ch3["span_start"], sd_ch3["span_stop"], sd_ch3) if ronline else "—",
               f"{sd_ch3['points']} pts · {sd_ch3['sweep_s']:.1f}s/sweep" if ronline else "—", vc=CYAN),
     ]
     return ov_el, sensor_grid, sensor_side, _pi_grid()

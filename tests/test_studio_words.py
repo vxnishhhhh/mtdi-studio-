@@ -156,6 +156,19 @@ out["settings"]["notion"] = settings()
 out["d4_units"] = {"fed_at": [ns["_fed_at"](v, "mm") for v in (1.000001, 2.5, 0.0, 120.0)],
                    "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({}),
                    "ch1_unnamed": ns["ch1_value_unit"]({"fed_source": "TEST", "fed_unit": ""})}
+# the MTDI page (slice 10): its landing and orbit with the pillar bodies left out (NVTRA, I³ and Aether's are
+# slice 11), then the Validation Chamber and Environmental Intelligence with their I³ panels, and the live cards
+orbit = ns["MTDI_ORBIT_PILLARS"]
+bodies = list(orbit)
+orbit[:] = [(*item[:6], lambda: html.Div()) for item in bodies]
+html = sys.modules["dash"].html
+out["mtdi"] = {"landing": dump(ns["mtdi_page"]())}
+orbit[:] = bodies
+out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environmental_intelligence_section"](),
+                                 ns["NVTRA_SUGGESTIONS"]]),
+                   live=dump(ns["update_mtdi"](1, None)), descs=[item[4] for item in orbit])
+s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
+out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
 print(json.dumps(out))
 '''
 
@@ -328,6 +341,18 @@ class SecondContentFile(unittest.TestCase):
             self.assertIn(f"{words['ch3.name'].upper()} SWEEPS \\u00b7 CSV", view)   # the CSV is channel 3's sweeps, not the archive
         self.assertIn("Notion is not set up", rendered["settings"]["plain"])
         self.assertIn("Notion is set up", rendered["settings"]["notion"])
+        # the MTDI page (slice 10): the landing, the orbit, the Validation Chamber, Environmental Intelligence
+        # and the live source cards say what they are; each pillar's line is the one mtdi.pillars defines
+        from mtdi.pillars import AETHER, PILLARS
+        mtdi = rendered["mtdi"]
+        self.assertIn('"LEVELS LOOK WRONG  ", "TEST NOTE"', mtdi["insane"])
+        for state in ("landing", "pillars", "live", "insane"):
+            self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")
+        self.assertEqual(sorted(mtdi["descs"]), sorted(p["desc"] for p in [*PILLARS, AETHER]))
+        self.assertIn(words["mtdi.title"], mtdi["landing"])
+        for word in (n1, n2, words["ch3.name"]):
+            self.assertIn(word, mtdi["pillars"], word)
+            self.assertIn(word.upper(), mtdi["live"], word)
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

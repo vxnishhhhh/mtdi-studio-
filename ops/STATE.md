@@ -5,13 +5,14 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 251 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** S1-06 slice 10 (the MTDI page: pillar sections, validation chamber, NVTRA identity, Aether; then Page 3, typewriter lines, constellation chips and globe nodes), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 11 (NVTRA, I³ and Aether's pillar bodies; the I³ panels on Settings; the analysis engine's channel labels and units; Page 3, typewriter lines, constellation chips and globe nodes), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
+* 2026-10-27 late · S1-06 slice 10 (PR on auto/S1-06-slice10): the MTDI page's landing, orbit, Validation Chamber and Environmental Intelligence say what they are; each pillar's line comes from mtdi.pillars. Found: the MTDI page's live cards crashed whenever channel 3 was a fed sweep; Page 2's bad-levels warning was still a placeholder.
 * 2026-10-27 evening · S1-06 slice 9 (PR on auto/S1-06-slice9): Settings, the AI key manager, the model picker and the system grid say what they are. Found: the Notion line read a placeholder setting name, so it never showed Notion as set up; TEST ACTIVE asked the model the word "Text"; the export button said "EXPORT PDF + NOTION" but the served route never contacts Notion.
 * 2026-10-27 midday · Merged #70 (tour scrolls through the intro; 420 s page limit) and #71 (S1-06 slice 8, the D4 engine cards; CodeRabbit 13 findings and 1 nit over four reviews, all fixed: D4 read fed channel 3 sweeps as radio sweeps, and channel 1 units now follow the data's source). Main green. #52 unchanged since 25 Oct, waiting on the owner. Report: ops/reports/2026-10-27-midday.md.
 * 2026-10-27 early · Merged #70 (tour scrolls through the intro; 420 s page limit; CodeRabbit 1 finding, fixed). S1-06 slice 8 (PR on auto/S1-06-slice8): every D4 engine card says what it shows, in the project's channel words: titles, notes, buttons, input hints, readout rows and empty states. Found: D4 read a fed channel 3 sweep as a radio sweep (MHz, dBm, radio band notes); it now carries the sweep's own units. The exposure card's source note said "100 unit" for the ICNIRP 1998 level of 100 uT.
