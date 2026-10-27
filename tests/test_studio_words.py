@@ -166,7 +166,8 @@ out["mtdi"] = {"landing": dump(ns["mtdi_page"]())}
 orbit[:] = bodies
 out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environmental_intelligence_section"](),
                                  ns["NVTRA_SUGGESTIONS"]]),
-                   live=dump(ns["update_mtdi"](1, None)), descs=[item[4] for item in orbit])
+                   live=dump(ns["update_mtdi"](1, None)), descs=[item[4] for item in orbit],
+                   environment=dump([ns["update_environmental_intelligence"](1, None), ns["_environmental_intelligence_base"]()]))
 s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
 out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
 print(json.dumps(out))
@@ -346,7 +347,13 @@ class SecondContentFile(unittest.TestCase):
         from mtdi.pillars import AETHER, PILLARS
         mtdi = rendered["mtdi"]
         self.assertIn('"LEVELS LOOK WRONG  ", "TEST NOTE"', mtdi["insane"])
-        for state in ("landing", "pillars", "live", "insane"):
+        # channel 2's baseline cards read in the fed unit, never the probe's V/m estimate, and the page and its
+        # live callback say the same (CodeRabbit, #74)
+        self.assertIn("fedunit", mtdi["environment"])
+        self.assertIn("fedunit", mtdi["live"])
+        self.assertNotIn("V/m est.", mtdi["environment"])
+        self.assertIn("UNVERIFIED", mtdi["live"])          # a fed sweep is not checked, but its levels are not wrong
+        for state in ("landing", "pillars", "live", "insane", "environment"):
             self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")
         self.assertEqual(sorted(mtdi["descs"]), sorted(p["desc"] for p in [*PILLARS, AETHER]))
         self.assertIn(words["mtdi.title"], mtdi["landing"])

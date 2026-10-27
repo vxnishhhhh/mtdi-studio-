@@ -1229,8 +1229,7 @@ def update_mtdi(n, _refresh):
         _conf_card(T("ch1.name").upper(), mc, mn_),
         _conf_card(T("ch2.name").upper(), ec, en_),
         _conf_card(T("ch3.name").upper(), rc, rn_),
-        _conf_card("COMPLETENESS", completeness, "Share of the studio's sources and services running: "
-                                                  "three channels, Wi-Fi, Bluetooth, the archive and system telemetry."),
+        _conf_card("COMPLETENESS", completeness, "Share of the expected channels reporting now."),
     ]
     mo_ = md["error"] is None and md["last_rx"] is not None
     ma = round(time.time() - md["last_rx"], 1) if md["last_rx"] else None
@@ -1260,14 +1259,15 @@ def update_mtdi(n, _refresh):
         _card(T('ch2.name').upper(),
               (f"{ed.get('rms_counts'):.2f} ADC counts RMS"
                if ed.get("data_source") == "ARDUINO_UNO_USB" and ed.get("rms_counts") is not None else
-               f"{ed['field_vu']:.3f} {CH2_REFERENCE_UNIT}" if ed["last_rx"] and ed["field_vu"] is not None else "—"),
+               f"{ed['rms_mv']:.3f} {ch2_axis_unit(ed)}" if ed["last_rx"] and ed.get("rms_mv") is not None else "—"),
               ("clipped: the input is at its limit" if ed["clipped"] else
                "raw ADC counts, no field scale" if ed.get("data_source") == "ARDUINO_UNO_USB" else
-               f"index {ed['rel_index']:.0f}% · base {ed['baseline_vu']:.3f} {CH2_REFERENCE_UNIT}"
-               if ed.get("baseline_vu") is not None else "no baseline yet"),
+               f"index {ed['rel_index']:.0f}% · base {ed['baseline_mv']:.3f} {ch2_axis_unit(ed)}"
+               if ed["calibrated"] and ed.get("baseline_mv") is not None else "no baseline yet"),
               vc=RED if ed["clipped"] else CYAN),
         _card("SAMPLES", str(len(md["xyz_history"])), f"{T('ch1.name')} readings held in memory", vc=WHITE),
-        _card(f"{T('ch3.name').upper()} LINK", ("TRUSTED" if sd_ch3["trusted"] else "CHECK LEVELS") if ronline else "OFFLINE",
+        _card(f"{T('ch3.name').upper()} LINK", ("TRUSTED" if sd_ch3["trusted"] else "UNVERIFIED" if sd_ch3["level_sane"] else "CHECK LEVELS")
+              if ronline else "OFFLINE",
               f"{sd_ch3['device'][:28]} · {sd_ch3['sweeps']} sweeps" if ronline
               else (sd_ch3["error"] or "waiting")[:40],
               vc=(GREEN if sd_ch3["trusted"] else AMBER) if ronline else RED),
@@ -1291,30 +1291,7 @@ def update_mtdi(n, _refresh):
     Input("mtdi-interval", "n_intervals"), Input("mobile-refresh-btn","n_clicks"),
 )
 def update_environmental_intelligence(n, _refresh):
-    with c1_lock:
-        c1_ready = ch1_data["baseline_calibrated"]
-        c1_base = ch1_data["baseline_magnitude"]
-        c1_delta = ch1_data["baseline_delta"]
-        c1_error = ch1_data["error"]
-    with ch2f_lock:
-        c2_ready = ch2f_data["calibrated"]
-        c2_base = ch2f_data["baseline_vu"]
-        c2_live = ch2f_data["field_vu"]
-        c2_error = ch2f_data["error"]
-        c2_clipped = ch2f_data["clipped"]
-
-    c1_text = f"{c1_base:.2f} unit" if c1_ready else "LEARNING"
-    delta_text = f"{c1_delta:.2f} unit" if c1_ready else "—"
-    c2_base_text = f"{c2_base:.3f} unit" if c2_ready else "LEARNING"
-    c2_live_text = (("≥ " if c2_clipped else "") + f"{c2_live:.3f} unit") if not c2_error else "—"
-
-    if c1_error or c2_error:
-        status = f"BASELINE CHANNEL WARNING · CH 1: {c1_error or 'ready'} · E: {c2_error or 'ready'}"
-    elif c1_ready and c2_ready:
-        status = "BASELINES LOCKED · references remain fixed until recalibration"
-    else:
-        status = "LEARNING ENVIRONMENT · keep both probes fixed and clear"
-    return c1_text, delta_text, c2_base_text, c2_live_text, status
+    return environmental_values()   # the same values and units the page is built with (CodeRabbit, #74)
 
 
 # ── settings system grid ──

@@ -2024,22 +2024,37 @@ def environmental_intelligence_section():
     return base
 
 
-def _environmental_intelligence_base():
-    """Live environmental references for both field sensors."""
+def environmental_values():
+    """The four baseline cards' values, for the page and its live callback alike. Channel 2's baseline and
+    level are on the input side, in the unit its source reports (a feed's own, mV RMS, or the Uno's ADC
+    counts): the studio's V/m figure is a probe estimate and a feed's value is never converted to one."""
     with c1_lock:
         u1 = ch1_value_unit(ch1_data)
-        c1_base = (f"{ch1_data['baseline_magnitude']:.2f} {u1}"
-                    if ch1_data["baseline_calibrated"] else "LEARNING")
-        c1_delta = (f"{ch1_data['baseline_delta']:.2f} {u1}"
-                     if ch1_data["baseline_calibrated"] else "—")
+        ready1 = ch1_data["baseline_calibrated"]
+        c1_base = f"{ch1_data['baseline_magnitude']:.2f} {u1}" if ready1 else "LEARNING"
+        c1_delta = f"{ch1_data['baseline_delta']:.2f} {u1}" if ready1 else "—"
+        e1 = ch1_data["error"]
     with ch2f_lock:
-        provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
-        c2_base = ("—" if provisional else f"{ch2f_data['baseline_vu']:.3f} {CH2_REFERENCE_UNIT}"
-                   if ch2f_data["calibrated"] and ch2f_data.get("baseline_vu") is not None else "LEARNING")
-        c2_live = (f"{ch2f_data['rms_counts']:.2f} ADC counts RMS"
-                   if provisional and ch2f_data.get("rms_counts") is not None else
-                   f"{ch2f_data['field_vu']:.3f} {CH2_REFERENCE_UNIT}"
-                   if ch2f_data["last_rx"] is not None and ch2f_data["field_vu"] is not None else "—")
+        u2 = ch2_axis_unit(ch2f_data)
+        ready2 = ch2f_data["calibrated"] and ch2f_data.get("baseline_mv") is not None
+        c2_base = f"{ch2f_data['baseline_mv']:.3f} {u2}" if ready2 else "LEARNING"
+        live = ch2f_data.get("rms_mv")
+        c2_live = (("≥ " if ch2f_data["clipped"] else "") + f"{live:.3f} {u2}"
+                   if ch2f_data["last_rx"] is not None and live is not None and not ch2f_data["error"] else "—")
+        e2 = ch2f_data["error"]
+    if e1 or e2:
+        status = (f"BASELINE WARNING · {T('ch1.name')}: {e1 or 'ready'} · "
+                  f"{T('ch2.name')}: {e2 or 'ready'}")
+    elif ready1 and ready2:
+        status = "BASELINES SETTLED · they follow the room slowly; freeze them in Baseline control to hold them fixed"
+    else:
+        status = "LEARNING THE ROOM · keep both probes still and the room unchanged"
+    return c1_base, c1_delta, c2_base, c2_live, status
+
+
+def _environmental_intelligence_base():
+    """Live environmental references for both field sensors."""
+    c1_base, c1_delta, c2_base, c2_live, _ = environmental_values()
     return html.Div([
         _section_head(
             "PILLAR 01", "Environmental Intelligence",
@@ -2055,10 +2070,10 @@ def _environmental_intelligence_base():
                       html.Div("now, against that baseline", className="sys-sub")], className="sys-card"),
             html.Div([html.Div(f"{T('ch2.name').upper()} BASELINE", className="sys-name"),
                       html.Div(c2_base, id="ei-c2-baseline", className="sys-value c-cyan"),
-                      html.Div("the level the probe settled to", className="sys-sub")], className="sys-card"),
+                      html.Div("the probe's settled input level", className="sys-sub")], className="sys-card"),
             html.Div([html.Div(f"{T('ch2.name').upper()} NOW", className="sys-name"),
                       html.Div(c2_live, id="ei-c2-live", className="sys-value c-amber"),
-                      html.Div("the probe level right now", className="sys-sub")], className="sys-card"),
+                      html.Div("the probe's input level right now", className="sys-sub")], className="sys-card"),
         ], className="sys-grid"),
         html.Div(id="ei-baseline-status", className="online-bar", style={"marginTop":"18px"}),
         html.Div([
@@ -2072,8 +2087,9 @@ def _environmental_intelligence_base():
                 html.Div([html.H4("LEARN"), html.P(
                     "Keep the probes still and the room unchanged while the baseline settles."
                 )], className="i3-principle"),
-                html.Div([html.H4("LOCK"), html.P(
-                    "Once settled, the baseline stays fixed until you recalibrate, so slow drift shows up instead of being absorbed."
+                html.Div([html.H4("TRACK"), html.P(
+                    "Once settled, the baseline follows the room slowly over its window and ignores brief "
+                    "excursions, so slow drift is absorbed. Freeze it in Baseline control to hold a fixed reference."
                 )], className="i3-principle"),
                 html.Div([html.H4("COMPARE"), html.P(
                     "Every reading after that is a change from the baseline, not an absolute claim."

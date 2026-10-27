@@ -2657,7 +2657,8 @@ def axial_panel(html):
         *[_row(html, label, path + key, "number") for key, label in [
             ("x", "X change"), ("y", "Y change"), ("z", "Z change"),
             ("magnitude", "Change, all axes"), ("disagreement", "Axis disagreement %"),
-            ("agreement", "Axis agreement %"), ("contribution", "Share per axis %"),
+            ("agreement", "Axis agreement %"), ("contribution.0", "X share %"),
+            ("contribution.1", "Y share %"), ("contribution.2", "Z share %"),
             ("confidence_contribution", "Adds to confidence")]],
         html.Div(f"Each axis's change from its own baseline. Agreement is how closely the share each axis "
                  f"carries matches its recent pattern: a real change in the {T('ch1.name').lower()} field tends to keep "
