@@ -1,0 +1,48 @@
+{
+  "board": "arduino-uno",
+  "commit": "5581345",
+  "evidence": "compiled",
+  "fqbn": "arduino:avr:uno",
+  "kind": "firmware",
+  "sketches": [
+    {
+      "flash": [
+        1948,
+        32256
+      ],
+      "ram": [
+        214,
+        2048
+      ],
+      "sketch": "firmware/mtdi_template_arduino/mtdi_template_arduino.ino",
+      "status": "ok"
+    },
+    {
+      "flash": [
+        5712,
+        32256
+      ],
+      "ram": [
+        257,
+        2048
+      ],
+      "sketch": "projects/third-eye/firmware/third_eye/third_eye.ino",
+      "status": "ok"
+    },
+    {
+      "flash": [
+        3888,
+        32256
+      ],
+      "ram": [
+        234,
+        2048
+      ],
+      "sketch": "projects/ultrasonic-room/firmware/mtdi_hcsr04/mtdi_hcsr04.ino",
+      "status": "ok"
+    }
+  ],
+  "tool": "arduino-cli  Version: 1.5.2-rc.1 Commit: fef6e48df Date: 2026-07-23T11:13:39Z",
+  "when": "2026-10-25",
+  "where": "Claude Code cloud session, Linux x86_64"
+}

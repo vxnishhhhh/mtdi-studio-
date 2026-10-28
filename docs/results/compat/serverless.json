@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "event stream ends on its own": true,
+    "ingest refused without the token": true,
+    "ingest with the token": true,
+    "instrument shows the fed channel": true,
+    "page": true
+  },
+  "commit": "5581345",
+  "evidence": "ran",
+  "kind": "serverless",
+  "ok": true,
+  "stream_seconds": 4.0,
+  "target": "cloud",
+  "when": "2026-10-25",
+  "where": "Claude Code cloud session, Linux x86_64"
+}

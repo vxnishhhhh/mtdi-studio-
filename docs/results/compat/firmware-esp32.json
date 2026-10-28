@@ -1,0 +1,48 @@
+{
+  "board": "esp32",
+  "commit": "5581345",
+  "evidence": "compiled",
+  "fqbn": "esp32:esp32:esp32",
+  "kind": "firmware",
+  "sketches": [
+    {
+      "flash": [
+        276000,
+        1310720
+      ],
+      "ram": [
+        22204,
+        327680
+      ],
+      "sketch": "firmware/mtdi_template_arduino/mtdi_template_arduino.ino",
+      "status": "ok"
+    },
+    {
+      "flash": [
+        283023,
+        1310720
+      ],
+      "ram": [
+        22320,
+        327680
+      ],
+      "sketch": "projects/third-eye/firmware/third_eye/third_eye.ino",
+      "status": "ok"
+    },
+    {
+      "flash": [
+        273056,
+        1310720
+      ],
+      "ram": [
+        22124,
+        327680
+      ],
+      "sketch": "projects/ultrasonic-room/firmware/mtdi_hcsr04/mtdi_hcsr04.ino",
+      "status": "ok"
+    }
+  ],
+  "tool": "arduino-cli  Version: 1.5.2-rc.1 Commit: fef6e48df Date: 2026-07-23T11:13:39Z",
+  "when": "2026-10-25",
+  "where": "Claude Code cloud session, Linux x86_64"
+}
