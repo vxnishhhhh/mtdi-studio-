@@ -1413,7 +1413,23 @@ def install(ns):
         targets = capabilities.load_targets()
         picks = capabilities.matrix(profiles=['hybrid'], targets={**targets, 'host': host})
         snap = registry.snapshot()
-        return {'doctor': [{'name': n, 'status': st, 'detail': d} for n, st, d in doctor.run(quick=True)],
+        ns = runtime.ns
+        # A key saved in Settings counts as set up, like one in the environment. Only the yes/no leaves here.
+        with ns['nvtra_keys_lock']:
+            saved = {it.get('provider') or ns['_key_provider'](it.get('key', '')) for it in ns['nvtra_keys']['items'] if (it.get('key') or '').strip()}
+        if ns['_elevenlabs_key']():
+            saved.add('elevenlabs')
+        if ns['_notion_setting']('NOTION_API_KEY'):
+            saved.add('notion')
+        for row in snap['integrations']:
+            if row['status'] == 'not set up' and row['id'] in saved:
+                row['status'] = 'configured'
+        # Offline mode promises nothing leaves the device, so the local-AI probe (its URL is configurable) is not run.
+        if ns['instrument_offline']():
+            checks = doctor.run(quick=True, skip=(doctor.check_local_model,)) + [('local AI', 'skipped', 'offline mode: not probed')]
+        else:
+            checks = doctor.run(quick=True)
+        return {'doctor': [{'name': n, 'status': st, 'detail': d} for n, st, d in checks],
                 'host': {k: host.get(k) for k in ('name', 'memory_mb', 'languages')},
                 'targets': [{'target': t, 'runtime': row['hybrid'][0], 'why': row['hybrid'][1]} for t, row in picks.items()],
                 'integrations': [{k: r[k] for k in ('id', 'provider', 'area', 'status', 'cost')} for r in snap['integrations']],

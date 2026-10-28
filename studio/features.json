@@ -1,7 +1,7 @@
 {
   "_about": "P-01: every mtdi CLI command and every studio API route, with where the owner uses it in the studio. 'studio' names the control or card (its words must appear in the studio's source); 'hidden' says why it stays out of the interface; 'missing' says what still has to be built. tests/test_feature_map.py keeps this complete.",
   "cli": {
-    "run": {"hidden": "starts the studio itself"},
+    "run": {"hidden": "runs a project locally, headless, or against a remote studio; not an in-studio control"},
     "studio": {"hidden": "starts the studio itself"},
     "ask": {"studio": "Ask NVTRA"},
     "chat": {"studio": "Ask NVTRA"},

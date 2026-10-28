@@ -60,6 +60,30 @@ class FeatureMap(unittest.TestCase):
         self.assertIn("SYSTEM CHECK", page)
         self.assertIn("data-i3-system-check", page)
 
+    def test_offline_mode_never_probes_the_local_ai_url(self):
+        from run import NAMESPACE
+        from mtdi import doctor
+        probe, offline = doctor.check_local_model, NAMESPACE["instrument_offline"]
+        doctor.check_local_model = lambda: self.fail("probed the local AI URL while offline")
+        NAMESPACE["instrument_offline"] = lambda: True
+        try:
+            rows = self.client.get("/api/system-check").get_json()["doctor"]
+        finally:
+            doctor.check_local_model, NAMESPACE["instrument_offline"] = probe, offline
+        self.assertIn({"name": "local AI", "status": "skipped", "detail": "offline mode: not probed"}, rows)
+
+    def test_a_key_saved_in_settings_counts_as_set_up_and_is_never_sent(self):
+        from run import NAMESPACE
+        saved = NAMESPACE["_elevenlabs_key"]
+        NAMESPACE["_elevenlabs_key"] = lambda: "sk-secret-value-123456"
+        try:
+            reply = self.client.get("/api/system-check")
+        finally:
+            NAMESPACE["_elevenlabs_key"] = saved
+        rows = {r["id"]: r["status"] for r in reply.get_json()["integrations"]}
+        self.assertEqual(rows["elevenlabs"], "configured")
+        self.assertNotIn("sk-secret-value-123456", reply.get_data(as_text=True))
+
 
 if __name__ == "__main__":
     unittest.main()
