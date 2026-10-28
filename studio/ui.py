@@ -257,6 +257,10 @@ body.intro-active .i3-header-tools,body.intro-active #i3-orb,html:not([data-i3-r
 .i3-camera-preview-wrap,.i3-camera-frame {background:var(--i3-soft);border:1px solid var(--i3-border);border-radius:10px;}
 .i3-primary {background:var(--i3-accent)!important;color:var(--i3-accent-ink)!important;font-weight:650;}
 .i3-mute {color:var(--i3-muted);font-size:12px;line-height:1.5;}
+.i3-system-result {margin-top:10px;max-height:420px;overflow:auto;font:12px var(--i3-mono);}
+.i3-system-result .section-label {margin-top:14px;}
+.i3-system-row {display:grid;grid-template-columns:110px 150px minmax(90px,1fr) minmax(0,1.6fr);gap:12px;padding:3px 0;border-bottom:1px solid var(--i3-border);overflow-wrap:anywhere;}
+.i3-system-row span:nth-child(3):last-child {grid-column:3 / -1;}
 .parallax__pin {height:160vh;height:160svh;margin:-104px 0 0 calc(50% - 50vw);width:100vw;position:relative;z-index:0;}
 .parallax__pin.i3-parallax-complete {height:60vh;height:60svh;pointer-events:none;}
 .parallax__pin.i3-parallax-complete .parallax__header {display:none;}
@@ -2360,6 +2364,9 @@ function consentOp(task){const run=(agent.consentChain||Promise.resolve()).then(
 async function consentedFrame(){const frame=cameraFrame();if(!frame)return null;// The saved answer is read fresh for every question (never cached), so another tab's reset is seen at once.
 try{return await consentOp(async()=>{let share=(await (await fetch('/api/camera-consent',{cache:'no-store'})).json()).share;if(share===null){share=window.confirm('NVTRA can send a still frame from your camera with each question, so it can see what you mean. With Gemini selected, that frame goes to Google. Allow this? NVTRA remembers your answer; the camera panel can make it ask again.');const saved=await fetch('/api/camera-consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({share})});if(!saved.ok)throw Error('not saved');share=(await saved.json()).share;}return share===true?frame:null;});}catch(error){orbShow('Camera answer not saved','NVTRA will ask again next time; no frame was sent');return null;}}
 document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-camera-consent-reset]');if(!button)return;consentOp(()=>fetch('/api/camera-consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({share:null})}).then(r=>{if(!r.ok)throw Error('not reset');return r.json();}).then(()=>{button.textContent='NVTRA will ask before the next frame';})).catch(()=>{button.textContent='Could not reset; try again';});});
+/* System check (P-01): renders /api/system-check into the Settings card; every value is text, never HTML. */
+function systemRows(title,rows){const box=document.createElement('div');const h=document.createElement('div');h.className='section-label';h.textContent=title;box.append(h);for(const cells of rows){const r=document.createElement('div');r.className='i3-system-row';for(const c of cells){const sp=document.createElement('span');sp.textContent=c;r.append(sp);}box.append(r);}return box;}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-system-check]');if(!button)return;const out=button.parentElement.querySelector('[data-i3-system-result]');if(!out)return;button.disabled=true;out.textContent='Checking…';fetch('/api/system-check',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('check failed ('+r.status+')');return r.json();}).then(d=>{out.replaceChildren(systemRows('THIS MACHINE · '+d.host.name+' · '+d.host.memory_mb+' MB',d.doctor.map(c=>[c.status.toUpperCase(),c.name,c.detail])),systemRows('RUNTIME MTDI PICKS (HYBRID PROFILE)',d.targets.map(t=>[t.target,t.runtime,t.why])),systemRows('INTEGRATIONS',d.integrations.map(i=>[i.status,i.provider,i.area,i.cost])),systemRows('COMPUTATIONAL CORE MODULES',d.modules.map(m=>[m.ok?'OK':'MISSING',m.module])));}).catch(error=>{out.textContent='System check failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
 async function agentRequest(textValue){if(agent.busy)return;agent.busy=true;const seq=agent.stopSeq||0;orbShow('Thinking',textValue);try{const image=await consentedFrame();const response=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:textValue,image}),signal:AbortSignal.timeout(60000)});const data=await response.json();if((agent.stopSeq||0)!==seq){agent.busy=false;return;}if(!response.ok)throw Error(data.error||'Agent unavailable');orbShow(data.source==='instant'?'Done':data.source==='rules'?'Command mode':'NVTRA','');agent.followUntil=performance.now()+30000;typeIn(document.getElementById('i3-orb-text'),data.say);if(data.source!=='instant')speak(data.say);await runActions(data.actions);setTimeout(orbHideWhenIdle,data.source==='instant'?1800:2200);}catch(error){orbShow('NVTRA could not answer',clean(error.message));setTimeout(orbHideWhenIdle,3500);}finally{agent.busy=false;const q=agent.queued;agent.queued=null;if(q){agent.followUntil=performance.now()+30000;setTimeout(()=>{if(!agent.busy)agentHandleTranscript(q,true);},50);}}}
 /* Turn taking: while NVTRA speaks the recogniser is paused so it never hears itself; the
    microphone level can still interrupt it (barge in). A request is sent once the
@@ -2735,6 +2742,16 @@ def confidence_panel(html):
     ])
 
 
+def system_panel(html):
+    # P-01: `mtdi doctor`, `mtdi capabilities` and `mtdi registry`, run from the studio on request.
+    return _card(html, "SYSTEM CHECK", [
+        html.Div("Checks this machine the way mtdi doctor does, shows which runtime MTDI picks for each "
+                 "board and computer it knows, and lists every integration with its status.", className="i3-mute"),
+        html.Button("RUN SYSTEM CHECK", type="button", className="i3-btn i3-primary", **{"data-i3-system-check": "true"}),
+        html.Div("Not run yet.", className="i3-system-result", **{"data-i3-system-result": "true", "aria-live": "polite"}),
+    ])
+
+
 def calibration_panel(html, dcc):
     return _card(html, "TWO-POINT CALIBRATION", [
         html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
@@ -3068,7 +3085,7 @@ def install(ns, runtime):
         "environmental_intelligence_section": lambda: [baseline_panel(html, dcc), transient_panel(html)],
         "i3_field_section": lambda: [vector_panel(html), audition_panel(html, dcc)],
         "nvtra_field_section": lambda: [signature_panel(html)],
-        "settings_page": lambda: [calibration_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
+        "settings_page": lambda: [system_panel(html), calibration_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
     }
     replacements = {}
     for name, addition in factories.items():

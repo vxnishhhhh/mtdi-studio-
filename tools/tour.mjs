@@ -92,6 +92,16 @@ for (const [name, nav, path] of pages) {
   }
 }
 
+// P-01 entry points: each back-end feature the studio exposes is opened once, as a visitor would.
+await page.evaluate(() => document.getElementById("nav-settings")?.click());
+try {
+  await ready(page, "/settings");
+  await page.evaluate(() => document.querySelector("[data-i3-system-check]")?.click());
+  await page.waitForFunction(() => document.querySelectorAll("[data-i3-system-result] .i3-system-row").length > 10, null, { timeout: 120000 });
+} catch {
+  problems.push("settings: SYSTEM CHECK did not show its results");
+}
+
 // Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an
 // overlay. A phone user taps a point, so check that each nav button's centre is really the button
 // (nothing on top of it), then make one real tap (the bug class fixed in #33). Reduced motion skips

@@ -242,7 +242,7 @@ def _load_local_cloud_state():
             provider, error = _validate_key_provider(
                 item.get("key", ""), item.get("provider", "auto")
             )
-            if not error:
+            if not error and item.get("id"):
                 clean = dict(item)
                 clean["provider"] = provider
                 clean["builtin"] = False
@@ -344,7 +344,7 @@ def _active_ai_credential():
             # The operator picked the on-device model on purpose: no cloud key applies.
             return "", "local"
         for it in nvtra_keys["items"]:
-            if it["id"] == nvtra_keys["active"]:
+            if it.get("id") == nvtra_keys["active"]:
                 return it["key"].strip(), it.get("provider") or _key_provider(it["key"])
         if nvtra_keys["items"]:
             it = nvtra_keys["items"][0]

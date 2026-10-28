@@ -126,10 +126,10 @@ CHECKS = (check_python, check_packages, check_engine, check_speed, check_studio,
           check_local_model, check_disk)
 
 
-def run(quick=False):
+def run(quick=False, skip=()):
     results = []
     for check in CHECKS:
-        if quick and check is check_speed:
+        if (quick and check is check_speed) or check in skip:
             continue
         try:
             results.append(check())

@@ -1405,6 +1405,41 @@ def install(ns):
             consent_path.write_text(json.dumps({'share': share}))
         return {'share': camera_consent()}
 
+    @server.get('/api/system-check')
+    def system_check():
+        # The studio's view of `mtdi doctor`, `mtdi capabilities` and `mtdi registry` (P-01): run on request.
+        from mtdi import capabilities, doctor, registry
+        host = capabilities.detect_host()
+        targets = capabilities.load_targets()
+        picks = capabilities.matrix(profiles=['hybrid'], targets={**targets, 'host': host})
+        snap = registry.snapshot()
+        ns = runtime.ns
+        # A key saved in Settings counts as set up, like one in the environment. Only the yes/no leaves here.
+        with ns['nvtra_keys_lock']:
+            saved = {it.get('provider') or ns['_key_provider'](it.get('key', '')) for it in ns['nvtra_keys']['items'] if (it.get('key') or '').strip()}
+        if ns['_elevenlabs_key']():
+            saved.add('elevenlabs')
+        if ns['_notion_setting']('NOTION_API_KEY') and ns['_notion_setting']('NOTION_REPORT_PAGE_ID'):
+            saved.add('notion')
+        for row in snap['integrations']:
+            if row['status'] == 'not set up' and row['id'] in saved:
+                row['status'] = 'configured'
+        # Offline mode promises nothing leaves the device, so the local-AI probe (its URL is configurable) is not run.
+        if ns['instrument_offline']():
+            checks = doctor.run(quick=True, skip=(doctor.check_local_model,)) + [('local AI', 'skipped', 'offline mode: not probed')]
+        else:
+            checks = doctor.run(quick=True)
+        # The doctor only sees environment keys; NVTRA also uses a key saved in Settings (only its provider is named).
+        key, provider = ns['_active_ai_credential']()
+        if key and provider not in ('local', 'unknown'):
+            checks = [('local AI', 'ok', f'no local model; NVTRA uses the {provider} key saved in Settings')
+                      if n == 'local AI' and st == 'warn' else (n, st, d) for n, st, d in checks]
+        return {'doctor': [{'name': n, 'status': st, 'detail': d} for n, st, d in checks],
+                'host': {k: host.get(k) for k in ('name', 'memory_mb', 'languages')},
+                'targets': [{'target': t, 'runtime': row['hybrid'][0], 'why': row['hybrid'][1]} for t, row in picks.items()],
+                'integrations': [{k: r[k] for k in ('id', 'provider', 'area', 'status', 'cost')} for r in snap['integrations']],
+                'modules': [{'module': m['module'], 'ok': m['ok']} for m in snap['modules']]}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
