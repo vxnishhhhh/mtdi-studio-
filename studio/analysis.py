@@ -432,8 +432,8 @@ class AnalysisEngine:
             if dt > 0:
                 self.intervals[channel].append(dt)
             source_unit, fed = unit or CHANNELS[channel]["unit"], bool(metadata.get("fed"))
-            if item.get("source_unit") and item["source_unit"] != source_unit:
-                self.baseline(channel, relock=True)   # never compare a new input against a reference held in another unit
+            if item.get("source_unit") and (item["source_unit"], bool(item.get("fed"))) != (source_unit, fed):
+                self.baseline(channel, relock=True)   # a new input (another unit, or feed vs studio source) gets a fresh reference
             profile = self.calibrations.get(channel)
             # A calibration made for another input (a cm feed, the magnetometer) does not apply. A profile saved
             # before the first sample still knows whether it was made for a feed or for the studio's own sources.

@@ -63,6 +63,11 @@ class CalibrationUnits(unittest.TestCase):
         engine.ingest("ch1", 7.0, timestamp=10, unit="µT", vector=[7.0, 0, 0], metadata={"monotonic": 10})
         self.assertEqual(len(engine.histories["ch1"]), 1)   # only the first sample in the new unit
 
+    def test_a_feed_handing_over_to_the_studio_source_starts_a_fresh_baseline(self):
+        engine = engine_fed("ch1", "µT", fed=True)
+        engine.ingest("ch1", 7.0, timestamp=10, unit="µT", vector=[7.0, 0, 0], metadata={"monotonic": 10})
+        self.assertEqual(len(engine.histories["ch1"]), 1)
+
     def test_an_unrelated_unit_is_refused(self):
         with self.assertRaises(ValueError):
             engine_fed("ch1", "cm", fed=True).calibrate("ch1", [1, 2], [2, 4], 0.1, unit="kg")
