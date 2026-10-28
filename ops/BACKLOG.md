@@ -12,8 +12,9 @@ Status: `ready` · `in progress (PR #n)` · `blocked (reason)` · `done (PR #n)`
 Inventory every engine capability (mtdi CLI commands, studio API routes, runtime features) and give
 each one a place in the studio where the owner can use it. Slice by area; each slice ships the
 inventory rows it covers.
-**Check:** a test lists every CLI command and API route and fails if one has no studio entry point
-(or a written reason it must stay hidden); the tour opens each new entry point.
+**Check:** a test lists every CLI command, every API route and every runtime feature (an engine
+capability with neither, kept in its own group in the inventory) and fails if one has no studio
+entry point (or a written reason it must stay hidden); the tour opens each new entry point.
 
 ### P-02 · UI glitch sweep · ready (after P-01's first slice)
 Go page by page, record each glitch (layout, overlap, flicker, dead control, stale value), fix it,
@@ -26,13 +27,16 @@ credit before download); a dataset opens from the Research tab with metadata, li
 data preview; a search that finds nothing in the catalogue queries the public sources online and
 offers to add the results, with licence and credit.
 **Check:** tests for the catalogue schema and size, the open view and the online search (recorded
-responses in tests); the tour opens one dataset.
+responses in tests); every catalogue entry and every online result carries a licence and a credit,
+and the licence is on the list of free licences the catalogue accepts (anything else is shown but
+not added); the tour opens one dataset.
 
 ### P-04 · Describe it, MTDI helps build it (first usable Workbench) · blocked (after P-01 to P-03)
 From a written description: requirements, parts list, wiring guide, firmware (C++) compiled by the
 Compatibility Lab's builders, step-by-step build guide, saved as a project under `projects/`.
-**Check:** a test turns a reference description into a project that passes `mtdi check` and whose
-firmware compiles for Uno in CI.
+**Check:** a test turns a reference description into a project saved under `projects/` that holds
+every artifact (requirements, parts list, wiring guide, firmware, build steps), each non-empty,
+passes `mtdi check`, and whose firmware compiles for Uno in CI.
 
 ## Stage 1 · Universal foundation (gate: an old sensor project and a software-only data project run on one set of contracts, each on a runtime chosen from its target's capabilities)
 
@@ -65,7 +69,7 @@ Manifest field `profile` (edge, scientific, vision, autonomous, hybrid, research
 loads only the profile's modules; `mtdi check` reports the profile and whether the target qualifies.
 **Check:** a test per profile proves it loads its modules and refuses an under-capable target.
 
-### S1-05 · Compatibility Laboratory, first matrix (ADR 0006) · done (PR #52, owner-approved 2026-10-28)
+### S1-05 · Compatibility Laboratory, first matrix (ADR 0006) · done (PR #52, owner-approved 2026-10-28; the Vision row is deferred to S1-18)
 `.github/workflows/compat.yml` (nightly + on PR): Arduino Uno and ESP32 firmware builds with size
 checks; core suite on an ARM64 runner; desktop matrix (Linux, macOS, Windows); serverless studio
 smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILITY.md` (target ×
@@ -177,3 +181,4 @@ questions through the same framework code paths, with no project-specific code i
   **Check:** `tools/pi/measure.py` shows the 128-channel snapshot well under 100 ms with a fresh packet before each snapshot, and a test compares old and new correlation on random histories with identical results for small projects.
 - S1-17 (done: an `alert` event per crossing with half-threshold re-arm, `alert_direction`, validated, tests in tests/test_alerts.py) `alert_change`: documented in MANIFEST.md as "smallest change a person would call an event" and defaulted to 20 × the noise floor, but nothing in `mtdi/` or `studio/` reads it. Make it a real per-channel event threshold (with the rule `direction` sign, so a project can alert on a drop only), or remove it from the manifest and docs.
   **Check:** a test where a change above `alert_change` raises an event and one below it does not; `direction` respected; or the field is gone from the schema, MANIFEST.md and every bundled project.
+- S1-18 (ready after a Vision pipeline exists) Compatibility Lab Vision row: run the Vision profile on recorded images in `compat.yml`. Split from S1-05, which shipped without it because there is no Vision pipeline or recorded image set yet.
