@@ -387,9 +387,12 @@ class AnalysisEngine:
         if scale <= 0 or uncertainty < 0:
             raise ValueError("Scale must be positive and uncertainty cannot be negative")
         # A project feed calibrates in its own unit (a cm feed stays cm); the studio's own sources keep theirs.
+        # A project feed (marked fed by feed_ch1/feed_ch2) calibrates in its own unit; the studio's own sources,
+        # the Uno included, keep their physical defaults.
         with self.lock:
-            source_unit = self.channels.get(channel, {}).get("source_unit")
-        fed_unit = source_unit if source_unit not in (None, CHANNELS[channel]["unit"]) else None
+            current = self.channels.get(channel, {})
+            source_unit, fed = current.get("source_unit"), bool(current.get("fed"))
+        fed_unit = source_unit if fed and source_unit else None
         output_unit = unit or fed_unit or {"ch1": "µT", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
         allowed = {"ch1": {"µT", "uT"}, "ch2": {"V/m", "mV RMS relative"}, "ch3": {"dB"}, "current": {"A", "mA"}}
         if output_unit not in allowed[channel] | ({fed_unit} - {None}):
@@ -399,6 +402,7 @@ class AnalysisEngine:
             raise ValueError("Ch1 scalar calibration requires proportional reference values; use the vector profile for axis offsets")
         profile = {"scale": scale, "offset": 0.0 if channel == "ch1" else offset,
                    "uncertainty": uncertainty, "unit": output_unit, "method": str(method),
+                   "input_unit": source_unit,
                    "timestamp": time.time(), "raw_reference": raw, "known_reference": known,
                    "scope": "Provided reference conditions only"}
         self.calibrations.put(channel, profile)
@@ -430,6 +434,8 @@ class AnalysisEngine:
             if dt > 0:
                 self.intervals[channel].append(dt)
             profile = self.calibrations.get(channel)
+            if profile.get("input_unit") and profile["input_unit"] != (unit or CHANNELS[channel]["unit"]):
+                profile = {}   # a calibration made for another input (a cm feed, the magnetometer) does not apply
             scale = profile.get("scale", 1.0)
             corrected = value * scale + profile.get("offset", 0.0)
             base = self.baselines[channel]
@@ -488,7 +494,7 @@ class AnalysisEngine:
             rate = len(intervals) / sum(intervals) if intervals and sum(intervals) > 0 else 0.0
             item.update({"state": "connected", "message": "Baseline settling" if base.settling else "Live acquisition",
                          "deviation": deviation, "unit": profile.get("unit", unit or CHANNELS[channel]["unit"]),
-                         "source_unit": unit or CHANNELS[channel]["unit"],
+                         "source_unit": unit or CHANNELS[channel]["unit"], "fed": bool(metadata.get("fed")),
                          "raw": value if raw is None else raw, "corrected_raw": corrected,
                          "last_rx": timestamp, "clipped": bool(clipped), "sample_count": item["sample_count"] + 1,
                          "sample_rate": rate, "snr": snr, "uncertainty": uncertainty_text,

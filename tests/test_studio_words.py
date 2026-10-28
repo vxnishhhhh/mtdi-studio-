@@ -386,7 +386,8 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn("BASELINES SETTLED", mtdi["status"][1])      # the Uno's calibration notice is not a fault
         self.assertIn("BASELINE WARNING", mtdi["status"][2])       # a clipped Uno is
         for state in ("landing", "pillars", "live", "insane", "environment"):
-            self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")
+            shown = re.sub(r'"(?:data-i3-bind|name)": "[^"]*"', "", mtdi[state])   # binding paths are not on screen
+            self.assertIsNone(placeholder.search(shown), f"MTDI {state}: {placeholder.search(shown)}")
         self.assertEqual(sorted(mtdi["descs"]), sorted(p["desc"] for p in [*PILLARS, AETHER]))
         self.assertIn(words["mtdi.title"], mtdi["landing"])
         for word in (n1, n2, words["ch3.name"]):

@@ -989,7 +989,7 @@ def install(ns, engine):
         size = math.sqrt(sum(v * v for v in vector))
         unit = "" if unit is None else str(unit).strip()   # a feed naming no unit reads in the project's channel 1 word
         c1 = engine.ingest("ch1", size, now, unit or T("ch1.unit"), raw=vector, vector=vector,
-                           metadata={"monotonic": mono, "data_source": source})
+                           metadata={"monotonic": mono, "data_source": source, "fed": True})
         with ns["c1_lock"]:
             data = ns["ch1_data"]
             x, y, z = [c1["axial"][key] for key in ("x", "y", "z")]
@@ -1026,7 +1026,7 @@ def install(ns, engine):
         now = time.time() if now is None else float(now)
         unit = "mV RMS relative" if unit is None else str(unit)   # an explicit null is the default, never "None"
         mono = _feed_mono("ch2")
-        ch2 = engine.ingest("ch2", value, now, unit, metadata={"monotonic": mono, "data_source": source})
+        ch2 = engine.ingest("ch2", value, now, unit, metadata={"monotonic": mono, "data_source": source, "fed": True})
         profile = ch2["calibration"]["profile"]
         baseline = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
         ratio = value / baseline if abs(baseline) > 1e-12 else 1.0

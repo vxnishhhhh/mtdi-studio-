@@ -1046,7 +1046,7 @@ function setupControls(){
  }
  button.disabled=true;control(payload,result).catch(()=>{}).finally(()=>{button.disabled=false;});
  });
- document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel')form.elements.namedItem('unit').value={ch1:'µT',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];});
+ document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel'){const live=state.packet?.channels?.[event.target.value];form.elements.namedItem('unit').value=(live&&live.fed&&live.source_unit)||{ch1:'µT',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];}});
  let gainTimer=null;document.addEventListener('input',event=>{if(!event.target.classList?.contains('i3-gain'))return;const key=(event.target.closest('[data-i3-form]')?.dataset.i3Form||'').replace('audition-','');if(!key)return;clearTimeout(gainTimer);gainTimer=setTimeout(()=>control({action:'audition',source:key,gain:Number(event.target.value)}).catch(()=>{}),120);});
  document.addEventListener('submit',event=>{if(event.target?.matches?.('[data-i3-form]'))event.preventDefault();});
 
@@ -2660,6 +2660,7 @@ def axial_panel(html):
             ("agreement", "Axis agreement %"), ("contribution.0", "X share %"),
             ("contribution.1", "Y share %"), ("contribution.2", "Z share %"),
             ("confidence_contribution", "Adds to confidence")]],
+        _row(html, "Unit", path + "unit"),
         html.Div(f"Each axis's change from its own baseline. Agreement is how closely the share each axis "
                  f"carries matches its recent pattern: a real change in the {T('ch1.name').lower()} field tends to keep "
                  f"its direction, a disturbance on one axis does not.", className="i3-mute"),
