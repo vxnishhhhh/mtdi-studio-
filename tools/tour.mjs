@@ -101,6 +101,15 @@ try {
 } catch {
   problems.push("settings: SYSTEM CHECK did not show its results");
 }
+try {
+  await page.waitForFunction(() => document.querySelectorAll("[data-i3-project-list] option").length > 0, null, { timeout: 30000 });
+  await page.evaluate(() => document.querySelector("[data-i3-project-check]")?.click());
+  await page.waitForFunction(() => document.querySelectorAll("[data-i3-project-result] .i3-system-row").length > 2, null, { timeout: 30000 });
+  await page.evaluate(() => document.querySelector("[data-i3-line-test]")?.click());
+  await page.waitForFunction(() => document.querySelector("[data-i3-line-result]")?.textContent.includes("ACCEPTED"), null, { timeout: 30000 });
+} catch {
+  problems.push("settings: PROJECT CHECK or TEST LINE did not show its results");
+}
 
 // Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an
 // overlay. A phone user taps a point, so check that each nav button's centre is really the button

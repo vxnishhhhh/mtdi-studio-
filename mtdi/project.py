@@ -255,3 +255,23 @@ def scale_of(ch, i):
 def offset_of(ch, i):
     o = ch["offset"]
     return o[i] if isinstance(o, list) else o
+
+
+def summary(project, target=None):
+    """What `mtdi check` reports about a loaded project, as data (the CLI and the studio both show it)."""
+    from .capabilities import detect_host
+    from .profiles import qualifies
+    meta = project["project"]
+    target = target or detect_host()
+    ok, runtime, why = qualifies(project["profile"], target)
+    return {
+        "id": meta["id"], "name": meta["name"], "mtdi": project["mtdi"],
+        "sources": [{"id": s["id"], "adapter": s["adapter"],
+                     "detail": {k: v for k, v in s.items() if k not in ("id", "adapter")}} for s in project["sources"]],
+        "channels": [{k: c[k] for k in ("id", "kind", "domain", "keys", "unit", "sources", "noise_floor", "transform", "window")}
+                     for c in project["channels"]],
+        "interface_words": len(project["interface"] or {}),
+        "profile": project["profile"], "target": target["id"], "runtime": runtime, "qualifies": ok, "why": why,
+        "nvtra_rules": len(project["nvtra"]["rules"]),
+        "environments": len(list((pathlib.Path(project["_dir"]) / "environments").glob("*.json"))),
+    }
