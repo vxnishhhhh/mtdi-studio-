@@ -57,8 +57,50 @@ class Protocol(unittest.TestCase):
             with self.assertRaises(ProtocolError, msg=bad):
                 parse_line(bad)
 
+    def test_json_nested_past_the_stack_is_rejected(self):
+        from unittest import mock
+        with mock.patch("mtdi.protocol.json.loads", side_effect=RecursionError):
+            with self.assertRaises(ProtocolError):
+                parse_line('{"A": [[[1]]]}')
+
 
 class Manifest(unittest.TestCase):
+    def test_any_wrong_json_type_is_a_manifest_error(self):
+        # Every field, at every depth, replaced by each JSON shape: normalise() either accepts it or raises
+        # ManifestError naming the field. Nothing else may escape to `mtdi check` or PROJECT CHECK.
+        import copy
+        from mtdi.project import ManifestError, normalise
+        base = json.loads((ROOT / "projects" / "host-health" / "project.json").read_text(encoding="utf-8"))
+        base.update(environment={"window": 10.0}, weights={}, interface={}, hardware=[])
+        a, b = [c for c in base["channels"] if len(c["keys"]) == 1][:2]
+        a.update(calibration={"gain": 1.0, "offset": 0.0, "residual_sd": 0.1, "n": 3, "method": "two-point"},
+                 raw_range=[0, 1], expected_rate=1.0, transform="none", window=25, scale=1.0, offset=0.0,
+                 alert_direction="both", unit="u", label="l", domain="generic", source=base["sources"][0]["id"])
+        b["unit"] = "u"
+        base["fused"] = [{"id": "f", "label": "f", "unit": "u", "inputs": [a["id"], b["id"]],
+                          "method": "inverse-variance", "sd": {a["id"]: 1.0, b["id"]: 1.0}}]
+        normalise(copy.deepcopy(base))   # the starting point itself is valid
+
+        def paths(obj, path=()):
+            yield path
+            items = obj.items() if isinstance(obj, dict) else enumerate(obj) if isinstance(obj, list) else ()
+            for k, v in items:
+                yield from paths(v, path + (k,))
+
+        for path in list(paths(base))[1:]:
+            for bad in (None, [], "x", 7, True, {}, [None], [{}], {"a": None}):
+                data = copy.deepcopy(base)
+                target = data
+                for step in path[:-1]:
+                    target = target[step]
+                target[path[-1]] = bad
+                try:
+                    normalise(data)
+                except ManifestError:
+                    pass
+                except Exception as error:   # noqa: BLE001 - the point is that nothing else escapes
+                    self.fail(f"{path} = {bad!r}: {type(error).__name__}: {error}")
+
     def test_defaults(self):
         m = manifest()
         a, v = m["channels"]

@@ -97,7 +97,7 @@ def normalise(data):
         _require(isinstance(src, dict), f"{where} must be an object")
         _require(isinstance(src.get("id"), str) and src["id"], f"{where}.id is required")
         _require(src["id"] not in source_ids, f"{where}.id '{src['id']}' is used twice")
-        _require(src.get("adapter") in ADAPTERS, f"{where}.adapter must be one of {sorted(ADAPTERS)}")
+        _require(isinstance(src.get("adapter"), str) and src["adapter"] in ADAPTERS, f"{where}.adapter must be one of {sorted(ADAPTERS)}")
         source_ids.add(src["id"])
 
     channels = data.get("channels") or []
@@ -112,6 +112,7 @@ def normalise(data):
 
     data.setdefault("hardware", [])
     data.setdefault("environment", {})
+    _require(isinstance(data["environment"], dict), "environment must be an object")
     env = data["environment"]
     env.setdefault("window", 10.0)
     env.setdefault("auto_relock_after", None)
@@ -183,7 +184,7 @@ def _channel(ch, where, default_source, source_ids):
     src = ch.setdefault("source", default_source)
     ch["sources"] = src if isinstance(src, list) else [src]
     for sid in ch["sources"]:
-        _require(sid in source_ids, f"{where}.source '{sid}' is not a declared source")
+        _require(isinstance(sid, str) and sid in source_ids, f"{where}.source '{sid}' is not a declared source")
     # "domain" is the field; "physical" (MTDI 5.0 early manifests) is accepted as an alias.
     ch["domain"] = ch.get("domain") or ch.get("physical") or "generic"
     _require(isinstance(ch["domain"], str) and _DOMAIN.match(ch["domain"]),
@@ -192,11 +193,12 @@ def _channel(ch, where, default_source, source_ids):
     keys = ch.get("keys")
     _require(isinstance(keys, list) and keys and all(isinstance(k, str) for k in keys), f"{where}.keys must list protocol keys")
     ch.setdefault("kind", "vector" if len(keys) > 1 else "scalar")
-    _require(ch["kind"] in KINDS, f"{where}.kind must be scalar or vector")
+    _require(isinstance(ch["kind"], str) and ch["kind"] in KINDS, f"{where}.kind must be scalar or vector")
     _require(ch["kind"] == "vector" or len(keys) == 1, f"{where}: a scalar channel takes exactly one key")
     ch.setdefault("axes", [k.lower() for k in keys])
     _require(len(ch["axes"]) == len(keys), f"{where}.axes must match keys")
     ch.setdefault("unit", "")
+    _require(isinstance(ch["unit"], str), f"{where}.unit must be text")
     scale = ch.setdefault("scale", 1.0)
     if isinstance(scale, list):
         _require(len(scale) == len(keys), f"{where}.scale list must match keys")
@@ -205,15 +207,15 @@ def _channel(ch, where, default_source, source_ids):
         _require(len(offset) == len(keys), f"{where}.offset list must match keys")
     rng = ch.get("raw_range")
     if rng is not None:
-        _require(isinstance(rng, list) and len(rng) == 2 and rng[0] < rng[1], f"{where}.raw_range must be [low, high]")
+        _require(isinstance(rng, list) and len(rng) == 2 and all(_finite(v) for v in rng) and rng[0] < rng[1], f"{where}.raw_range must be [low, high]")
     ch.setdefault("transform", "none")
-    _require(ch["transform"] in TRANSFORMS, f"{where}.transform must be one of {sorted(TRANSFORMS)}")
+    _require(isinstance(ch["transform"], str) and ch["transform"] in TRANSFORMS, f"{where}.transform must be one of {sorted(TRANSFORMS)}")
     ch.setdefault("window", 25)
     floor = ch.setdefault("noise_floor", 0.01)
     _require(isinstance(floor, (int, float)) and floor > 0, f"{where}.noise_floor must be > 0")
     ch.setdefault("noise_budget", floor * 10)
     rate = ch.get("expected_rate")
-    _require(rate is None or rate > 0, f"{where}.expected_rate must be > 0")
+    _require(rate is None or (_finite(rate) and rate > 0), f"{where}.expected_rate must be > 0")
     ch.setdefault("stale_after", max(2.0, 5.0 / rate) if rate else 4.0)
     alert = ch.setdefault("alert_change", floor * 20)
     _require(_finite(alert) and alert > 0, f"{where}.alert_change must be a finite number > 0")
