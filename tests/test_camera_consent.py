@@ -66,12 +66,15 @@ class CameraConsent(unittest.TestCase):
 
     def test_anything_but_yes_no_or_reset_is_refused(self):
         self.assertEqual(self.client.post("/api/camera-consent", json={"share": "yes"}).status_code, 400)
+        self.assertEqual(self.client.post("/api/camera-consent", json=[1]).status_code, 400)
+        self.assertEqual(self.client.post("/api/camera-consent", data="x", content_type="application/json").status_code, 400)
 
     def test_the_page_asks_before_the_first_frame_and_can_ask_again(self):
         html = self.client.get("/").get_data(as_text=True)
         self.assertIn("const image=await consentedFrame()", html)
         self.assertIn("window.confirm('NVTRA can send a still frame", html)
-        self.assertIn("data-i3-camera-consent-reset", (ROOT / "studio" / "ui.py").read_text())
+        self.assertIn("agent.cameraShare=undefined;orbShow('Camera answer not saved'", html)
+        self.assertIn("data-i3-camera-consent-reset", (ROOT / "studio" / "ui.py").read_text(encoding="utf-8"))
 
 if __name__ == "__main__":
     unittest.main()

@@ -1394,7 +1394,8 @@ def install(ns):
 
     @server.post('/api/camera-consent')
     def camera_consent_set():
-        share = (request.get_json(silent=True) or {}).get('share')
+        body = request.get_json(silent=True)
+        share = body.get('share') if isinstance(body, dict) else 'invalid'
         if share is not None and not isinstance(share, bool):
             return {'error': 'share must be true, false or null'}, 400
         runtime.state_dir.mkdir(parents=True, exist_ok=True)
