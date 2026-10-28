@@ -70,7 +70,10 @@ def _parse_json(text):
 
 
 def _finite(raw, key):
-    value = float(raw)
+    try:
+        value = float(raw)
+    except OverflowError as error:   # a JSON integer too large for a float
+        raise ProtocolError(f"{key} is not finite") from error
     if not math.isfinite(value):
         raise ProtocolError(f"{key} is not finite")
     return value

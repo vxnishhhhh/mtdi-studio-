@@ -142,9 +142,11 @@ class FeatureMap(unittest.TestCase):
     def test_the_line_tester_matches_the_protocol(self):
         ok = self.client.post("/api/parse-line", json={"line": "CH1=512,CH2=498,_T=1200"}).get_json()
         self.assertEqual(ok, {"ok": True, "values": {"CH1": 512.0, "CH2": 498.0, "_T": 1200.0}})
-        bad = self.client.post("/api/parse-line", json={"line": "CH1=512,CH2"}).get_json()
-        self.assertFalse(bad["ok"])
-        self.assertTrue(bad["error"])
+        for line in ("CH1=512,CH2", '{"A": ' + "9" * 400 + "}"):   # the second overflows a float
+            reply = self.client.post("/api/parse-line", json={"line": line})
+            self.assertEqual(reply.status_code, 200, line)
+            self.assertFalse(reply.get_json()["ok"], line)
+            self.assertTrue(reply.get_json()["error"], line)
         for body in ({}, {"line": 5}, {"line": "A=1," * 2000}, [], ["CH1=1"], 7, "CH1=1"):
             self.assertEqual(self.client.post("/api/parse-line", json=body).status_code, 400, body)
 

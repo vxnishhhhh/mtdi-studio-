@@ -52,7 +52,8 @@ class Protocol(unittest.TestCase):
 
     def test_rejects_whole_line(self):
         for bad in ["", "CH1=1,CH2=", "CH1=1,CH1=2", "CH1=nan", "CH1=inf", "1A=3", "CH1 512",
-                    '{"A": true}', '{"A": "1"}', "[1]", "A=1;B=2", "A=1e999"]:
+                    '{"A": true}', '{"A": "1"}', "[1]", "A=1;B=2", "A=1e999",
+                    '{"A": ' + '9' * 400 + '}']:
             with self.assertRaises(ProtocolError, msg=bad):
                 parse_line(bad)
 
