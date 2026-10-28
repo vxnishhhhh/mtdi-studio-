@@ -81,6 +81,7 @@ def normalise(data):
     data = copy.deepcopy(data)
     _require(isinstance(data, dict), "manifest must be a JSON object")
     meta = data.setdefault("project", {})
+    _require(isinstance(meta, dict), "project must be an object")
     _require(isinstance(meta.get("id"), str) and meta["id"], "project.id is required")
     meta.setdefault("name", meta["id"])
     data.setdefault("mtdi", MTDI_VERSION)
@@ -93,6 +94,7 @@ def normalise(data):
     source_ids = set()
     for i, src in enumerate(sources):
         where = f"sources[{i}]"
+        _require(isinstance(src, dict), f"{where} must be an object")
         _require(isinstance(src.get("id"), str) and src["id"], f"{where}.id is required")
         _require(src["id"] not in source_ids, f"{where}.id '{src['id']}' is used twice")
         _require(src.get("adapter") in ADAPTERS, f"{where}.adapter must be one of {sorted(ADAPTERS)}")
@@ -115,8 +117,11 @@ def normalise(data):
     env.setdefault("auto_relock_after", None)
     data.setdefault("weights", {})
     data.setdefault("nvtra", {})
+    _require(isinstance(data["nvtra"], dict), "nvtra must be an object")
     data["nvtra"].setdefault("rules", [])
+    _require(isinstance(data["nvtra"]["rules"], list), "nvtra.rules must be a list")
     for i, rule in enumerate(data["nvtra"]["rules"]):
+        _require(isinstance(rule, dict), f"nvtra.rules[{i}] must be an object")
         _require(isinstance(rule.get("when"), dict) and rule["when"], f"nvtra.rules[{i}].when is required")
         for key in rule["when"]:
             _require(key in channel_ids or key in ("active_at_least",),
@@ -170,6 +175,7 @@ def _fused(data, by_id):
 
 
 def _channel(ch, where, default_source, source_ids):
+    _require(isinstance(ch, dict), f"{where} must be an object")
     _require(isinstance(ch.get("id"), str) and ch["id"], f"{where}.id is required")
     ch.setdefault("label", ch["id"])
     # A channel may arrive from one source or from several interchangeable ones

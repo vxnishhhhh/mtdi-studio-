@@ -1465,7 +1465,8 @@ def install(ns):
     def parse_protocol_line():
         # The studio's `mtdi parse` (P-01): test one line before a device sends it.
         from mtdi.protocol import ProtocolError, parse_line
-        line = (request.get_json(silent=True) or {}).get('line')
+        body = request.get_json(silent=True)
+        line = body.get('line') if isinstance(body, dict) else None
         if not isinstance(line, str) or len(line) > 4096:
             return {'error': 'line must be text of at most 4096 characters'}, 400
         try:

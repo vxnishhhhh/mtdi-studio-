@@ -122,11 +122,22 @@ class FeatureMap(unittest.TestCase):
             self.assertEqual(self.client.get("/api/project-check", query_string={"id": wanted}).status_code, 404, wanted)
 
     def test_a_bad_manifest_is_reported_not_raised(self):
+        import tempfile
         from unittest import mock
-        from mtdi import project
-        with mock.patch.object(project, "load", side_effect=project.ManifestError("channel 'x': no keys")):
-            data = self.client.get("/api/project-check", query_string={"id": "host-health"}).get_json()
-        self.assertEqual(data, {"id": "host-health", "ok": False, "error": "channel 'x': no keys"})
+        good = json.loads((ROOT / "projects" / "host-health" / "project.json").read_text(encoding="utf-8"))
+        broken = {"sources": [None]}, {"project": None}, {"channels": [None]}, {"nvtra": None}, {"nvtra": {"rules": [None]}}
+        for change in broken:
+            with tempfile.TemporaryDirectory() as tmp:
+                folder = pathlib.Path(tmp) / "projects"
+                (folder / "broken").mkdir(parents=True)
+                (folder / "broken" / "project.json").write_text(json.dumps({**good, **change}), encoding="utf-8")
+                with mock.patch("studio.ui.bundled_projects", return_value=["broken"]), \
+                     mock.patch("mtdi.project.__file__", str(pathlib.Path(tmp) / "mtdi" / "project.py")):
+                    reply = self.client.get("/api/project-check", query_string={"id": "broken"})
+            self.assertEqual(reply.status_code, 200, change)
+            data = reply.get_json()
+            self.assertFalse(data["ok"], change)
+            self.assertIn("must be an object", data["error"], change)
 
     def test_the_line_tester_matches_the_protocol(self):
         ok = self.client.post("/api/parse-line", json={"line": "CH1=512,CH2=498,_T=1200"}).get_json()
@@ -134,8 +145,8 @@ class FeatureMap(unittest.TestCase):
         bad = self.client.post("/api/parse-line", json={"line": "CH1=512,CH2"}).get_json()
         self.assertFalse(bad["ok"])
         self.assertTrue(bad["error"])
-        for body in ({}, {"line": 5}, {"line": "A=1," * 2000}):
-            self.assertEqual(self.client.post("/api/parse-line", json=body).status_code, 400)
+        for body in ({}, {"line": 5}, {"line": "A=1," * 2000}, [], ["CH1=1"], 7, "CH1=1"):
+            self.assertEqual(self.client.post("/api/parse-line", json=body).status_code, 400, body)
 
     def test_mtdi_check_prints_the_same_summary(self):
         import subprocess, sys
