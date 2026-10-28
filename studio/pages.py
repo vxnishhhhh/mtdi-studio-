@@ -77,7 +77,7 @@ def home_page():
             html.Div(title, className="mtdi-card-title"),
             html.Div(desc, className="mtdi-card-short"),
             html.Div([html.Span(val), html.Small(vl)], className="home-module-live"),
-            html.Span('TEXT', className="mtdi-card-enter"),
+            html.Span("ENTER", className="mtdi-card-enter"),
         ], className="mtdi-card-summary"), href=f"/{mid}",
             className="mtdi-orbit-card home-module-orbit-card",
             style={"--i": str(index), "--acc": vc, "--acc-rgb": vrgb,
@@ -146,36 +146,36 @@ def sensor_showcase_section():
                     html.Div([html.Span(f_label, className="i3-sc-flabel"), html.Span("—", className="i3-sc-fvalue", **{"data-i3-sc-value": f_key})], className="i3-sc-frow"),
                     html.Div(html.I(**{"data-i3-sc-bar": f_key}), className="i3-sc-bar"),
                 ], className="i3-sc-feature") for f_key, f_label in features],
-                html.A([html.Span('TEXT'), html.Span("→")], href="/page-1", className="i3-sc-open"),
+                html.A([html.Span(f"OPEN {T('nav.page1').upper()}"), html.Span("→")], href="/page-1", className="i3-sc-open"),
             ], className="i3-sc-panel"),
             html.Div([html.Span("●", className="i3-sc-dot"), html.Span("Waiting", **{"data-i3-sc-state": key})], className="i3-sc-status"),
         ], className="i3-sc-details", **{"data-i3-sc-side": key})
     return html.Div([
-        html.Div('TITLE', className="instrument-modules-title", style={"marginTop": "72px"}),
-        html.Div('Subtext', className="i3-sc-sub"),
+        html.Div("THE PROBES", className="instrument-modules-title", style={"marginTop": "72px"}),
+        html.Div("The studio's own two sensors, with their live sample rate, signal to noise and confidence.", className="i3-sc-sub"),
         html.Div([
             html.Div([
-                html.Div([html.Div('LABEL', className="i3-sc-board-label"),
+                html.Div([html.Div(T("ch1.name").upper(), className="i3-sc-board-label"),
                           html.Canvas(className="i3-sc-boards", **{"data-i3-boards": "ch1",
-                                      "aria-label": 'Text'})],
+                                      "aria-label": f"3D model of the {T('ch1.name')} probe"})],
                          className="i3-sc-board-slot"),
-                html.Div([html.Div('LABEL', className="i3-sc-board-label"),
+                html.Div([html.Div(T("ch2.name").upper(), className="i3-sc-board-label"),
                           html.Canvas(className="i3-sc-boards", **{"data-i3-boards": "ch2",
-                                      "aria-label": 'Text'})],
+                                      "aria-label": f"3D model of the {T('ch2.name')} probe"})],
                          className="i3-sc-board-slot"),
             ], className="i3-sc-visual i3-sc-visual-split"),
             html.Div([
-                side("ch1", 'LABEL', 'Title',
-                     'Paragraph. Enter your text here.',
-                     [("sample_rate", 'Text'), ("snr", 'Text'), ("confidence", 'Text')]),
-                side("ch2", 'LABEL', 'Title',
-                     'Paragraph. Enter your text here.',
-                     [("sample_rate", 'Text'), ("snr", 'Text'), ("confidence", 'Text')]),
+                side("ch1", "CHANNEL 1", T("ch1.name"),
+                     "A three-axis magnetometer: field strength and direction.",
+                     [("sample_rate", "Sample rate"), ("snr", "Signal to noise"), ("confidence", "Confidence")]),
+                side("ch2", "CHANNEL 2", T("ch2.name"),
+                     "An electric-field probe: the level of the field around it, on the probe's own scale.",
+                     [("sample_rate", "Sample rate"), ("snr", "Signal to noise"), ("confidence", "Confidence")]),
             ], className="i3-sc-detail-wrap"),
         ], className="i3-sc-stage", **{"data-i3-showcase": "ch1"}),
         html.Div([
-            html.Button('Button', type="button", className="i3-sc-btn on", **{"data-i3-sc": "ch1"}),
-            html.Button('Button', type="button", className="i3-sc-btn", **{"data-i3-sc": "ch2"}),
+            html.Button(T("ch1.name"), type="button", className="i3-sc-btn on", **{"data-i3-sc": "ch1"}),
+            html.Button(T("ch2.name"), type="button", className="i3-sc-btn", **{"data-i3-sc": "ch2"}),
         ], className="i3-sc-switch"),
     ], className="i3-showcase")
 
@@ -1550,19 +1550,22 @@ def validation_chamber_section():
 
 def _validation_chamber_base():
     return html.Div([
-        _section_head('LABEL', "Validation Chamber",
-            'Paragraph. Enter your text here.',
-            'LABEL', BLUE),
+        _section_head("PILLAR 00", "Validation Chamber",
+            _pillar_desc("validation"),
+            "EVIDENCE", BLUE),
         html.Div([
-            html.Div([html.Div('TITLE', className="sort-title"), html.Div('Paragraph. Enter your text here.', className="sort-body"), html.Div('Text', className="sort-foot")], className="validation-hero-card", style={"--acc":BLUE}),
-            html.Div([html.Div('TITLE', className="sort-title"), html.Div('Paragraph. Enter your text here.', className="sort-body"), html.Div('Text', className="sort-foot")], className="validation-hero-card", style={"--acc":BLUE}),
-            html.Div([html.Div('TITLE', className="sort-title"), html.Div('Paragraph. Enter your text here.', className="sort-body"), html.Div('Text', className="sort-foot")], className="validation-hero-card", style={"--acc":BLUE}),
-            html.Div([html.Div('TITLE', className="sort-title"), html.Div('Paragraph. Enter your text here.', className="sort-body"), html.Div('Text', className="sort-foot")], className="validation-hero-card", style={"--acc":BLUE}),
+            *[html.Div([html.Div(title, className="sort-title"), html.Div(body, className="sort-body"), html.Div(foot, className="sort-foot")],
+                       className="validation-hero-card", style={"--acc":BLUE}) for title, body, foot in (
+                ("PRESENCE", "Whether each source is connected and sending.", "SOURCE LINK, below"),
+                ("FRESHNESS", "How long ago each channel last reported. An old reading is not a current one.", "SECONDS SINCE THE LAST READING"),
+                ("RANGE", "Whether readings stay inside what the sensor can measure. Clipped and out-of-range levels are flagged.", "CLIPPING AND LEVEL CHECKS"),
+                ("DETECTION LIMITS", "The smallest change each channel can detect and quantify, from its own measured noise.", "D4 DETECTION LIMITS, below"),
+            )],
         ], className="validation-hero-grid"),
         html.Hr(className="divider"),
         html.Div([
-            html.Div([html.Div('LABEL', className="section-label"), html.Div('Subtext', className="validation-subcopy"), html.Div(id="esp-sys-grid", className="sys-grid")], className="validation-live-block"),
-            html.Div([html.Div('LABEL', className="section-label"), html.Div('Subtext', className="validation-subcopy"), html.Div(id="mtdi-sys-grid", className="sys-grid")], className="validation-live-block"),
+            html.Div([html.Div("SOURCES", className="section-label"), html.Div("Link, calibration, level and noise for each channel, live.", className="validation-subcopy"), html.Div(id="esp-sys-grid", className="sys-grid")], className="validation-live-block"),
+            html.Div([html.Div("THIS COMPUTER", className="section-label"), html.Div("The machine the studio runs on.", className="validation-subcopy"), html.Div(id="mtdi-sys-grid", className="sys-grid")], className="validation-live-block"),
         ], className="validation-live-grid"),
         sensor_showcase_section(),
     ], id="mtdi-validation", className="mtdi-section-card", style={"--acc":BLUE,"--glow":f"{BLUE}22"})
@@ -1571,7 +1574,7 @@ def _validation_chamber_base():
 NVTRA_SUGGESTIONS = [
     f"What am I looking at on the {T('ch3.name')} tab?",
     f"Is my {T('ch1.name').lower()} reading normal right now?",
-    "Explain unit like I'm five",
+    "Explain these units like I'm five",
 ]
 
 
@@ -1931,7 +1934,7 @@ def sg_analysis_panel():
 
 def nvtra_field_section():
     return html.Div([
-        _section_head('LABEL', "NVTRA", 'Paragraph. Enter your text here.', 'LABEL', YELLOW),
+        _section_head("PILLAR 03", "NVTRA", _pillar_desc("nvtra"), "EXPLANATION", YELLOW),
         nvtra_identity_section(),
         sg_analysis_panel(),
         html.Div([
@@ -1947,7 +1950,7 @@ def nvtra_field_section():
 
 def i3_field_section():
     return html.Div([
-        _section_head('LABEL', 'Title', 'Paragraph. Enter your text here.', 'LABEL', PURPLE),
+        _section_head("PILLAR 04", "I³", _pillar_desc("i3"), "INTERFACE", PURPLE),
         html.Div([
             html.Div([html.H4('Heading 3'), html.P('Paragraph. Enter your text here.')], className="i3-principle"),
             html.Div([html.H4('Heading 3'), html.P('Paragraph. Enter your text here.')], className="i3-principle"),
@@ -1959,7 +1962,7 @@ def i3_field_section():
 
 def aether_field_section():
     return html.Div([
-        _section_head('LABEL', "Aether", 'Paragraph. Enter your text here.', "SOUL LAYER", RED),
+        _section_head("THE LAYER", "Aether", _pillar_desc("aether"), "SOUL LAYER", RED),
         html.Div('Paragraph. Enter your text here.', className="aether-manifesto"),
         html.Div([
             html.Div([html.Span("Aether ", className="heat"), 'Paragraph. Enter your text here.'], className="aether-verse"),
@@ -2021,61 +2024,81 @@ def environmental_intelligence_section():
     return base
 
 
+def environmental_values():
+    """The four baseline cards' values, for the page and its live callback alike. Channel 2's baseline and
+    level are on the input side, in the unit its source reports (a feed's own, mV RMS, or the Uno's ADC
+    counts): the studio's V/m figure is a probe estimate and a feed's value is never converted to one."""
+    with c1_lock:
+        u1 = ch1_value_unit(ch1_data)
+        ready1 = ch1_data["baseline_calibrated"]
+        c1_base = f"{ch1_data['baseline_magnitude']:.2f} {u1}" if ready1 else "LEARNING"
+        c1_delta = f"{ch1_data['baseline_delta']:.2f} {u1}" if ready1 else "—"
+        e1 = ch1_data["error"]
+    with ch2f_lock:
+        u2 = ch2_input_unit(ch2f_data)   # baseline_mv and rms_mv are the source's own numbers, never converted (CodeRabbit, #74)
+        ready2 = ch2f_data["calibrated"] and ch2f_data.get("baseline_mv") is not None
+        c2_base = f"{ch2f_data['baseline_mv']:.3f} {u2}" if ready2 else "LEARNING"
+        live = ch2f_data.get("rms_mv")
+        c2_live = (("≥ " if ch2f_data["clipped"] else "") + f"{live:.3f} {u2}"
+                   if ch2f_data["last_rx"] is not None and live is not None and not ch2f_data["error"] else "—")
+        # an unstable or clipped reference is not settled; the Uno's unclipped warning is only its calibration notice
+        uno_notice = ch2f_data.get("data_source") == "ARDUINO_UNO_USB" and not ch2f_data["clipped"]
+        e2 = ch2f_data["error"] or (None if uno_notice else ch2f_data.get("warning"))
+    if e1 or e2:
+        status = (f"BASELINE WARNING · {T('ch1.name')}: {e1 or 'ready'} · "
+                  f"{T('ch2.name')}: {e2 or 'ready'}")
+    elif ready1 and ready2:
+        status = "BASELINES SETTLED · they follow the room slowly; freeze them in Baseline control to hold them fixed"
+    else:
+        status = "LEARNING THE ROOM · keep both probes still and the room unchanged"
+    return c1_base, c1_delta, c2_base, c2_live, status
+
+
 def _environmental_intelligence_base():
     """Live environmental references for both field sensors."""
-    with c1_lock:
-        c1_base = (f"{ch1_data['baseline_magnitude']:.2f} unit"
-                    if ch1_data["baseline_calibrated"] else "LEARNING")
-        c1_delta = (f"{ch1_data['baseline_delta']:.2f} unit"
-                     if ch1_data["baseline_calibrated"] else "—")
-    with ch2f_lock:
-        provisional = ch2f_data.get("data_source") == "ARDUINO_UNO_USB"
-        c2_base = ("—" if provisional else f"{ch2f_data['baseline_vu']:.3f} unit"
-                   if ch2f_data["calibrated"] else "LEARNING")
-        c2_live = (f"{ch2f_data['rms_counts']:.2f} ADC counts RMS"
-                   if provisional and ch2f_data.get("rms_counts") is not None else
-                   f"{ch2f_data['field_vu']:.3f} unit"
-                   if ch2f_data["last_rx"] is not None and ch2f_data["field_vu"] is not None else "—")
+    c1_base, c1_delta, c2_base, c2_live, _ = environmental_values()
     return html.Div([
         _section_head(
-            'LABEL', "Environmental Intelligence",
-            'Paragraph. Enter your text here.',
-            'LABEL', GREEN,
+            "PILLAR 01", "Environmental Intelligence",
+            _pillar_desc("environment"),
+            "BASELINES", GREEN,
         ),
         html.Div([
-            html.Div([html.Div('LABEL', className="sys-name"),
+            html.Div([html.Div(f"{T('ch1.name').upper()} BASELINE", className="sys-name"),
                       html.Div(c1_base, id="ei-c1-baseline", className="sys-value c-cyan"),
-                      html.Div('Subtext', className="sys-sub")], className="sys-card"),
-            html.Div([html.Div('LABEL', className="sys-name"),
+                      html.Div("the level it settled to while nothing changed", className="sys-sub")], className="sys-card"),
+            html.Div([html.Div(f"{T('ch1.name').upper()} CHANGE", className="sys-name"),
                       html.Div(c1_delta, id="ei-c1-delta", className="sys-value c-amber"),
-                      html.Div('Subtext', className="sys-sub")], className="sys-card"),
-            html.Div([html.Div('LABEL', className="sys-name"),
+                      html.Div("now, against that baseline", className="sys-sub")], className="sys-card"),
+            html.Div([html.Div(f"{T('ch2.name').upper()} BASELINE", className="sys-name"),
                       html.Div(c2_base, id="ei-c2-baseline", className="sys-value c-cyan"),
-                      html.Div('Subtext', className="sys-sub")], className="sys-card"),
-            html.Div([html.Div('LABEL', className="sys-name"),
+                      html.Div("the probe's settled input level", className="sys-sub")], className="sys-card"),
+            html.Div([html.Div(f"{T('ch2.name').upper()} NOW", className="sys-name"),
                       html.Div(c2_live, id="ei-c2-live", className="sys-value c-amber"),
-                      html.Div('Subtext', className="sys-sub")], className="sys-card"),
+                      html.Div("the probe's input level right now", className="sys-sub")], className="sys-card"),
         ], className="sys-grid"),
         html.Div(id="ei-baseline-status", className="online-bar", style={"marginTop":"18px"}),
         html.Div([
-            html.Div('LABEL', className="section-label"),
+            html.Div("HOW A BASELINE WORKS", className="section-label"),
             html.Div(
-                'Paragraph. Enter your text here.',
+                "A reading means little on its own. Each channel first learns the level of the place it "
+                "sits in, then every later reading is compared with that.",
                 className="mtdi-section-copy",
             ),
             html.Div([
-                html.Div([html.H4('HEADING 3'), html.P(
-                    'Paragraph. Enter your text here.'
+                html.Div([html.H4("LEARN"), html.P(
+                    "Keep the probes still and the room unchanged while the baseline settles."
                 )], className="i3-principle"),
-                html.Div([html.H4('HEADING 3'), html.P(
-                    'Paragraph. Enter your text here.'
+                html.Div([html.H4("TRACK"), html.P(
+                    "Once settled, the baseline follows the room slowly over its window and ignores brief "
+                    "excursions, so slow drift is absorbed. Freeze it in Baseline control to hold a fixed reference."
                 )], className="i3-principle"),
-                html.Div([html.H4('HEADING 3'), html.P(
-                    'Paragraph. Enter your text here.'
+                html.Div([html.H4("COMPARE"), html.P(
+                    "Every reading after that is a change from the baseline, not an absolute claim."
                 )], className="i3-principle"),
             ], className="i3-principle-grid", style={"marginTop":"18px"}),
             html.Div(
-                'Paragraph. Enter your text here.',
+                "Moving a probe, or the things around it, changes its environment: learn a new baseline after either.",
                 className="mtdi-section-copy", style={"marginTop":"18px"},
             ),
         ], className="summary-panel"),
@@ -2206,23 +2229,29 @@ def research_section():
 # engine, not one of MTDI's diagnostic pillars - MTDI asks whether the instrument can
 # be trusted, while D4 asks what the field is doing. It lives on the Page 3 page
 # with the other interpretation work.
+def _pillar_desc(pid):
+    """A pillar's one line, from mtdi.pillars (ADR 0001): the page and the framework say the same."""
+    from mtdi.pillars import AETHER, PILLARS
+    return next(p["desc"] for p in [*PILLARS, AETHER] if p["id"] == pid)
+
+
 MTDI_ORBIT_PILLARS = [
     ("validation", "00", "Validation Chamber", "Evidence",
-     'Text', BLUE, validation_chamber_section),
+     _pillar_desc("validation"), BLUE, validation_chamber_section),
     ("environment", "01", "Environmental Intelligence", "Baselines",
-     'Text', GREEN, environmental_intelligence_section),
+     _pillar_desc("environment"), GREEN, environmental_intelligence_section),
     ("computational", "02", "Computational Core", "Computation",
-     'Text', CYAN, computational_core_section),
+     _pillar_desc("computational"), CYAN, computational_core_section),
     ("nvtra", "03", "NVTRA", "Explanation",
-     'Paragraph. Enter your text here.', YELLOW, nvtra_field_section),
-    ("i3", "04", 'Text', "Interface",
-     'Text', PURPLE, i3_field_section),
+     _pillar_desc("nvtra"), YELLOW, nvtra_field_section),
+    ("i3", "04", "I³", "Interface",
+     _pillar_desc("i3"), PURPLE, i3_field_section),
     ("research", "05", "Research", "Data",
-     'Text', AMBER, research_section),
+     _pillar_desc("research"), AMBER, research_section),
     # Aether is the layer across every pillar (ADR 0001), not pillar 06: it keeps its
     # place in the orbit so the terminal and the Easter eggs stay one click away.
     ("aether", "··", "Aether", "Soul",
-     'Text', RED, aether_field_section),
+     _pillar_desc("aether"), RED, aether_field_section),
 ]
 
 
@@ -2239,11 +2268,11 @@ def _mtdi_orbit_card(pid, num, title, role, desc, acc, section_factory, index):
                       html.Span(role, className="mtdi-card-role")], className="mtdi-card-top"),
             html.Div(title, className="mtdi-card-title"),
             html.Div(desc, className="mtdi-card-short"),
-            html.Span('TEXT', className="mtdi-card-enter"),
+            html.Span("ENTER", className="mtdi-card-enter"),
         ], className="mtdi-card-summary"),
         html.Div([
             html.Div([
-                html.Button('BUTTON', className="mtdi-detail-close", n_clicks=0,
+                html.Button("CLOSE", className="mtdi-detail-close", n_clicks=0,
                             **{"aria-label": f"Close {title}"}),
                 html.Span(f"MTDI / PILLAR {num}", className="mtdi-detail-id"),
             ], className="mtdi-detail-nav"),
@@ -2276,32 +2305,33 @@ def mtdi_page():
             # names every one of them.
             html.Div([html.Span(f"{len(MTDI_ORBIT_PILLARS)} PILLARS"),
                       html.Span(f"{len(_mtdi_weight_names())} WEIGHTED FACTORS"),
-                      html.Span('TEXT'), html.Span('TEXT')],
+                      html.Span("1 DIAGNOSTIC CORE"), html.Span("AETHER ACROSS ALL")],
                      className="mtdi-v2-meta"),
         ], className="mtdi-v2-hero"),
         html.Div([
             html.Div([html.B(f"{_count_word(len(MTDI_ORBIT_PILLARS)).upper()} PILLARS · ONE CORE"),
-                      html.Span('Text')], className="mtdi-v2-caption"),
+                      html.Span("Aether runs through all of them. Select a pillar to enter it, or the core "
+                                "to expand the constellation.")], className="mtdi-v2-caption"),
             html.Div(className="mtdi-orbit-ring-v2"),
             html.Button([
                 html.Canvas(id="mtdi-constellation-canvas",
                             className="instrument-constellation-canvas",
-                            title='Title',
-                            **{"aria-label": 'Text'}),
+                            title="MTDI constellation",
+                            **{"aria-label": "MTDI constellation: the pillars and the modules inside them"}),
                 html.Div([
                     html.B("MTDI"),
-                    html.Span('TEXT'),
+                    html.Span("DIAGNOSTIC CORE"),
                     html.Em("CLICK TO EXPAND"),
                 ], className="mtdi-constellation-label"),
             ], className="mtdi-orbit-core-v2 mtdi-constellation-core", type="button",
-               **{"aria-label": 'Text'}),
+               **{"aria-label": "Expand the MTDI constellation"}),
             *cards,
         ], id="mtdi-orbit-stage-v2", className="mtdi-orbit-scene"),
     ], id="mtdi-pillar-grid", className="mtdi-landing")
     return html.Div([
         html.Div(className="i3-scrub-hero", **{"data-i3-scrub": "mtdi-flow",
-                 "data-i3-title": 'TITLE',
-                 "data-i3-tagline": 'Paragraph. Enter your text here.'}),
+                 "data-i3-title": T("mtdi.title"),
+                 "data-i3-tagline": "Connection, freshness, stability, completeness and trust, each measured on its own."}),
         dcc.Link(html.Button("BACK", className="back-btn"), href="/",
                  className="mtdi-module-back", style={"textDecoration":"none"}),
         landing,

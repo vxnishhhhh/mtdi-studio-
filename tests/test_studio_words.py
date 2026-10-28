@@ -156,6 +156,34 @@ out["settings"]["notion"] = settings()
 out["d4_units"] = {"fed_at": [ns["_fed_at"](v, "mm") for v in (1.000001, 2.5, 0.0, 120.0)],
                    "ch1": ns["ch1_value_unit"](ns["ch1_data"]), "ch1_own": ns["ch1_value_unit"]({}),
                    "ch1_unnamed": ns["ch1_value_unit"]({"fed_source": "TEST", "fed_unit": ""})}
+# the MTDI page (slice 10): its landing and orbit with the pillar bodies left out (NVTRA, I³ and Aether's are
+# slice 11), then the Validation Chamber and Environmental Intelligence with their I³ panels, and the live cards
+orbit = ns["MTDI_ORBIT_PILLARS"]
+bodies = list(orbit)
+orbit[:] = [(*item[:6], lambda: html.Div()) for item in bodies]
+html = sys.modules["dash"].html
+out["mtdi"] = {"landing": dump(ns["mtdi_page"]())}
+# channel 2 fed again in its own unit, then given a calibrated output unit, as a V/m calibration profile does:
+# the cards' raw numbers keep the unit the source sent (CodeRabbit, #74)
+ns["feed_ch2"](2.0, unit="fedunit", source="TEST")
+ns["ch2f_data"]["unit"] = "V/m"
+orbit[:] = bodies
+out["mtdi"].update(pillars=dump([ns["validation_chamber_section"](), ns["environmental_intelligence_section"](),
+                                 ns["NVTRA_SUGGESTIONS"]]),
+                   live=dump(ns["update_mtdi"](1, None)), descs=[item[4] for item in orbit],
+                   environment=dump([ns["update_environmental_intelligence"](1, None), ns["_environmental_intelligence_base"]()]))
+# a sender's explicit null unit is the default, not "None"; then the baseline status for a settled Uno, unclipped and clipped
+ns["feed_ch2"](2.0, unit=None, source="TEST")
+status = ["None not stored as a unit" if "None" not in (ns["ch2f_data"]["input_unit"], ns["ch2f_data"]["unit"]) else "stored None"]
+ns["ch1_data"]["baseline_calibrated"] = True
+ns["ch2f_data"].update(data_source="ARDUINO_UNO_USB", fed_source=None, calibrated=True, clipped=False, error=None,
+                       warning="Uno USB ADC: the V/m figure is a nominal-reference estimate pending prototype calibration")
+status.append(ns["environmental_values"]()[4])
+ns["ch2f_data"].update(clipped=True, warning="Uno A0 reached 0 or 1023")
+status.append(ns["environmental_values"]()[4])
+out["mtdi"]["status"] = status
+s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
+out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
 print(json.dumps(out))
 '''
 
@@ -328,6 +356,27 @@ class SecondContentFile(unittest.TestCase):
             self.assertIn(f"{words['ch3.name'].upper()} SWEEPS \\u00b7 CSV", view)   # the CSV is channel 3's sweeps, not the archive
         self.assertIn("Notion is not set up", rendered["settings"]["plain"])
         self.assertIn("Notion is set up", rendered["settings"]["notion"])
+        # the MTDI page (slice 10): the landing, the orbit, the Validation Chamber, Environmental Intelligence
+        # and the live source cards say what they are; each pillar's line is the one mtdi.pillars defines
+        from mtdi.pillars import AETHER, PILLARS
+        mtdi = rendered["mtdi"]
+        self.assertIn('"LEVELS LOOK WRONG  ", "TEST NOTE"', mtdi["insane"])
+        # channel 2's baseline cards read in the fed unit, never the probe's V/m estimate, and the page and its
+        # live callback say the same (CodeRabbit, #74)
+        self.assertIn("fedunit", mtdi["environment"])
+        self.assertIn("fedunit", mtdi["live"])
+        self.assertNotIn("V/m", mtdi["environment"])
+        self.assertIn("UNVERIFIED", mtdi["live"])          # a fed sweep is not checked, but its levels are not wrong
+        self.assertEqual(mtdi["status"][0], "None not stored as a unit")
+        self.assertIn("BASELINES SETTLED", mtdi["status"][1])      # the Uno's calibration notice is not a fault
+        self.assertIn("BASELINE WARNING", mtdi["status"][2])       # a clipped Uno is
+        for state in ("landing", "pillars", "live", "insane", "environment"):
+            self.assertIsNone(placeholder.search(mtdi[state]), f"MTDI {state}: {placeholder.search(mtdi[state])}")
+        self.assertEqual(sorted(mtdi["descs"]), sorted(p["desc"] for p in [*PILLARS, AETHER]))
+        self.assertIn(words["mtdi.title"], mtdi["landing"])
+        for word in (n1, n2, words["ch3.name"]):
+            self.assertIn(word, mtdi["pillars"], word)
+            self.assertIn(word.upper(), mtdi["live"], word)
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

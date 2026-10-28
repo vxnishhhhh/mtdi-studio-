@@ -603,7 +603,7 @@ def install(ns, engine):
                                       warning=(("Uno %s reached 0 or 1023; reference-estimated V/m = N/C and raw activity are lower bounds"
                                                 % "/".join(clipped_axes))
                                                if clipped else
-                                               'Source 6 USB ADC — unit = unit is a nominal-reference estimate pending prototype calibration'),
+                                               "Uno USB ADC: the V/m figure is a nominal-reference estimate pending prototype calibration"),
                                       probe_health="railed" if clipped else "ok",
                                       unit="ADC counts RMS relative", uncertainty=item["uncertainty"],
                                       sample_rate=sample_rate,
@@ -1023,8 +1023,9 @@ def install(ns, engine):
         if not math.isfinite(value):
             raise ValueError("ch2 takes one finite number")
         now = time.time() if now is None else float(now)
+        unit = "mV RMS relative" if unit is None else str(unit)   # an explicit null is the default, never "None"
         mono = _feed_mono("ch2")
-        ch2 = engine.ingest("ch2", value, now, str(unit), metadata={"monotonic": mono, "data_source": source})
+        ch2 = engine.ingest("ch2", value, now, unit, metadata={"monotonic": mono, "data_source": source})
         profile = ch2["calibration"]["profile"]
         baseline = (ch2["baseline"]["value"] - profile.get("offset", 0)) / profile.get("scale", 1)
         ratio = value / baseline if abs(baseline) > 1e-12 else 1.0
@@ -1037,7 +1038,8 @@ def install(ns, engine):
                         field_vu=ch2["deviation"], peak_vu=ch2["deviation"], baseline_vu=0.0, baseline_mv=baseline,
                         ratio=ratio, rel_index=relative, level="LOW", gain=1, clipped=False, error=None,
                         warning=None, last_rx=now, status=source, calibrated=not ch2["baseline"]["settling"],
-                        probe_calibrated=False, unit=ch2["unit"], fed_source=str(source),
+                        probe_calibrated=False, unit=ch2["unit"],
+                        input_unit=unit, fed_source=str(source),
                         **_scalar_feed_fields())
             data["history"].append(ch2["deviation"])
             data["rel_history"].append(relative)

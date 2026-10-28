@@ -130,6 +130,16 @@ def ch2_axis_unit(data):
     return "ADC counts RMS" if data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
 
 
+def ch2_input_unit(data):
+    """The unit of channel 2's unconverted readings (rms_mv, baseline_mv): what the source sent. A
+    calibration profile can give the engine's output another unit (ch2_axis_unit follows it), never these."""
+    data = data or {}
+    sent = str(data.get("input_unit") or "").strip()
+    if data.get("fed_source") and sent and sent != "mV RMS relative":
+        return sent
+    return "ADC counts RMS" if data.get("data_source") == "ARDUINO_UNO_USB" else "mV RMS"
+
+
 def fig_axis(xyz, height=250, unit=None):
     unit = T("ch1.unit") if unit is None else unit   # the project's channel 1 unit (S1-06)
     fig = go.Figure()

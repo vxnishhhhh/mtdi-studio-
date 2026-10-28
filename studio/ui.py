@@ -2646,39 +2646,51 @@ def _channel(html, key, title):
     ], "compact")
 
 
+def _channel_names():
+    """The three channels in the project's words (S1-06), for the I³ panels' rows and pickers."""
+    return [("ch1", T("ch1.name")), ("ch2", T("ch2.name")), ("ch3", T("ch3.name"))]
+
+
 def axial_panel(html):
     path = "fusion.axial."
-    return _card(html, 'Title', [
+    return _card(html, f"{T('ch1.name').upper()} AXES", [
         *[_row(html, label, path + key, "number") for key, label in [
-            ("x", 'Text'), ("y", 'Text'), ("z", 'Text'),
-            ("magnitude", 'Text'), ("disagreement", 'Text'),
-            ("agreement", 'Text'), ("contribution", 'Text'), ("confidence_contribution", 'Text')]],
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+            ("x", "X change"), ("y", "Y change"), ("z", "Z change"),
+            ("magnitude", "Change, all axes"), ("disagreement", "Axis disagreement %"),
+            ("agreement", "Axis agreement %"), ("contribution.0", "X share %"),
+            ("contribution.1", "Y share %"), ("contribution.2", "Z share %"),
+            ("confidence_contribution", "Adds to confidence")]],
+        html.Div(f"Each axis's change from its own baseline. Agreement is how closely the share each axis "
+                 f"carries matches its recent pattern: a real change in the {T('ch1.name').lower()} field tends to keep "
+                 f"its direction, a disturbance on one axis does not.", className="i3-mute"),
     ])
 
 
 def baseline_panel(html, dcc):
-    return _card(html, 'Title', [
-        html.P('Paragraph. Enter your text here.'),
+    return _card(html, "BASELINE CONTROL", [
+        html.P("Each channel tracks the ambient level over a window of seconds. Set a new window, relock to "
+               "learn the level again from now, or freeze the baseline so it stops following the room."),
         html.Form([
             html.Div([
-                html.Label(['Label', html.Select([html.Option("All", value="all"), html.Option("Channel 1", value="ch1"), html.Option("Channel 2", value="ch2"), html.Option("Channel 3", value="ch3")], name="channel")]),
-                html.Label(['Label', dcc.Input(name="window", type="number", value=10, min=2, max=600, step=1)]),
+                html.Label(["Channel", html.Select([html.Option("All", value="all"), *[html.Option(name, value=key) for key, name in _channel_names()]], name="channel")]),
+                html.Label(["Window, seconds", dcc.Input(name="window", type="number", value=10, min=2, max=600, step=1)]),
             ], className="i3-form"),
-            html.Div([html.Button(label, type="button", className="i3-btn", **{"data-i3-action": "baseline", "data-i3-op": op}) for label, op in [('Text', "window"), ("Relock", "relock"), ("Freeze", "freeze"), ("Resume", "resume")]], className="i3-form"),
-            html.Div('Text', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Div([html.Button(label, type="button", className="i3-btn", **{"data-i3-action": "baseline", "data-i3-op": op}) for label, op in [("Set window", "window"), ("Relock", "relock"), ("Freeze", "freeze"), ("Resume", "resume")]], className="i3-form"),
+            html.Div("No change yet.", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "baseline"}),
-        *[_row(html, label + " baseline", "channels." + key + ".baseline", "baseline_window") for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]],
+        *[_row(html, label + " baseline", "channels." + key + ".baseline", "baseline_window") for key, label in _channel_names()],
     ], "tall")
 
 
 def transient_panel(html):
-    return _card(html, 'Title', [
+    return _card(html, "TRANSIENTS", [
         html.Table([
             html.Thead(html.Tr([html.Th(x) for x in ["Channel", "State", "Variance", "Threshold"]])),
-            html.Tbody([html.Tr([html.Td(label), *[html.Td(_live(html, "channels." + key + ".transient." + value, fmt="number" if value != "state" else None)) for value in ["state", "variance", "threshold"]]]) for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]])
+            html.Tbody([html.Tr([html.Td(label), *[html.Td(_live(html, "channels." + key + ".transient." + value, fmt="number" if value != "state" else None)) for value in ["state", "variance", "threshold"]]]) for key, label in _channel_names()])
         ], className="i3-health"),
-        html.P('Paragraph. Enter your text here.'),
+        html.P("Over the last 12 seconds: the variance of each channel's change from its baseline, against a "
+               "threshold of three times its ambient noise, squared. Short bursts above it read as transient; "
+               "a change that stays up reads as continuous."),
     ])
 
 
@@ -2701,18 +2713,18 @@ def signature_panel(html):
 
 def confidence_panel(html):
     factors = [("availability", "Availability"), ("baseline", "Baseline"),
-               ("signal_to_noise", 'Text'), ("clipping", "Clipping"),
+               ("signal_to_noise", "Signal to noise"), ("clipping", "Clipping"),
                ("timing", "Timing"), ("transient", "Transient"),
-               ("axial_consensus", 'Text'), ("correlation", "Correlation")]
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+               ("axial_consensus", "Axis agreement"), ("correlation", "Correlation")]
+    return _card(html, "CONFIDENCE BREAKDOWN", [
+        html.Div("Each channel's confidence is a weighted sum of these factors, each scored 0 to 100.", className="i3-mute"),
         html.Table([
-            html.Thead(html.Tr([html.Th(label) for label in ["Factor", "Weight", "Ch 1", "Ch 2", "Ch 3"]])),
+            html.Thead(html.Tr([html.Th(label) for label in ["Factor", "Weight", *[name for _, name in _channel_names()]]])),
             html.Tbody([html.Tr([html.Td(label), html.Td(_live(html, "fusion.breakdown.weights." + key, fmt="fraction")), *[
                 html.Td(_live(html, "fusion.breakdown.channels." + channel + ".terms." + key + ".value", fmt="number"))
                 for channel in ["ch1", "ch2", "ch3"]]]) for key, label in factors]),
         ], className="i3-health"),
-        html.Div('Paragraph. Enter your text here.', className="i3-notice"),
+        html.Div("Confidence says how far the evidence can be trusted, not whether a reading is good or bad.", className="i3-notice"),
     ])
 
 
