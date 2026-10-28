@@ -61,16 +61,19 @@ class FeatureMap(unittest.TestCase):
         self.assertIn("data-i3-system-check", page)
 
     def test_offline_mode_never_probes_the_local_ai_url(self):
+        from unittest import mock
         from run import NAMESPACE
-        from mtdi import doctor
-        probe, offline = doctor.check_local_model, NAMESPACE["instrument_offline"]
-        doctor.check_local_model = lambda: self.fail("probed the local AI URL while offline")
+        offline = NAMESPACE["instrument_offline"]
         NAMESPACE["instrument_offline"] = lambda: True
         try:
-            rows = self.client.get("/api/system-check").get_json()["doctor"]
+            with mock.patch("urllib.request.urlopen") as urlopen:
+                rows = self.client.get("/api/system-check").get_json()["doctor"]
         finally:
-            doctor.check_local_model, NAMESPACE["instrument_offline"] = probe, offline
-        self.assertIn({"name": "local AI", "status": "skipped", "detail": "offline mode: not probed"}, rows)
+            NAMESPACE["instrument_offline"] = offline
+        self.assertEqual([c for c in urlopen.call_args_list if "/api/tags" in str(c)], [])
+        self.assertIn("disk", {row["name"] for row in rows})       # the run went past the local-AI check
+        self.assertEqual([r for r in rows if r["name"] == "local AI"],
+                         [{"name": "local AI", "status": "skipped", "detail": "offline mode: not probed"}])
 
     def test_a_key_saved_in_settings_counts_as_set_up_and_is_never_sent(self):
         from run import NAMESPACE
@@ -83,6 +86,20 @@ class FeatureMap(unittest.TestCase):
         rows = {r["id"]: r["status"] for r in reply.get_json()["integrations"]}
         self.assertEqual(rows["elevenlabs"], "configured")
         self.assertNotIn("sk-secret-value-123456", reply.get_data(as_text=True))
+
+    def test_a_key_saved_in_settings_is_what_nvtra_uses_when_no_local_model(self):
+        from run import NAMESPACE
+        from mtdi import doctor
+        saved, probe = NAMESPACE["_active_ai_credential"], doctor.check_local_model
+        NAMESPACE["_active_ai_credential"] = lambda: ("sk-another-secret-987654", "gemini")
+        try:
+            reply = self.client.get("/api/system-check")
+        finally:
+            NAMESPACE["_active_ai_credential"] = saved
+        row = next(r for r in reply.get_json()["doctor"] if r["name"] == "local AI")
+        if probe()[1] == "warn":      # no local model on this machine: the saved key is what NVTRA uses
+            self.assertEqual((row["status"], row["detail"]), ("ok", "no local model; NVTRA uses the gemini key saved in Settings"))
+        self.assertNotIn("sk-another-secret-987654", reply.get_data(as_text=True))
 
 
 if __name__ == "__main__":

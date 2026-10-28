@@ -1429,6 +1429,11 @@ def install(ns):
             checks = doctor.run(quick=True, skip=(doctor.check_local_model,)) + [('local AI', 'skipped', 'offline mode: not probed')]
         else:
             checks = doctor.run(quick=True)
+        # The doctor only sees environment keys; NVTRA also uses a key saved in Settings (only its provider is named).
+        key, provider = ns['_active_ai_credential']()
+        if key and provider not in ('local', 'unknown'):
+            checks = [('local AI', 'ok', f'no local model; NVTRA uses the {provider} key saved in Settings')
+                      if n == 'local AI' and st == 'warn' else (n, st, d) for n, st, d in checks]
         return {'doctor': [{'name': n, 'status': st, 'detail': d} for n, st, d in checks],
                 'host': {k: host.get(k) for k in ('name', 'memory_mb', 'languages')},
                 'targets': [{'target': t, 'runtime': row['hybrid'][0], 'why': row['hybrid'][1]} for t, row in picks.items()],
