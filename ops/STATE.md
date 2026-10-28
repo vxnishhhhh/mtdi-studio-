@@ -3,15 +3,16 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 261 tests, MATLAB parity in GNU Octave)
-* **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** S1-06 slice 13 (NVTRA, I³ and Aether's pillar bodies on the MTDI page; the browser-side words: typewriter lines, constellation chips, globe nodes, the Aether terminal's startup lines), then S1-08 (needs a workflow file: owner review per ADR 0002).
-* **Waiting on the owner:** network access for science hosts; branch protection on main;
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 267 tests, MATLAB parity in GNU Octave)
+* **Open PRs:** none
+* **Next item:** the owner's priorities of 28 Oct, in order: P-01 back end visible, P-02 UI glitch sweep, P-03 research database, P-04 describe-it-and-build (see ops/BACKLOG.md and ops/inbox/2026-10-28-owner-priorities.md); then S1-06 slice 13, S1-08, S1-09.
+* **Waiting on the owner:** whether P-04 (describe-it-and-build) goes before Stage 2; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
+* 2026-10-28 evening · Owner decisions: #52 Compatibility Lab approved and merged (one CodeRabbit finding fixed: checkouts no longer persist the git credential); #78 camera consent merged (NVTRA asks once and remembers; 5 CodeRabbit findings over 4 reviews, all fixed); science hosts already reachable. New owner priorities P-01 to P-04 put ahead of the rest of Stage 1.
 * 2026-10-28 midday · Merged #76 (S1-06 slice 12; CodeRabbit found 4 more data-integrity issues after the night report, all fixed with tests: a calibration saved before any sample applied to feeds, skipped profiles were reported as applied, and a change of input unit or source kept the old baseline). Main green. #52 unchanged since 25 Oct, waiting on the owner. Report: ops/reports/2026-10-28-midday.md.
 * 2026-10-28 early · S1-06 slice 12 (PR on auto/S1-06-slice12): the analysis engine names its channels in the project's words. Found: the studio's own magnetometer was fed to the engine with the unit "unit", so every channel 1 alert, evidence line and Page 3 card said "unit" where it meant µT; a feed naming no unit was labelled "unit" too.
 * 2026-10-28 night · S1-06 slice 11 (#75, merged): Page 3, the I³ panels the runtime adds to Page 3, Settings and the MTDI pillars, the header tools, the NVTRA orb and the startup intro say what they are; the test now checks the served pages. Found: in demo mode the watermark over every page read "TEXT"; it now says the data is simulated.
