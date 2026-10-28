@@ -1405,6 +1405,20 @@ def install(ns):
             consent_path.write_text(json.dumps({'share': share}))
         return {'share': camera_consent()}
 
+    @server.get('/api/system-check')
+    def system_check():
+        # The studio's view of `mtdi doctor`, `mtdi capabilities` and `mtdi registry` (P-01): run on request.
+        from mtdi import capabilities, doctor, registry
+        host = capabilities.detect_host()
+        targets = capabilities.load_targets()
+        picks = capabilities.matrix(profiles=['hybrid'], targets={**targets, 'host': host})
+        snap = registry.snapshot()
+        return {'doctor': [{'name': n, 'status': st, 'detail': d} for n, st, d in doctor.run(quick=True)],
+                'host': {k: host.get(k) for k in ('name', 'memory_mb', 'languages')},
+                'targets': [{'target': t, 'runtime': row['hybrid'][0], 'why': row['hybrid'][1]} for t, row in picks.items()],
+                'integrations': [{k: r[k] for k in ('id', 'provider', 'area', 'status', 'cost')} for r in snap['integrations']],
+                'modules': [{'module': m['module'], 'ok': m['ok']} for m in snap['modules']]}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
