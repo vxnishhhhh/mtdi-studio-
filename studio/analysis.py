@@ -386,9 +386,13 @@ class AnalysisEngine:
         uncertainty = finite(uncertainty, "Reference uncertainty")
         if scale <= 0 or uncertainty < 0:
             raise ValueError("Scale must be positive and uncertainty cannot be negative")
-        output_unit = unit or {"ch1": "µT", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
+        # A project feed calibrates in its own unit (a cm feed stays cm); the studio's own sources keep theirs.
+        with self.lock:
+            source_unit = self.channels.get(channel, {}).get("source_unit")
+        fed_unit = source_unit if source_unit not in (None, CHANNELS[channel]["unit"]) else None
+        output_unit = unit or fed_unit or {"ch1": "µT", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
         allowed = {"ch1": {"µT", "uT"}, "ch2": {"V/m", "mV RMS relative"}, "ch3": {"dB"}, "current": {"A", "mA"}}
-        if output_unit not in allowed[channel]:
+        if output_unit not in allowed[channel] | ({fed_unit} - {None}):
             raise ValueError("Unsupported calibration unit")
         # A scalar calibration cannot correct ch1 vector offsets.
         if channel == "ch1" and abs(offset) > max(uncertainty, 1e-6):
@@ -484,6 +488,7 @@ class AnalysisEngine:
             rate = len(intervals) / sum(intervals) if intervals and sum(intervals) > 0 else 0.0
             item.update({"state": "connected", "message": "Baseline settling" if base.settling else "Live acquisition",
                          "deviation": deviation, "unit": profile.get("unit", unit or CHANNELS[channel]["unit"]),
+                         "source_unit": unit or CHANNELS[channel]["unit"],
                          "raw": value if raw is None else raw, "corrected_raw": corrected,
                          "last_rx": timestamp, "clipped": bool(clipped), "sample_count": item["sample_count"] + 1,
                          "sample_rate": rate, "snr": snr, "uncertainty": uncertainty_text,

@@ -1046,7 +1046,7 @@ function setupControls(){
  }
  button.disabled=true;control(payload,result).catch(()=>{}).finally(()=>{button.disabled=false;});
  });
- document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel')form.elements.namedItem('unit').value={ch1:'unit',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];});
+ document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel')form.elements.namedItem('unit').value={ch1:'µT',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];});
  let gainTimer=null;document.addEventListener('input',event=>{if(!event.target.classList?.contains('i3-gain'))return;const key=(event.target.closest('[data-i3-form]')?.dataset.i3Form||'').replace('audition-','');if(!key)return;clearTimeout(gainTimer);gainTimer=setTimeout(()=>control({action:'audition',source:key,gain:Number(event.target.value)}).catch(()=>{}),120);});
  document.addEventListener('submit',event=>{if(event.target?.matches?.('[data-i3-form]'))event.preventDefault();});
 
