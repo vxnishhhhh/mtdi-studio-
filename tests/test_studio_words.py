@@ -387,6 +387,9 @@ class SecondContentFile(unittest.TestCase):
             self.assertIn(word, rendered["/page-3"], word)       # channel cards, pickers and table heads
             self.assertIn(word, rendered["layout"], word)         # the NVTRA orb's pills and the startup intro
         self.assertIn(words["brand.credit"], rendered["layout"])
+        # the camera notice says a frame can leave with an online NVTRA question (CodeRabbit, #75)
+        self.assertIn("that frame goes to Gemini", rendered["/page-3"])
+        self.assertNotIn("used only for hand tracking", rendered["/page-3"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

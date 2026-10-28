@@ -934,7 +934,7 @@ function drawPacketInner(packet,append){
  for(const canvas of traceCanvases){const list=state.traces.get(canvas.dataset.i3Trace)||[];const last=list.at(-1)?.t;if(canvas.__i3TraceTime!==last){canvas.__i3TraceTime=last;drawTrace(canvas,list,traceDimensions.get(canvas));}}
  for(const canvas of document.querySelectorAll('[data-i3-meter]')){if(!visiblePanel(canvas))continue;const source=packet.audition?.sources?.[canvas.dataset.i3Meter];const level=finite(source?.level_dbfs)?source.level_dbfs:null;const key=(level===null?'off':level.toFixed(1))+(source?.clipped?'c':'')+colors.accent;if(canvas.__i3MeterKey===key)continue;canvas.__i3MeterKey=key;drawMeter(canvas,level,!!source?.clipped);
   const audio=document.querySelector('[data-i3-audio="'+canvas.dataset.i3Meter+'"]');if(audio&&source&&!source.enabled&&audio.getAttribute('src')){audio.pause();audio.removeAttribute('src');audio.load();}}
- const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
+ const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice().sort((a,b)=>Number(a.timestamp)-Number(b.timestamp)).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
  
  metrics.packetWorkMs=performance.now()-started;
  document.querySelectorAll('[data-i3-cloud]').forEach(el=>text(el,fmt(packet.cloud)));
@@ -2731,8 +2731,9 @@ def confidence_panel(html):
 
 def calibration_panel(html, dcc):
     return _card(html, "TWO-POINT CALIBRATION", [
-        html.Div("Measure two known references with the probe. The raw readings and the known values fix a scale "
-                 "and an offset, and every later reading is converted with them.", className="i3-mute"),
+        html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
+                 f"and an offset, and every later reading is converted with them. {T('ch1.name')} takes a scale only, "
+                 "so its two references must be proportional.", className="i3-mute"),
         html.Form([
             html.Div([
                 html.Label(["Channel", html.Select([html.Option(name, value=key) for key, name in _channel_names()], name="channel")]),
@@ -2781,7 +2782,8 @@ def audition_panel(html, dcc):
         html.Button("Tune", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "sdr", "data-i3-op": "tune"}),
     ], className="i3-form")]
     return _card(html, "LISTEN", [
-        html.Div(f"Hear the sources. {T('ch2.name')} plays its measured signal, which tops out near 430 Hz. "
+        html.Div(f"Hear the sources. {T('ch2.name')} plays its measured signal, up to about 430 Hz; on the Uno it is a "
+                 "tone whose pitch follows the measured level. "
                  f"{T('ch1.name')} is a sonification: a 220 Hz tone whose loudness follows the change, because the "
                  "field itself moves too slowly to hear.", className="i3-mute"),
         html.Div([_audio_block(html, dcc, "ch2f", T("ch2.name"), []), _audio_block(html, dcc, "c1", f"{T('ch1.name')} (sonified)", []),
@@ -2812,7 +2814,9 @@ def camera_panel(html):
         _row(html, "Dropped frames", "camera.dropped_frames", "number"),
         _row(html, "Hand tracking confidence", "camera.tracking.confidence", "fraction"),
         _row(html, "Status", "camera.error"),
-        html.Div("The camera is used only for hand tracking, on this device. Turn it on with ◉ or C.", className="i3-notice"),
+        html.Div("Hand tracking runs on this device. While the camera is on, a question to NVTRA in online mode sends one "
+                 "camera frame with it, and with Gemini selected that frame goes to Gemini. Turn the camera on or off with ◉ or C.",
+                 className="i3-notice"),
     ])
 
 
@@ -2898,9 +2902,9 @@ def page(html, dcc):
 
 def export_panel(html):
     return _card(html, "EXPORT", [
-        html.P("The PDF report is built on this computer. The session downloads hold each channel's recent changes from "
-               "its baseline, about the last 30 seconds; the JSON adds the calibrations and events. Notion gets a "
-               "copy only when you press its button and Notion is set up in Settings."),
+        html.P("The PDF report is built on this computer. The session downloads hold each channel's last 300 changes from "
+               "its baseline: about 30 seconds at the studio's own rates, longer for a slower source. The JSON adds the "
+               "calibrations and events. Notion gets a copy only when you press its button and Notion is set up in Settings."),
         html.A("PDF report", href="/download/studio-report.pdf", className="i3-btn"),
         html.A("Session · JSON", href="/api/export/session.json", className="i3-btn"),
         html.A("Session · CSV", href="/api/export/session.csv", className="i3-btn"),
