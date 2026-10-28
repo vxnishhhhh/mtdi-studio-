@@ -184,6 +184,13 @@ status.append(ns["environmental_values"]()[4])
 out["mtdi"]["status"] = status
 s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
 out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
+# the event feed (CodeRabbit, #75): runtime notes must not push a newer channel alert out of the 256 kept
+rt3 = sys.modules["run"].RUNTIME
+for i in range(300):
+    rt3.events.append({"timestamp": 1.0 + i, "source": "test", "message": "old note"})
+rt3.engine.events.append({"timestamp": __import__("time").time() + 1000, "channel": "ch1", "source": "ch1", "message": "TEST CHANNEL ALERT"})
+rt3.last_payload = None
+out["events"] = [e.get("message") for e in rt3.snapshot()["events"]]
 print(json.dumps(out))
 '''
 
@@ -377,6 +384,20 @@ class SecondContentFile(unittest.TestCase):
         for word in (n1, n2, words["ch3.name"]):
             self.assertIn(word, mtdi["pillars"], word)
             self.assertIn(word.upper(), mtdi["live"], word)
+        # slice 11: Page 3, Settings and the shell as served, with the I³ panels, header tools, the NVTRA orb and
+        # the startup intro the runtime adds; a live binding's path or a form field's name is not text on screen
+        attrs = re.compile(r'"(?:data-i3-bind|name)": "[^"]*"')
+        for surface in ("/page-3", "/settings", "layout"):
+            shown = attrs.sub("", rendered[surface])
+            self.assertIsNone(placeholder.search(shown), f"{surface}: {placeholder.search(shown)}")
+        for word in (n1, n2, words["ch3.name"]):
+            self.assertIn(word, rendered["/page-3"], word)       # channel cards, pickers and table heads
+            self.assertIn(word, rendered["layout"], word)         # the NVTRA orb's pills and the startup intro
+        self.assertIn(words["brand.credit"], rendered["layout"])
+        # the camera notice says a frame can leave with an online NVTRA question (CodeRabbit, #75)
+        self.assertIn("that frame goes to Gemini", rendered["/page-3"])
+        self.assertNotIn("used only for hand tracking", rendered["/page-3"])
+        self.assertEqual(rendered["events"][-1], "TEST CHANNEL ALERT")   # kept, and last: the feed runs oldest to newest
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):

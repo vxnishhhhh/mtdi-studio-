@@ -265,7 +265,7 @@ class Runtime:
                          'audition': self.audition.snapshot(),
                          'mode': {'mode': self.ns['INSTRUMENT_MODE']['mode'], 'internet': self.ns['internet_reachable'](),
                                   'local_ai': self.ns['local_ai_status']()},
-                         'events': (data.get('events', []) + list(self.events))[-256:], 'cloud': dict(self.cloud_state),
+                         'events': sorted(data.get('events', []) + list(self.events), key=lambda e: e.get('timestamp') or 0)[-256:], 'cloud': dict(self.cloud_state),
                          'archive': {'queue': self.ns['ARCHIVE'].items.qsize(),
                                      'dropped': getattr(self.ns['ARCHIVE'], 'dropped_records', 0),
                                      'written': getattr(self.ns['ARCHIVE'], 'written_records', 0),

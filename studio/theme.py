@@ -1759,12 +1759,12 @@ def startup_intro():
     callback never touches it — it only writes page-content.children.
     """
     hardware = [
-        ("ITEM 1", "Text"),
-        ("ITEM 2", "Text"),
-        ("ITEM 3", "Text"),
-        ("ITEM 4", "Text"),
-        ("ITEM 5", "Text"),
-        ("ITEM 6", "Text"),
+        (T("ch1.name"), "channel 1"),
+        (T("ch2.name"), "channel 2"),
+        (T("ch3.name"), "channel 3"),
+        ("MTDI", "calibrates and explains"),
+        ("I³", "the interface"),
+        ("NVTRA", "the voice"),
     ]
     return html.Section([
         html.Div([
@@ -1777,14 +1777,14 @@ def startup_intro():
                 html.H1(T("intro.heading"), className="intro-card-title"),
                 html.P(T("intro.description"),
                        className="intro-description"),
-                html.Div('Label', className="hardware-label"),
+                html.Div("THE INSTRUMENT", className="hardware-label"),
                 html.Div([
                     html.Div([html.Div(name, className="hardware-name"),
                               html.Div(role, className="hardware-role")], className="hardware-item")
                     for name, role in hardware
                 ], className="hardware-grid"),
-                html.Div(["by ", html.Strong("Author")], className="intro-credit"),
+                html.Div(["by ", html.Strong(T("brand.credit"))], className="intro-credit"),
             ], className="intro-card"),
         ], className="intro-stage"),
-    ], id="startup-intro", **{"aria-label": 'Text'})
+    ], id="startup-intro", **{"aria-label": "Startup introduction"})
 

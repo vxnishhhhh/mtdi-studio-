@@ -934,7 +934,7 @@ function drawPacketInner(packet,append){
  for(const canvas of traceCanvases){const list=state.traces.get(canvas.dataset.i3Trace)||[];const last=list.at(-1)?.t;if(canvas.__i3TraceTime!==last){canvas.__i3TraceTime=last;drawTrace(canvas,list,traceDimensions.get(canvas));}}
  for(const canvas of document.querySelectorAll('[data-i3-meter]')){if(!visiblePanel(canvas))continue;const source=packet.audition?.sources?.[canvas.dataset.i3Meter];const level=finite(source?.level_dbfs)?source.level_dbfs:null;const key=(level===null?'off':level.toFixed(1))+(source?.clipped?'c':'')+colors.accent;if(canvas.__i3MeterKey===key)continue;canvas.__i3MeterKey=key;drawMeter(canvas,level,!!source?.clipped);
   const audio=document.querySelector('[data-i3-audio="'+canvas.dataset.i3Meter+'"]');if(audio&&source&&!source.enabled&&audio.getAttribute('src')){audio.pause();audio.removeAttribute('src');audio.load();}}
- const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
+ const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice().sort((a,b)=>Number(a.timestamp)-Number(b.timestamp)).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
  
  metrics.packetWorkMs=performance.now()-started;
  document.querySelectorAll('[data-i3-cloud]').forEach(el=>text(el,fmt(packet.cloud)));
@@ -2640,9 +2640,9 @@ def _channel(html, key, title):
     return _card(html, title, [
         _live(html, path + ".state", "Offline", class_name="i3-state"),
         html.Div([_live(html, path + ".deviation", fmt="number"), " ", _live(html, path + ".unit", "")], className="i3-value"),
-        _live(html, path + ".uncertainty", 'Text', class_name="i3-mute"),
-        html.Canvas(**{"data-i3-trace": key, "aria-label": title + ' Text', "className": "i3-mini-trace"}),
-        _row(html, 'Label', path + ".baseline", "baseline"),
+        _live(html, path + ".uncertainty", "no uncertainty yet", class_name="i3-mute"),
+        html.Canvas(**{"data-i3-trace": key, "aria-label": title + " change over time", "className": "i3-mini-trace"}),
+        _row(html, "Baseline", path + ".baseline", "baseline"),
     ], "compact")
 
 
@@ -2695,19 +2695,20 @@ def transient_panel(html):
 
 
 def vector_panel(html):
-    return _card(html, 'Title', [
-        html.Canvas(className="i3-vector", **{"data-i3-vector": "true", "aria-label": 'Text'}),
-        _row(html, 'Label', "fusion.vector.bearing", "number"),
-        _row(html, 'Label', "fusion.vector.raw"),
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, f"{T('ch1.name').upper()} DIRECTION", [
+        html.Canvas(className="i3-vector", **{"data-i3-vector": "true", "aria-label": f"{T('ch1.name')} change direction"}),
+        _row(html, "Bearing, degrees", "fusion.vector.bearing", "number"),
+        _row(html, "Change, X Y Z", "fusion.vector.raw"),
+        html.Div(f"The direction of the {T('ch1.name').lower()} change from its baseline, seen from above. The bearing "
+                 "shows only when the change is more than three times the ambient noise.", className="i3-mute"),
     ])
 
 
 def signature_panel(html):
-    return _card(html, 'Title', [
-        html.Div(_live(html, "fusion.interpretation", 'Text'), className="i3-condition"),
-        html.Div(_live(html, "fusion.evidence", 'Text'), className="i3-evidence"),
-        html.Details([html.Summary('Title'), html.Pre(_live(html, "rules", 'Text', fmt="json"), className="i3-details")]),
+    return _card(html, "WHAT THE CHANNELS SAY", [
+        html.Div(_live(html, "fusion.interpretation", "Waiting for readings"), className="i3-condition"),
+        html.Div(_live(html, "fusion.evidence", "No evidence yet"), className="i3-evidence"),
+        html.Details([html.Summary("The rules behind this reading"), html.Pre(_live(html, "rules", "No rules loaded", fmt="json"), className="i3-details")]),
     ])
 
 
@@ -2729,24 +2730,26 @@ def confidence_panel(html):
 
 
 def calibration_panel(html, dcc):
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, "TWO-POINT CALIBRATION", [
+        html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
+                 f"and an offset, and every later reading is converted with them. {T('ch1.name')} takes a scale only, "
+                 "so its two references must be proportional.", className="i3-mute"),
         html.Form([
             html.Div([
-                html.Label(['Label', html.Select([html.Option("Channel 1", value="ch1"), html.Option("Channel 2", value="ch2"), html.Option("Channel 3", value="ch3")], name="channel")]),
-                html.Label(['Label', dcc.Input(name="unit", type="text", value="unit", required=True)]),
-                html.Label(['Label', dcc.Input(name="raw_low", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="raw_high", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="known_low", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="known_high", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="uncertainty", type="number", min=0, required=True)]),
-                html.Label(['Label', dcc.Input(name="method", type="text", required=True, minLength=3)]),
+                html.Label(["Channel", html.Select([html.Option(name, value=key) for key, name in _channel_names()], name="channel")]),
+                html.Label(["Unit (uT, V/m, mV RMS relative or dB)", dcc.Input(name="unit", type="text", value="uT", required=True)]),
+                html.Label(["Raw reading, low", dcc.Input(name="raw_low", type="number", required=True)]),
+                html.Label(["Raw reading, high", dcc.Input(name="raw_high", type="number", required=True)]),
+                html.Label(["Known value, low", dcc.Input(name="known_low", type="number", required=True)]),
+                html.Label(["Known value, high", dcc.Input(name="known_high", type="number", required=True)]),
+                html.Label(["Reference uncertainty", dcc.Input(name="uncertainty", type="number", min=0, required=True)]),
+                html.Label(["How the references were made", dcc.Input(name="method", type="text", required=True, minLength=3)]),
             ], className="i3-form"),
-            html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "calibrate"}),
-            html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "reset_calibration"}),
-            html.Div('Paragraph. Enter your text here.', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Button("Apply calibration", type="button", className="i3-btn", **{"data-i3-action": "calibrate"}),
+            html.Button("Remove calibration", type="button", className="i3-btn", **{"data-i3-action": "reset_calibration"}),
+            html.Div("The result appears here.", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "calibration"}),
-        *[_row(html, label + " calibrated", "channels." + key + ".calibration.timestamp", "time") for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]],
+        *[_row(html, label + " calibrated", "channels." + key + ".calibration.timestamp", "time") for key, label in _channel_names()],
     ], "tall")
 
 
@@ -2774,40 +2777,46 @@ def _audio_block(html, dcc, key, title, extra):
 
 def audition_panel(html, dcc):
     sdr_extra = [html.Div([
-        html.Label(['Label', dcc.Input(name="frequency_mhz", type="number", min=24, max=1766, step=0.001, value=100)]),
-        html.Label(['Label', html.Select([html.Option(m.upper(), value=m) for m in ("wbfm", "fm", "am", "usb", "lsb")], name="mode")]),
-        html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "sdr", "data-i3-op": "tune"}),
+        html.Label(["Frequency, MHz", dcc.Input(name="frequency_mhz", type="number", min=24, max=1766, step=0.001, value=100)]),
+        html.Label(["Mode", html.Select([html.Option(m.upper(), value=m) for m in ("wbfm", "fm", "am", "usb", "lsb")], name="mode")]),
+        html.Button("Tune", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "sdr", "data-i3-op": "tune"}),
     ], className="i3-form")]
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
-        html.Div([_audio_block(html, dcc, "ch2f", 'Title', []), _audio_block(html, dcc, "c1", 'Title', []), _audio_block(html, dcc, "coil", 'Title', []), _audio_block(html, dcc, "sdr", 'Title', sdr_extra)], className="i3-audio-grid three"),
+    return _card(html, "LISTEN", [
+        html.Div(f"Hear the sources. {T('ch2.name')} plays its measured signal, up to about 430 Hz; on the Uno it is a "
+                 "tone whose pitch follows the measured level. "
+                 f"{T('ch1.name')} is a sonification: a 220 Hz tone whose loudness follows the change, because the "
+                 "field itself moves too slowly to hear.", className="i3-mute"),
+        html.Div([_audio_block(html, dcc, "ch2f", T("ch2.name"), []), _audio_block(html, dcc, "c1", f"{T('ch1.name')} (sonified)", []),
+                  _audio_block(html, dcc, "coil", "Pickup coil", []), _audio_block(html, dcc, "sdr", "Radio receiver", sdr_extra)], className="i3-audio-grid three"),
     ], "tall wide")
 
 
 
 def timeline_panel(html):
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, "EVENTS", [
+        html.Div("The latest 14 events from every channel, newest first.", className="i3-mute"),
         html.Div("No events yet", className="i3-timeline", **{"data-i3-timeline": "true"}),
     ])
 
 
 def telemetry_panel(html):
-    return _card(html, 'Title', [
-        html.Pre(_live(html, "telemetry", 'Text', "json"), className="i3-details"),
+    return _card(html, "TELEMETRY", [
+        html.Pre(_live(html, "telemetry", "No telemetry yet", "json"), className="i3-details"),
     ], "tall")
 
 
 def camera_panel(html):
-    return _card(html, 'Title', [
-        html.Div([html.Span('Text', className="i3-mute"), html.Img(className="i3-camera-preview", alt='Text', **{"data-i3-camera-preview": "true"})], className="i3-camera-frame"),
-        _row(html, 'Label', "camera.state"),
-        _row(html, 'Label', "camera.resolution"),
-        _row(html, 'Label', "camera.fps", "number"),
-        _row(html, 'Label', "camera.dropped_frames", "number"),
-        _row(html, 'Label', "camera.tracking.confidence", "fraction"),
+    return _card(html, "CAMERA", [
+        html.Div([html.Span("Camera off", className="i3-mute"), html.Img(className="i3-camera-preview", alt="Camera preview", **{"data-i3-camera-preview": "true"})], className="i3-camera-frame"),
+        _row(html, "State", "camera.state"),
+        _row(html, "Resolution", "camera.resolution"),
+        _row(html, "Frames per second", "camera.fps", "number"),
+        _row(html, "Dropped frames", "camera.dropped_frames", "number"),
+        _row(html, "Hand tracking confidence", "camera.tracking.confidence", "fraction"),
         _row(html, "Status", "camera.error"),
-        html.Div('Paragraph. Enter your text here.', className="i3-notice"),
+        html.Div("Hand tracking runs on this device. While the camera is on, a question to NVTRA in online mode sends one "
+                 "camera frame with it, and with Gemini selected that frame goes to Gemini. Turn the camera on or off with ◉ or C.",
+                 className="i3-notice"),
     ])
 
 
@@ -2867,22 +2876,23 @@ def page(html, dcc):
         ]),
         html.Article([
         html.Section([
-            html.H2('Heading 2'),
-            html.P('Paragraph. Enter your text here.'),
-            html.Div([html.Div([html.B("MTDI"), html.Span('Text')], className="i3-page3-definition"),
-                      html.Div([html.B("TITLE"), html.Span('Text')], className="i3-page3-definition")], className="i3-page3-definitions"),
+            html.H2("WHAT THIS PAGE IS"),
+            html.P("The analysis behind every reading: how each channel compares with its baseline, how much the "
+                   "evidence can be trusted, and the controls that change how it is measured."),
+            html.Div([html.Div([html.B("MTDI"), html.Span("the framework that turns sources into calibrated, explained readings")], className="i3-page3-definition"),
+                      html.Div([html.B("I³"), html.Span("the interface: these pages, the hand control and the voice")], className="i3-page3-definition")], className="i3-page3-definitions"),
         ], className="i3-page3-section i3-page3-overview"),
         html.Section([
-            html.Div([html.Div('Label', className="i3-eyebrow"), html.Div(_live(html, "fusion.condition", 'Text'), className="i3-condition"), html.Div([html.Div(_live(html, "fusion.interpretation", 'Text')), html.Div(_live(html, "fusion.evidence", ""))], className="i3-evidence")]),
-            html.Div([html.Strong(_live(html, "fusion.confidence", "0 %", "percent")), html.Span('Text', className="i3-mute")], className="i3-confidence"),
+            html.Div([html.Div("NOW", className="i3-eyebrow"), html.Div(_live(html, "fusion.condition", "Waiting for readings"), className="i3-condition"), html.Div([html.Div(_live(html, "fusion.interpretation", "")), html.Div(_live(html, "fusion.evidence", ""))], className="i3-evidence")]),
+            html.Div([html.Strong(_live(html, "fusion.confidence", "0 %", "percent")), html.Span("confidence", className="i3-mute")], className="i3-confidence"),
         ], className="i3-summary i3-page3-summary"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
-                      html.Div([_channel(html, "ch1", 'Title'), _channel(html, "ch2", 'Title'), _channel(html, "ch3", 'Title')], className="i3-channels three")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
+        html.Section([html.H2("THE CHANNELS"), html.P("Each channel's change from its own baseline, with its uncertainty and recent trace."),
+                      html.Div([_channel(html, key, name) for key, name in _channel_names()], className="i3-channels three")], className="i3-page3-section"),
+        html.Section([html.H2("THE EVIDENCE"), html.P("What the channels say together, and how far it can be trusted."),
                       html.Div([signature_panel(html), vector_panel(html), axial_panel(html), confidence_panel(html)], className="i3-grid")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
+        html.Section([html.H2("THE BASELINES"), html.P("How each channel learns its room, how it is calibrated, and what counts as a burst."),
                       html.Div([baseline_panel(html, dcc), calibration_panel(html, dcc), transient_panel(html)], className="i3-grid")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Text'),
+        html.Section([html.H2("LISTEN, RECORD, EXPORT"), html.P("Hear the sources, follow the events, and take the session with you."),
                       html.Div([audition_panel(html, dcc), timeline_panel(html), camera_panel(html), export_panel(html)], className="i3-grid")], className="i3-page3-section"),
         ], id="i3-page3-document", className="i3-page3-document"),
         html.Div(id="i3-performance", className="i3-performance"),
@@ -2891,13 +2901,15 @@ def page(html, dcc):
 
 
 def export_panel(html):
-    return _card(html, 'Title', [
-        html.P('Paragraph. Enter your text here.'),
-        html.A('Text', href="/download/studio-report.pdf", className="i3-btn"),
-        html.A('Text', href="/api/export/session.json", className="i3-btn"),
-        html.A('Text', href="/api/export/session.csv", className="i3-btn"),
+    return _card(html, "EXPORT", [
+        html.P("The PDF report is built on this computer. The session downloads hold each channel's last 300 changes from "
+               "its baseline: about 30 seconds at the studio's own rates, longer for a slower source. The JSON adds the "
+               "calibrations and events. Notion gets a copy only when you press its button and Notion is set up in Settings."),
+        html.A("PDF report", href="/download/studio-report.pdf", className="i3-btn"),
+        html.A("Session · JSON", href="/api/export/session.json", className="i3-btn"),
+        html.A("Session · CSV", href="/api/export/session.csv", className="i3-btn"),
         html.Button("Upload report to Notion", type="button", className="i3-btn", **{"data-i3-action": "cloud_report"}),
-        html.Div('Text', className="i3-inline-result", **{"data-i3-cloud": "true"}),
+        html.Div("The upload result appears here.", className="i3-inline-result", **{"data-i3-cloud": "true"}),
     ])
 
 
@@ -2994,7 +3006,7 @@ def install(ns, runtime):
         document = next((n for n in _walk(node) if getattr(n, "id", None) == "i3-page3-document"), None)
         children = list(document.children if document is not None else body.children)
         section = html.Div([
-            html.H2('Heading 2'),
+            html.H2("D4 ANALYSIS"),
             ns["d4_engine_section"](),
         ], className="i3-d4-host i3-page3-section")
         if document is not None:
@@ -3005,11 +3017,11 @@ def install(ns, runtime):
 
     ns["PAGES"]["/page-3"] = page3_page
     tools = html.Div([
-        html.Button("◉", id="i3-camera-toggle", type="button", className="i3-tool", title="Enable camera (hand tracking). Shortcut C", **{"data-i3-action": "camera", "aria-pressed": "false", "aria-label": 'Text'}),
-        html.Button("⇅", id="i3-mode-toggle", type="button", className="i3-tool", title='Title', **{"data-i3-action": "mode_toggle", "aria-label": 'Text'}),
-        html.Button("◍", id="i3-agent-toggle", type="button", className="i3-tool", title='Title', **{"data-i3-action": "agent", "aria-pressed": "false", "aria-label": 'Text'}),
-        html.A('Text', id="i3-https-link", href="#", className="i3-tool i3-tool-text", hidden=True),
-        html.Span('Text', id="i3-stream-state", hidden=True),
+        html.Button("◉", id="i3-camera-toggle", type="button", className="i3-tool", title="Enable camera (hand tracking). Shortcut C", **{"data-i3-action": "camera", "aria-pressed": "false", "aria-label": "Camera and hand tracking"}),
+        html.Button("⇅", id="i3-mode-toggle", type="button", className="i3-tool", title="Online or offline mode", **{"data-i3-action": "mode_toggle", "aria-label": "Online or offline mode"}),
+        html.Button("◍", id="i3-agent-toggle", type="button", className="i3-tool", title="NVTRA voice. Shortcut N", **{"data-i3-action": "agent", "aria-pressed": "false", "aria-label": "NVTRA voice"}),
+        html.A("Open over HTTPS", id="i3-https-link", href="#", className="i3-tool i3-tool-text", hidden=True),
+        html.Span("Connecting", id="i3-stream-state", hidden=True),
     ], className="i3-header-tools")
     toast = html.Div("", id="i3-control-result", className="i3-toast", role="status")
     def pill(key, label):
@@ -3020,13 +3032,13 @@ def install(ns, runtime):
             html.Div(id="i3-orb-robot", className="i3-orb-robot", hidden=True),
             html.Div([html.Div("NVTRA", className="i3-orb-name"), html.Div([html.Span("Press ◍ or N", className="i3-key-hint"), html.Span("Tap ◍", className="i3-touch-hint"), " to start listening"], id="i3-orb-state", className="i3-orb-state")], className="i3-island-head"),
             html.Div([html.I() for _ in range(9)], id="i3-voice-bars", className="i3-voice-bars", **{"aria-hidden": "true"}),
-            html.Div([pill("mtdi", "MTDI"), pill("c1", 'LABEL'), pill("ef", 'LABEL'), pill("ch3", "Channel 3")], className="i3-island-pills"),
+            html.Div([pill("mtdi", "MTDI"), pill("c1", T("ch1.name")), pill("ef", T("ch2.name")), pill("ch3", T("ch3.name"))], className="i3-island-pills"),
         ], className="i3-island-top"),
         html.Div("", id="i3-orb-text", className="i3-orb-text"),
-        html.Form([dcc.Input(id="i3-orb-input", type="text", placeholder='Enter your text here', autoComplete="off", debounce=False), html.Button("Send", type="submit", className="i3-btn i3-primary")], id="i3-orb-form", className="i3-orb-form"),
+        html.Form([dcc.Input(id="i3-orb-input", type="text", placeholder="Ask NVTRA", autoComplete="off", debounce=False), html.Button("Send", type="submit", className="i3-btn i3-primary")], id="i3-orb-form", className="i3-orb-form"),
         html.Div([
-            html.Select([html.Option('Text', value="")], className="i3-orb-engine", title='Title', **{"data-i3-engine": "true", "aria-label": 'Text'}),
-            html.Button("■ Stop", type="button", className="i3-btn i3-orb-stop", title='Title', **{"data-i3-action": "agent_stop"}),
+            html.Select([html.Option("Loading engines", value="")], className="i3-orb-engine", title="AI engine", **{"data-i3-engine": "true", "aria-label": "AI engine"}),
+            html.Button("■ Stop", type="button", className="i3-btn i3-orb-stop", title="Stop NVTRA", **{"data-i3-action": "agent_stop"}),
         ], className="i3-orb-tools"),
     ], id="i3-orb", className="i3-island collapsed")
     for node in _walk(app.layout):
