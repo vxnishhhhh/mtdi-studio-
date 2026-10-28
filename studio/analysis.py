@@ -387,8 +387,6 @@ class AnalysisEngine:
         if scale <= 0 or uncertainty < 0:
             raise ValueError("Scale must be positive and uncertainty cannot be negative")
         # A project feed calibrates in its own unit (a cm feed stays cm); the studio's own sources keep theirs.
-        # A project feed (marked fed by feed_ch1/feed_ch2) calibrates in its own unit; the studio's own sources,
-        # the Uno included, keep their physical defaults.
         with self.lock:
             current = self.channels.get(channel, {})
             source_unit, fed = current.get("source_unit"), bool(current.get("fed"))
@@ -402,7 +400,7 @@ class AnalysisEngine:
             raise ValueError("Ch1 scalar calibration requires proportional reference values; use the vector profile for axis offsets")
         profile = {"scale": scale, "offset": 0.0 if channel == "ch1" else offset,
                    "uncertainty": uncertainty, "unit": output_unit, "method": str(method),
-                   "input_unit": source_unit,
+                   "input_unit": source_unit, "fed_input": fed,
                    "timestamp": time.time(), "raw_reference": raw, "known_reference": known,
                    "scope": "Provided reference conditions only"}
         self.calibrations.put(channel, profile)
@@ -433,9 +431,15 @@ class AnalysisEngine:
             self.last_mono[channel] = mono
             if dt > 0:
                 self.intervals[channel].append(dt)
+            source_unit, fed = unit or CHANNELS[channel]["unit"], bool(metadata.get("fed"))
+            if item.get("source_unit") and item["source_unit"] != source_unit:
+                self.baseline(channel, relock=True)   # never compare a new input against a reference held in another unit
             profile = self.calibrations.get(channel)
-            if profile.get("input_unit") and profile["input_unit"] != (unit or CHANNELS[channel]["unit"]):
-                profile = {}   # a calibration made for another input (a cm feed, the magnetometer) does not apply
+            # A calibration made for another input (a cm feed, the magnetometer) does not apply. A profile saved
+            # before the first sample still knows whether it was made for a feed or for the studio's own sources.
+            if (profile.get("input_unit") and profile["input_unit"] != source_unit) or \
+                    ("fed_input" in profile and profile["fed_input"] != fed):
+                profile = {}
             scale = profile.get("scale", 1.0)
             corrected = value * scale + profile.get("offset", 0.0)
             base = self.baselines[channel]
@@ -494,7 +498,7 @@ class AnalysisEngine:
             rate = len(intervals) / sum(intervals) if intervals and sum(intervals) > 0 else 0.0
             item.update({"state": "connected", "message": "Baseline settling" if base.settling else "Live acquisition",
                          "deviation": deviation, "unit": profile.get("unit", unit or CHANNELS[channel]["unit"]),
-                         "source_unit": unit or CHANNELS[channel]["unit"], "fed": bool(metadata.get("fed")),
+                         "source_unit": source_unit, "fed": fed, "calibration_skipped": bool(self.calibrations.get(channel)) and not profile,
                          "raw": value if raw is None else raw, "corrected_raw": corrected,
                          "last_rx": timestamp, "clipped": bool(clipped), "sample_count": item["sample_count"] + 1,
                          "sample_rate": rate, "snr": snr, "uncertainty": uncertainty_text,
@@ -682,7 +686,7 @@ class AnalysisEngine:
         positive_correlation = max([max(0.0, c["coefficient"]) for c in correlation] or [0.0])
         per_channel = {}
         for key, item in channels.items():
-            profile = profiles[key]
+            profile = {} if item.pop("calibration_skipped", False) else profiles[key]   # report what the latest sample used
             item["calibration"] = {"timestamp": profile.get("timestamp"), "calibrated": bool(profile),
                 "method": profile.get("method", "Factory nominal scaling" if key == "ch1" else "None"), "profile": profile}
             item["baseline"] = baselines[key]

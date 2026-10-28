@@ -2738,7 +2738,7 @@ def calibration_panel(html, dcc):
         html.Form([
             html.Div([
                 html.Label(["Channel", html.Select([html.Option(name, value=key) for key, name in _channel_names()], name="channel")]),
-                html.Label(["Unit (uT, V/m, mV RMS relative or dB)", dcc.Input(name="unit", type="text", value="uT", required=True)]),
+                html.Label(["Unit (leave blank to follow the live source; or uT, V/m, mV RMS relative, dB)", dcc.Input(name="unit", type="text", value="")]),
                 html.Label(["Raw reading, low", dcc.Input(name="raw_low", type="number", required=True)]),
                 html.Label(["Raw reading, high", dcc.Input(name="raw_high", type="number", required=True)]),
                 html.Label(["Known value, low", dcc.Input(name="known_low", type="number", required=True)]),

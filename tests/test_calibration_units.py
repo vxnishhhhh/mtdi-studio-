@@ -41,6 +41,28 @@ class CalibrationUnits(unittest.TestCase):
         snap = engine.snapshot(now=15)["channels"]["ch1"]
         self.assertEqual(snap["unit"], "µT")
 
+    def test_a_skipped_calibration_is_not_reported_as_applied(self):
+        engine = engine_fed("ch1", "cm", fed=True)
+        engine.calibrate("ch1", [1, 2], [2, 4], 0.1)
+        feed(engine, "ch1", "µT", False, start=10, value=7.0)
+        self.assertFalse(engine.snapshot(now=15)["channels"]["ch1"]["calibration"]["calibrated"])
+        feed(engine, "ch1", "cm", True, start=20, value=7.0)
+        self.assertTrue(engine.snapshot(now=25)["channels"]["ch1"]["calibration"]["calibrated"])
+
+    def test_a_calibration_saved_before_any_sample_never_rescales_a_feed(self):
+        engine = AnalysisEngine(pathlib.Path(tempfile.mkdtemp()) / "calibration.json")
+        engine.calibrate("ch1", [1, 2], [2, 4], 0.1)          # no sample yet: made for the studio's own source
+        feed(engine, "ch1", "cm", True, value=7.0)
+        snap = engine.snapshot(now=5)["channels"]["ch1"]
+        self.assertEqual(snap["unit"], "cm")
+        self.assertFalse(snap["calibration"]["calibrated"])
+
+    def test_a_new_input_unit_starts_a_fresh_baseline(self):
+        engine = engine_fed("ch1", "cm", fed=True)
+        self.assertTrue(engine.histories["ch1"])
+        engine.ingest("ch1", 7.0, timestamp=10, unit="µT", vector=[7.0, 0, 0], metadata={"monotonic": 10})
+        self.assertEqual(len(engine.histories["ch1"]), 1)   # only the first sample in the new unit
+
     def test_an_unrelated_unit_is_refused(self):
         with self.assertRaises(ValueError):
             engine_fed("ch1", "cm", fed=True).calibrate("ch1", [1, 2], [2, 4], 0.1, unit="kg")
