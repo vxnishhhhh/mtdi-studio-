@@ -1378,12 +1378,41 @@ def install(ns):
                 runtime.stop_event.wait(.1)
         return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame', headers={'Cache-Control': 'no-store'})
 
+    consent_path = runtime.state_dir / 'camera_consent.json'
+
+    def camera_consent():
+        # None until the operator answers once; then that answer holds until they change it.
+        try:
+            share = json.loads(consent_path.read_text()).get('share')
+            return share if isinstance(share, bool) else None
+        except (OSError, ValueError, AttributeError):
+            return None
+
+    @server.get('/api/camera-consent')
+    def camera_consent_get():
+        return {'share': camera_consent()}
+
+    @server.post('/api/camera-consent')
+    def camera_consent_set():
+        body = request.get_json(silent=True)
+        share = body.get('share') if isinstance(body, dict) else 'invalid'
+        if share is not None and not isinstance(share, bool):
+            return {'error': 'share must be true, false or null'}, 400
+        runtime.state_dir.mkdir(parents=True, exist_ok=True)
+        if share is None:
+            consent_path.unlink(missing_ok=True)
+        else:
+            consent_path.write_text(json.dumps({'share': share}))
+        return {'share': camera_consent()}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
         try:
             image = data.get('image')
-            if isinstance(image, str) and image.startswith('data:image/jpeg;base64,'):
+            if camera_consent() is not True:
+                image = None   # no frame leaves the studio without the operator's yes
+            elif isinstance(image, str) and image.startswith('data:image/jpeg;base64,'):
                 image = image.split(',', 1)[1]
             elif not isinstance(image, str) or len(image) > 2_500_000:
                 image = None
