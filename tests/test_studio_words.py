@@ -184,6 +184,13 @@ status.append(ns["environmental_values"]()[4])
 out["mtdi"]["status"] = status
 s3.update(level_sane=False, level_note="TEST NOTE")      # Page 2's warning when a sweep's levels look wrong
 out["mtdi"]["insane"] = dump(ns["update_sweep3_numbers"](1, None))
+# the event feed (CodeRabbit, #75): runtime notes must not push a newer channel alert out of the 256 kept
+rt3 = sys.modules["run"].RUNTIME
+for i in range(300):
+    rt3.events.append({"timestamp": 1.0 + i, "source": "test", "message": "old note"})
+rt3.engine.events.append({"timestamp": __import__("time").time() + 1000, "channel": "ch1", "source": "ch1", "message": "TEST CHANNEL ALERT"})
+rt3.last_payload = None
+out["events"] = [e.get("message") for e in rt3.snapshot()["events"]]
 print(json.dumps(out))
 '''
 
@@ -390,6 +397,7 @@ class SecondContentFile(unittest.TestCase):
         # the camera notice says a frame can leave with an online NVTRA question (CodeRabbit, #75)
         self.assertIn("that frame goes to Gemini", rendered["/page-3"])
         self.assertNotIn("used only for hand tracking", rendered["/page-3"])
+        self.assertEqual(rendered["events"][-1], "TEST CHANNEL ALERT")   # kept, and last: the feed runs oldest to newest
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):
