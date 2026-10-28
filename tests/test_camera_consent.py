@@ -73,10 +73,11 @@ class CameraConsent(unittest.TestCase):
         html = self.client.get("/").get_data(as_text=True)
         self.assertIn("const image=await consentedFrame()", html)
         self.assertIn("function consentOp(task)", html)
-        self.assertIn("await consentOp(async()=>", html)
+        self.assertIn("return await consentOp(async()=>{let share=(await (await fetch('/api/camera-consent'", html)
         self.assertIn("consentOp(()=>fetch('/api/camera-consent'", html)
         self.assertIn("window.confirm('NVTRA can send a still frame", html)
-        self.assertIn("agent.cameraShare=undefined;orbShow('Camera answer not saved'", html)
+        self.assertIn("orbShow('Camera answer not saved'", html)
+        self.assertNotIn("agent.cameraShare", html)   # never cached: read fresh for each question
         self.assertIn("data-i3-camera-consent-reset", (ROOT / "studio" / "ui.py").read_text(encoding="utf-8"))
 
 if __name__ == "__main__":
