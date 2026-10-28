@@ -341,7 +341,7 @@ def install(ns, engine):
                     filt = ns.get("_d4_filter")
                     if filt is not None:
                         magnitude = filt(magnitude)
-                    item = engine.ingest("ch1", magnitude, now, "unit", raw=raw, vector=vector,
+                    item = engine.ingest("ch1", magnitude, now, "µT", raw=raw, vector=vector,
                                          clipped=clipped, metadata={"monotonic": mono, "codes": codes,
                                          "configured_rate": configured_rate, "missed_estimate": missed_estimate,
                                          "missed_estimate_note": "Timing estimate; sensor exposes no sample counter",
@@ -488,7 +488,7 @@ def install(ns, engine):
                         raw_vector = tuple(value / SRC1_LSB_PER_VAL for value in codes)
                         vector = ns["_apply_ch1probe_calibration"](*raw_vector, c1_profile)
                         magnitude = math.sqrt(sum(value * value for value in vector))
-                        item = engine.ingest("ch1", magnitude, now, "unit", raw=raw_vector,
+                        item = engine.ingest("ch1", magnitude, now, "µT", raw=raw_vector,
                                              vector=vector, clipped=any(abs(value) >= 30000 for value in codes),
                                              metadata={"monotonic": mono, "codes": codes,
                                                        "configured_rate": 50, "vector_profile": bool(c1_profile),
@@ -974,7 +974,7 @@ def install(ns, engine):
             feed_clock[channel] = mono
             return mono
 
-    def feed_ch1(values, unit="unit", source="EXTERNAL", now=None):
+    def feed_ch1(values, unit=None, source="EXTERNAL", now=None):
         """Channel 1: a three-axis vector [x, y, z] or a single number."""
         vector = [float(v) for v in (values if isinstance(values, (list, tuple)) else [values])]
         if len(vector) == 1:
@@ -987,7 +987,8 @@ def install(ns, engine):
             ns["RAW_RING"]["ch1_raw"].append((now, *vector))
             ns["RAW_RING"]["ch1"].append((now, *vector))
         size = math.sqrt(sum(v * v for v in vector))
-        c1 = engine.ingest("ch1", size, now, str(unit), raw=vector, vector=vector,
+        unit = "" if unit is None else str(unit).strip()   # a feed naming no unit reads in the project's channel 1 word
+        c1 = engine.ingest("ch1", size, now, unit or T("ch1.unit"), raw=vector, vector=vector,
                            metadata={"monotonic": mono, "data_source": source})
         with ns["c1_lock"]:
             data = ns["ch1_data"]
@@ -995,7 +996,7 @@ def install(ns, engine):
             data.update(x=x, y=y, z=z, magnitude=c1["deviation"], raw_x=vector[0], raw_y=vector[1],
                         raw_z=vector[2], raw_magnitude=size, error=None, warning=None, chip_warning=None,
                         chip_id=source, calibrated=False, calibration_warning=None, last_rx=now,
-                        fed_source=str(source), fed_unit=str(unit),
+                        fed_source=str(source), fed_unit=unit,
                         baseline_delta=c1["deviation"], baseline_calibrated=not c1["baseline"]["settling"],
                         baseline_magnitude=math.sqrt(sum(v * v for v in c1["baseline_vector"])))
             data["history"].append(c1["deviation"])

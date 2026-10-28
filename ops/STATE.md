@@ -5,14 +5,15 @@ Updated by every session. Newest first.
 * **Stage:** 1 · Universal foundation
 * **Main:** green (CI on Python 3.11, 3.12, 3.13; 251 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** #52 S1-05 Compatibility Lab (adds a workflow: owner review, ADR 0002)
-* **Next item:** S1-06 slice 12 (NVTRA, I³ and Aether's pillar bodies on the MTDI page; the analysis engine's channel labels and units; the browser-side words: typewriter lines, constellation chips, globe nodes, the Aether terminal's startup lines), then S1-08 (needs a workflow file: owner review per ADR 0002).
+* **Next item:** S1-06 slice 13 (NVTRA, I³ and Aether's pillar bodies on the MTDI page; the browser-side words: typewriter lines, constellation chips, globe nodes, the Aether terminal's startup lines), then S1-08 (needs a workflow file: owner review per ADR 0002).
 * **Waiting on the owner:** network access for science hosts; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
-* 2026-10-28 night · S1-06 slice 11 (PR on auto/S1-06-slice11): Page 3, the I³ panels the runtime adds to Page 3, Settings and the MTDI pillars, the header tools, the NVTRA orb and the startup intro say what they are; the test now checks the served pages. Found: in demo mode the watermark over every page read "TEXT"; it now says the data is simulated.
+* 2026-10-28 early · S1-06 slice 12 (PR on auto/S1-06-slice12): the analysis engine names its channels in the project's words. Found: the studio's own magnetometer was fed to the engine with the unit "unit", so every channel 1 alert, evidence line and Page 3 card said "unit" where it meant µT; a feed naming no unit was labelled "unit" too.
+* 2026-10-28 night · S1-06 slice 11 (#75, merged): Page 3, the I³ panels the runtime adds to Page 3, Settings and the MTDI pillars, the header tools, the NVTRA orb and the startup intro say what they are; the test now checks the served pages. Found: in demo mode the watermark over every page read "TEXT"; it now says the data is simulated.
 * 2026-10-27 late · S1-06 slice 10 (#74, merged): the MTDI page's landing, orbit, Validation Chamber and Environmental Intelligence say what they are; each pillar's line comes from mtdi.pillars. Found: the MTDI page's live cards crashed whenever channel 3 was a fed sweep; Page 2's bad-levels warning was still a placeholder.
 * 2026-10-27 evening · S1-06 slice 9 (PR on auto/S1-06-slice9): Settings, the AI key manager, the model picker and the system grid say what they are. Found: the Notion line read a placeholder setting name, so it never showed Notion as set up; TEST ACTIVE asked the model the word "Text"; the export button said "EXPORT PDF + NOTION" but the served route never contacts Notion.
 * 2026-10-27 midday · Merged #70 (tour scrolls through the intro; 420 s page limit) and #71 (S1-06 slice 8, the D4 engine cards; CodeRabbit 13 findings and 1 nit over four reviews, all fixed: D4 read fed channel 3 sweeps as radio sweeps, and channel 1 units now follow the data's source). Main green. #52 unchanged since 25 Oct, waiting on the owner. Report: ops/reports/2026-10-27-midday.md.

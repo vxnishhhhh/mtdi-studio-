@@ -191,6 +191,14 @@ for i in range(300):
 rt3.engine.events.append({"timestamp": __import__("time").time() + 1000, "channel": "ch1", "source": "ch1", "message": "TEST CHANNEL ALERT"})
 rt3.last_payload = None
 out["events"] = [e.get("message") for e in rt3.snapshot()["events"]]
+# the analysis engine's own channel words (slice 12): labels in the project's names; a feed naming no unit
+# reads in the project's channel 1 word, never the magnetometer's µT; the studio's own sources keep theirs
+an = sys.modules["studio.analysis"]
+ns["feed_ch1"]([1.0, 2.0, 2.0], source="TEST")
+rt3.last_payload = None
+chans = rt3.snapshot()["channels"]
+out["engine"] = {"labels": [chans[k]["label"] for k in ("ch1", "ch2", "ch3")], "ch1_unit": chans["ch1"]["unit"],
+                 "defaults": [an.CHANNELS[k]["unit"] for k in ("ch1", "ch2", "ch3", "current")]}
 print(json.dumps(out))
 '''
 
@@ -398,6 +406,10 @@ class SecondContentFile(unittest.TestCase):
         self.assertIn("that frame goes to Gemini", rendered["/page-3"])
         self.assertNotIn("used only for hand tracking", rendered["/page-3"])
         self.assertEqual(rendered["events"][-1], "TEST CHANNEL ALERT")   # kept, and last: the feed runs oldest to newest
+        engine = rendered["engine"]
+        self.assertEqual(engine["labels"], [n1, n2, words["ch3.name"]])
+        self.assertEqual(engine["ch1_unit"], words["ch1.unit"])
+        self.assertEqual(engine["defaults"], ["µT", "mV RMS relative", "dB", "A"])
         fed2 = rendered["ch2_fed"]
         self.assertEqual(fed2["unit"], "fedunit")
         for name in ("basebar", "overlay"):
