@@ -1419,7 +1419,7 @@ def install(ns):
             saved = {it.get('provider') or ns['_key_provider'](it.get('key', '')) for it in ns['nvtra_keys']['items'] if (it.get('key') or '').strip()}
         if ns['_elevenlabs_key']():
             saved.add('elevenlabs')
-        if ns['_notion_setting']('NOTION_API_KEY'):
+        if ns['_notion_setting']('NOTION_API_KEY') and ns['_notion_setting']('NOTION_REPORT_PAGE_ID'):
             saved.add('notion')
         for row in snap['integrations']:
             if row['status'] == 'not set up' and row['id'] in saved:
