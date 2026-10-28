@@ -1280,7 +1280,7 @@ def install(ns):
         units = sample.get('unit') if isinstance(sample.get('unit'), dict) else {}
         done = []
         if 'ch1' in sample:
-            ns['feed_ch1'](sample['ch1'], unit=units.get('ch1', 'unit'), source=source, now=sample.get('t'))
+            ns['feed_ch1'](sample['ch1'], unit=units.get('ch1'), source=source, now=sample.get('t'))
             done.append('ch1')
         if 'ch2' in sample:
             ns['feed_ch2'](sample['ch2'], unit=units.get('ch2', 'mV RMS relative'), source=source, now=sample.get('t'))

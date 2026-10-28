@@ -13,12 +13,22 @@ import statistics
 import threading
 import time
 
+from .content import T  # studio words (S1-06)
+
 CHANNELS = {
-    "ch1": {"label": "Channel 1", "unit": "unit", "floor": 0.1, "stale": 2.0},
-    "ch2": {"label": "Channel 2", "unit": "unit", "floor": 0.008, "stale": 4.0},
-    "ch3": {"label": "Channel 3", "unit": "unit", "floor": 0.5, "stale": 90.0},
-    "current": {"label": "Channel 4", "unit": "unit", "floor": 0.02, "stale": 4.0, "optional": True},
+    # The units are the studio's own sources (magnetometer in µT, probe in mV RMS, radio in dB, coil
+    # current in A); a fed source passes its own unit to ingest(). Labels come from channel_label().
+    "ch1": {"label": "Channel 1", "unit": "µT", "floor": 0.1, "stale": 2.0},
+    "ch2": {"label": "Channel 2", "unit": "mV RMS relative", "floor": 0.008, "stale": 4.0},
+    "ch3": {"label": "Channel 3", "unit": "dB", "floor": 0.5, "stale": 90.0},
+    "current": {"label": "Current", "unit": "A", "floor": 0.02, "stale": 4.0, "optional": True},
 }
+
+
+def channel_label(key):
+    """A channel's name in the project's words (S1-06): ch1 to ch3 from the content file, the rest as listed."""
+    return T(f"{key}.name") if key in ("ch1", "ch2", "ch3") else CHANNELS[key]["label"]
+
 # Ambient noise budget per channel: the noise floor a healthy sensor should sit under
 # in a quiet room (median absolute deviation, scaled). Used by the resolution regime.
 NOISE_BUDGET = {"ch1": 1.0, "ch2": 0.25, "ch3": 2.5, "current": 0.08}
@@ -302,7 +312,7 @@ class AnalysisEngine:
         self.auto_relock_after = 120.0
         self.relock_log = deque(maxlen=64)
         for channel, cfg in CHANNELS.items():
-            self.channels[channel] = {"label": cfg["label"], "state": "offline", "message": "Waiting for data",
+            self.channels[channel] = {"label": channel_label(channel), "state": "offline", "message": "Waiting for data",
                                       "deviation": None, "unit": cfg["unit"], "raw": None, "last_rx": None,
                                       "uncertainty": "Unknown until calibrated", "uncertainty_value": None,
                                       "clipped": False, "sample_count": 0, "sample_rate": 0.0, "snr": 0.0,
@@ -376,15 +386,21 @@ class AnalysisEngine:
         uncertainty = finite(uncertainty, "Reference uncertainty")
         if scale <= 0 or uncertainty < 0:
             raise ValueError("Scale must be positive and uncertainty cannot be negative")
-        output_unit = unit or {"ch1": "unit", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
-        allowed = {"ch1": {"unit", "uT"}, "ch2": {"V/m", "mV RMS relative"}, "ch3": {"dB"}, "current": {"A", "mA"}}
-        if output_unit not in allowed[channel]:
+        # A project feed calibrates in its own unit (a cm feed stays cm); the studio's own sources keep theirs.
+        with self.lock:
+            current = self.channels.get(channel, {})
+            source_unit, fed = current.get("source_unit"), bool(current.get("fed"))
+        fed_unit = source_unit if fed and source_unit else None
+        output_unit = unit or fed_unit or {"ch1": "µT", "ch2": "V/m", "ch3": "dB", "current": "A"}[channel]
+        allowed = {"ch1": {"µT", "uT"}, "ch2": {"V/m", "mV RMS relative"}, "ch3": {"dB"}, "current": {"A", "mA"}}
+        if output_unit not in allowed[channel] | ({fed_unit} - {None}):
             raise ValueError("Unsupported calibration unit")
         # A scalar calibration cannot correct ch1 vector offsets.
         if channel == "ch1" and abs(offset) > max(uncertainty, 1e-6):
             raise ValueError("Ch1 scalar calibration requires proportional reference values; use the vector profile for axis offsets")
         profile = {"scale": scale, "offset": 0.0 if channel == "ch1" else offset,
                    "uncertainty": uncertainty, "unit": output_unit, "method": str(method),
+                   "input_unit": source_unit, "fed_input": fed,
                    "timestamp": time.time(), "raw_reference": raw, "known_reference": known,
                    "scope": "Provided reference conditions only"}
         self.calibrations.put(channel, profile)
@@ -415,7 +431,15 @@ class AnalysisEngine:
             self.last_mono[channel] = mono
             if dt > 0:
                 self.intervals[channel].append(dt)
+            source_unit, fed = unit or CHANNELS[channel]["unit"], bool(metadata.get("fed"))
+            if item.get("source_unit") and (item["source_unit"], bool(item.get("fed"))) != (source_unit, fed):
+                self.baseline(channel, relock=True)   # a new input (another unit, or feed vs studio source) gets a fresh reference
             profile = self.calibrations.get(channel)
+            # A calibration made for another input (a cm feed, the magnetometer) does not apply. A profile saved
+            # before the first sample still knows whether it was made for a feed or for the studio's own sources.
+            if (profile.get("input_unit") and profile["input_unit"] != source_unit) or \
+                    ("fed_input" in profile and profile["fed_input"] != fed):
+                profile = {}
             scale = profile.get("scale", 1.0)
             corrected = value * scale + profile.get("offset", 0.0)
             base = self.baselines[channel]
@@ -444,7 +468,7 @@ class AnalysisEngine:
                               "magnitude": deviation, "disagreement": disagreement * 100,
                               "agreement": agreement * 100, "contribution": [v * 100 for v in shares],
                               "confidence_contribution": agreement * MTDI_WEIGHTS["axial_consensus"] * 100,
-                              "unit": "unit", "method": "Half the sum of changes in squared axis contribution against a temporal reference"}
+                              "unit": profile.get("unit", unit or CHANNELS[channel]["unit"]), "method": "Half the sum of changes in squared axis contribution against a temporal reference"}
                 fx, fy, fz = self.filtered_vector
                 self.vector = {"x": fx, "y": fy, "z": fz, "raw": delta_vector,
                                "bearing": math.degrees(math.atan2(fy, fx)) % 360 if deviation > 3 * base.noise else None,
@@ -474,6 +498,7 @@ class AnalysisEngine:
             rate = len(intervals) / sum(intervals) if intervals and sum(intervals) > 0 else 0.0
             item.update({"state": "connected", "message": "Baseline settling" if base.settling else "Live acquisition",
                          "deviation": deviation, "unit": profile.get("unit", unit or CHANNELS[channel]["unit"]),
+                         "source_unit": source_unit, "fed": fed, "calibration_skipped": bool(self.calibrations.get(channel)) and not profile,
                          "raw": value if raw is None else raw, "corrected_raw": corrected,
                          "last_rx": timestamp, "clipped": bool(clipped), "sample_count": item["sample_count"] + 1,
                          "sample_rate": rate, "snr": snr, "uncertainty": uncertainty_text,
@@ -566,7 +591,7 @@ class AnalysisEngine:
         state["armed"] = False
         state["last"] = mono
         transient = self.transients[channel].snapshot()
-        label = CHANNELS[channel]["label"]
+        label = channel_label(channel)
         direction = "rose" if finite(deviation) > 0 else "fell"
         return self._emit_alert(
             channel=channel, severity=level, kind="magnitude",
@@ -580,7 +605,7 @@ class AnalysisEngine:
         matter as much as a spike and used to be reported nowhere."""
         for key, item in channels.items():
             previous = self.condition_state.setdefault(key, {"state": None, "clipped": False, "stale": False})
-            label = CHANNELS[key]["label"]
+            label = channel_label(key)
             state = item["state"]
             if state != previous["state"]:
                 # An optional channel that was never fitted is not a fault.
@@ -661,7 +686,7 @@ class AnalysisEngine:
         positive_correlation = max([max(0.0, c["coefficient"]) for c in correlation] or [0.0])
         per_channel = {}
         for key, item in channels.items():
-            profile = profiles[key]
+            profile = {} if item.pop("calibration_skipped", False) else profiles[key]   # report what the latest sample used
             item["calibration"] = {"timestamp": profile.get("timestamp"), "calibrated": bool(profile),
                 "method": profile.get("method", "Factory nominal scaling" if key == "ch1" else "None"), "profile": profile}
             item["baseline"] = baselines[key]
@@ -716,7 +741,7 @@ class AnalysisEngine:
             events = list(self.events)
         available = [key for key, item in channels.items() if item["state"] == "connected"]
         snrs = {key: channels[key]["snr"] if key in available else 0 for key in channels}
-        evidence = [f"{CHANNELS[key]['label']}: deviation {channels[key]['deviation']:.3g} {channels[key]['unit']}, signal to ambient noise {snrs[key]:.1f}, {channels[key]['transient']['state']}" for key in available]
+        evidence = [f"{channel_label(key)}: deviation {channels[key]['deviation']:.3g} {channels[key]['unit']}, signal to ambient noise {snrs[key]:.1f}, {channels[key]['transient']['state']}" for key in available]
         condition = 'Sources offline'
         interpretation = 'No live measurement is available. Connect the configured sources to begin analysis.'
         rule = None

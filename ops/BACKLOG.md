@@ -44,7 +44,7 @@ smoke test; Vision profile on recorded images. A script writes `docs/COMPATIBILI
 capability × result, compiled / emulated / hardware kept distinct).
 **Check:** the workflow runs green and the report is generated; nothing claims hardware verification.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–11: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py; Page 1's three tabs; Page 2's four views; the D4 engine cards on every page; Settings, the AI key manager and the system grid; the MTDI page's landing, orbit, Validation Chamber and Environmental Intelligence; Page 3, the I³ panels, header tools, NVTRA orb and startup intro)
+### S1-06 · Project-driven studio words · in progress (slices 1–12: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py; Page 1's three tabs; Page 2's four views; the D4 engine cards on every page; Settings, the AI key manager and the system grid; the MTDI page's landing, orbit, Validation Chamber and Environmental Intelligence; Page 3, the I³ panels, header tools, NVTRA orb and startup intro; the analysis engine's channel names and units)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
