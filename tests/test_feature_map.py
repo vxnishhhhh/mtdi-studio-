@@ -88,19 +88,20 @@ class FeatureMap(unittest.TestCase):
         self.assertNotIn("sk-secret-value-123456", reply.get_data(as_text=True))
 
     def test_a_key_saved_in_settings_is_what_nvtra_uses_when_no_local_model(self):
+        from unittest import mock
         from run import NAMESPACE
         from mtdi import doctor
-        saved, probe = NAMESPACE["_active_ai_credential"], doctor.check_local_model
+        saved, offline = NAMESPACE["_active_ai_credential"], NAMESPACE["instrument_offline"]
         NAMESPACE["_active_ai_credential"] = lambda: ("sk-another-secret-987654", "gemini")
+        NAMESPACE["instrument_offline"] = lambda: False
         try:
-            reply = self.client.get("/api/system-check")
+            with mock.patch.object(doctor, "run", return_value=[("local AI", "warn", "no local model")]):
+                reply = self.client.get("/api/system-check")
         finally:
-            NAMESPACE["_active_ai_credential"] = saved
+            NAMESPACE["_active_ai_credential"], NAMESPACE["instrument_offline"] = saved, offline
         row = next(r for r in reply.get_json()["doctor"] if r["name"] == "local AI")
-        if probe()[1] == "warn":      # no local model on this machine: the saved key is what NVTRA uses
-            self.assertEqual((row["status"], row["detail"]), ("ok", "no local model; NVTRA uses the gemini key saved in Settings"))
+        self.assertEqual((row["status"], row["detail"]), ("ok", "no local model; NVTRA uses the gemini key saved in Settings"))
         self.assertNotIn("sk-another-secret-987654", reply.get_data(as_text=True))
-
 
 if __name__ == "__main__":
     unittest.main()
