@@ -265,7 +265,7 @@ class Runtime:
                          'audition': self.audition.snapshot(),
                          'mode': {'mode': self.ns['INSTRUMENT_MODE']['mode'], 'internet': self.ns['internet_reachable'](),
                                   'local_ai': self.ns['local_ai_status']()},
-                         'events': (data.get('events', []) + list(self.events))[-256:], 'cloud': dict(self.cloud_state),
+                         'events': sorted(data.get('events', []) + list(self.events), key=lambda e: e.get('timestamp') or 0)[-256:], 'cloud': dict(self.cloud_state),
                          'archive': {'queue': self.ns['ARCHIVE'].items.qsize(),
                                      'dropped': getattr(self.ns['ARCHIVE'], 'dropped_records', 0),
                                      'written': getattr(self.ns['ARCHIVE'], 'written_records', 0),
@@ -527,7 +527,10 @@ def install_reports(ns, runtime):
         # silently reverts to the module default and the ?rows= control does nothing.
         blocks = original() if row_cap is None else original(row_cap=row_cap)
         snapshot = runtime.engine.snapshot()
-        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('CH1PROBE'))
+        # The live channel sections run from channel 1's (named by the project, so found by its source)
+        # to the wireless survey. Matching 'CH1PROBE' found the archive appendix instead, and on an
+        # empty archive nothing: the report crashed (StopIteration).
+        first = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].endswith('(Source 1 @ bus 0x2C)'))
         last = next(i for i, b in enumerate(blocks) if b[0] == 'h' and b[1].startswith('WIRELESS SURVEY'))
         measured = [('h', 'MEASUREMENT DEFINITIONS'),
                     ('dim', 'Live values are deviations from Baseline Lock. Raw records below are diagnostic observations.'),
@@ -567,7 +570,7 @@ def install_reports(ns, runtime):
                 blocks[i] = ('kv', 'Instrument', 'SRC1 + SRC2 + src3 Ultra; host identified in live telemetry')
             elif block[0] == 'h' and block[1] == 'HOST TELEMETRY   (host computer)':
                 blocks[i] = ('h', 'ACTUAL HOST TELEMETRY')
-            elif block[0] == 'h' and block[1] in ('CH1 SIGNAL ARCHIVE', 'CH3 PEAK ARCHIVE'):
+            elif block[0] == 'h' and block[1].endswith((' SIGNAL ARCHIVE', ' PEAK ARCHIVE')):   # named by the project (S1-06)
                 blocks[i] = ('h', block[1] + '   RAW DIAGNOSTICS')
         blocks = [(b[0], clean_text(b[1]), *b[2:]) if b[0] in ('band', 'h', 'sub', 'dim') and isinstance(b[1], str) else b for b in blocks]
         return blocks
@@ -1277,7 +1280,7 @@ def install(ns):
         units = sample.get('unit') if isinstance(sample.get('unit'), dict) else {}
         done = []
         if 'ch1' in sample:
-            ns['feed_ch1'](sample['ch1'], unit=units.get('ch1', 'unit'), source=source, now=sample.get('t'))
+            ns['feed_ch1'](sample['ch1'], unit=units.get('ch1'), source=source, now=sample.get('t'))
             done.append('ch1')
         if 'ch2' in sample:
             ns['feed_ch2'](sample['ch2'], unit=units.get('ch2', 'mV RMS relative'), source=source, now=sample.get('t'))
@@ -1375,12 +1378,41 @@ def install(ns):
                 runtime.stop_event.wait(.1)
         return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame', headers={'Cache-Control': 'no-store'})
 
+    consent_path = runtime.state_dir / 'camera_consent.json'
+
+    def camera_consent():
+        # None until the operator answers once; then that answer holds until they change it.
+        try:
+            share = json.loads(consent_path.read_text()).get('share')
+            return share if isinstance(share, bool) else None
+        except (OSError, ValueError, AttributeError):
+            return None
+
+    @server.get('/api/camera-consent')
+    def camera_consent_get():
+        return {'share': camera_consent()}
+
+    @server.post('/api/camera-consent')
+    def camera_consent_set():
+        body = request.get_json(silent=True)
+        share = body.get('share') if isinstance(body, dict) else 'invalid'
+        if share is not None and not isinstance(share, bool):
+            return {'error': 'share must be true, false or null'}, 400
+        runtime.state_dir.mkdir(parents=True, exist_ok=True)
+        if share is None:
+            consent_path.unlink(missing_ok=True)
+        else:
+            consent_path.write_text(json.dumps({'share': share}))
+        return {'share': camera_consent()}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
         try:
             image = data.get('image')
-            if isinstance(image, str) and image.startswith('data:image/jpeg;base64,'):
+            if camera_consent() is not True:
+                image = None   # no frame leaves the studio without the operator's yes
+            elif isinstance(image, str) and image.startswith('data:image/jpeg;base64,'):
                 image = image.split(',', 1)[1]
             elif not isinstance(image, str) or len(image) > 2_500_000:
                 image = None

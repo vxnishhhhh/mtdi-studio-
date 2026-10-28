@@ -1603,6 +1603,20 @@ html.phone-desktop button,html.phone-desktop a,html.phone-desktop input,
 html.phone-desktop select,html.phone-desktop .dash-dropdown{
   touch-action:manipulation}
 html.phone-desktop .mtdi-orbit-card{cursor:pointer}
+/* Phone stage: the drag-to-rotate views (3D boards, globe, constellation, 3D charts) keep a
+   sideways drag and give an up/down drag to the page. On a phone they span whole cards, so
+   claiming every drag left nowhere to scroll from. The upright stage applies the same rule
+   in the /phone shell, which scrolls it. */
+html.phone-stage #nvtra-spline-canvas,html.phone-stage #home-module-globe,
+html.phone-stage .instrument-constellation-canvas,html.phone-stage .i3-lunar-canvas,
+html.phone-stage .i3-vector,html.phone-stage .i3-sc-canvas,html.phone-stage .i3-sc-boards,
+html.phone-stage .i3-tab-board canvas,html.phone-stage .js-plotly-plot canvas{touch-action:pan-y!important}
+/* Upright, the stage is turned and the browser pans along the glass, not the stage, so the /phone
+   shell scrolls it and marks it stage-turned. Then no box pans by itself, not only the page root:
+   a scrollable box inside (the intro, a panel) would otherwise pan sideways off the glass, which
+   the browser takes as swipe-back and leaves the studio. :not(#_) lifts the rule over the id
+   rules above. */
+html.stage-turned *:not(#_){touch-action:none!important}
 #mobile-refresh-btn{display:none}
 
 /* ===== SCROLL ANCHORING =====
@@ -1619,46 +1633,6 @@ html.phone-desktop .mtdi-orbit-card{cursor:pointer}
 #page-content,#page-content *{overflow-anchor:none}
 html,body{overflow-anchor:none}
 
-/* ===== FIXED LANDSCAPE ON PHONES =====
-   The instrument is a landscape view and has no portrait layout. When the browser
-   will not lock the orientation and the phone is held upright, the whole page is
-   rotated a quarter turn so the same 1180 px composition still fills the glass.
-
-   body carries the transform, which makes it the containing block for every
-   position:fixed descendant - the header, the nav, the intro, the toasts and the
-   character all rotate with the page instead of staying stuck to the device. It is
-   also the scroll port, because html cannot scroll a rotated child.
-
-   The selector carries both classes so it outranks the html.phone-desktop body
-   width rule in the interface stylesheet, which is equally specific and loads later. */
-html.force-landscape{overflow:hidden!important;width:100%!important;height:100%!important}
-html.phone-desktop.force-landscape body{
-  position:fixed!important;top:0!important;left:0!important;
-  right:auto!important;bottom:auto!important;margin:0!important;
-  width:var(--i3-stage-w)!important;height:var(--i3-stage-h)!important;
-  /* scrubLock() inlines position/top/right/width/min-height on body to freeze the
-     page under a scrub hero. Those are sized for an upright viewport and stretch the
-     stage back to 100vh, so the rotated box no longer fits the screen. Everything it
-     sets is pinned here; the scroll offset it preserves is always 0 in this mode,
-     because the window does not scroll - body does. */
-  min-height:0!important;max-height:none!important;
-  min-width:var(--i3-stage-w)!important;max-width:none!important;
-  transform-origin:0 0!important;transform:var(--i3-stage-tf)!important;
-  /* body must NOT scroll. A transformed element is the containing block for its
-     position:fixed descendants, so every fixed thing on the page - the SIMULATED
-     DATA watermark, the manual refresh control, the alert stack, the NVTRA island -
-     resolves against this box. If this box scrolled, all of them would scroll away
-     with it, and the watermark has to be on screen whenever simulated data is. The
-     scroll port is #react-entry-point below, one level in. */
-  overflow:hidden!important;
-}
-html.phone-desktop.force-landscape #react-entry-point{
-  height:var(--i3-stage-h)!important;width:var(--i3-stage-w)!important;
-  overflow-y:auto!important;overflow-x:hidden!important;
-  -webkit-overflow-scrolling:touch;
-}
-/* The intro and the scrub heroes freeze the page deliberately; keep that. */
-html.phone-desktop.force-landscape body.intro-active{overflow:hidden!important}
 @media(max-width:760px){
   html{scrollbar-gutter:auto;overflow-x:hidden}
   body{overflow-x:hidden;text-rendering:optimizeSpeed}
@@ -1785,12 +1759,12 @@ def startup_intro():
     callback never touches it — it only writes page-content.children.
     """
     hardware = [
-        ("ITEM 1", "Text"),
-        ("ITEM 2", "Text"),
-        ("ITEM 3", "Text"),
-        ("ITEM 4", "Text"),
-        ("ITEM 5", "Text"),
-        ("ITEM 6", "Text"),
+        (T("ch1.name"), "channel 1"),
+        (T("ch2.name"), "channel 2"),
+        (T("ch3.name"), "channel 3"),
+        ("MTDI", "calibrates and explains"),
+        ("I³", "the interface"),
+        ("NVTRA", "the voice"),
     ]
     return html.Section([
         html.Div([
@@ -1803,14 +1777,14 @@ def startup_intro():
                 html.H1(T("intro.heading"), className="intro-card-title"),
                 html.P(T("intro.description"),
                        className="intro-description"),
-                html.Div('Label', className="hardware-label"),
+                html.Div("THE INSTRUMENT", className="hardware-label"),
                 html.Div([
                     html.Div([html.Div(name, className="hardware-name"),
                               html.Div(role, className="hardware-role")], className="hardware-item")
                     for name, role in hardware
                 ], className="hardware-grid"),
-                html.Div(["by ", html.Strong("Author")], className="intro-credit"),
+                html.Div(["by ", html.Strong(T("brand.credit"))], className="intro-credit"),
             ], className="intro-card"),
         ], className="intro-stage"),
-    ], id="startup-intro", **{"aria-label": 'Text'})
+    ], id="startup-intro", **{"aria-label": "Startup introduction"})
 

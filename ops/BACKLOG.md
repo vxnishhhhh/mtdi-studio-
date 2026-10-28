@@ -49,7 +49,7 @@ suite and serverless smoke pass on Linux x86_64. `.github/workflows/compat.yml` 
 macOS and Windows runners. Not yet: local AI against a small model, the Vision row (no Vision
 pipeline or recorded images exist), the Vercel deployment check.
 
-### S1-06 · Project-driven studio words · in progress (slices 1–2 merged: shell, page titles, Home hero and cards; channel names and units)
+### S1-06 · Project-driven studio words · in progress (slices 1–12: shell, page titles, Home hero and cards; channel names and units; channel 3's sweep units, PDF report words; every chart and table in studio/charts.py; Page 1's three tabs; Page 2's four views; the D4 engine cards on every page; Settings, the AI key manager and the system grid; the MTDI page's landing, orbit, Validation Chamber and Environmental Intelligence; Page 3, the I³ panels, header tools, NVTRA orb and startup intro; the analysis engine's channel names and units)
 Every placeholder the studio shows (intro words, header brand, page names, Home hero and cards,
 constellation chips and details, globe nodes, typewriter lines, MTDI diagram labels, channel
 names and units) comes from one content file: `studio/content/default.json`, overridable by a
@@ -59,8 +59,29 @@ Slice 1 (2026-10-24): `studio/content.py`, `studio/content/default.json` (42 key
 manifest's `interface` block (`mtdi run` applies it, `mtdi check` validates it). Covers the brand,
 author credit, nav, boot screen, startup intro, Home hero and cards, and every page's eyebrow,
 title and subtitle. Defaults render identically to before on every page. Slice 2 (#46): channel names and
-units from the project's channels. Next slices: section heads and cards on each page, channel 3's
-sweep units, tab and button labels, typewriter lines, constellation and globe words, PDF headings.
+units from the project's channels. Slice 3: channel 3's sweep units. A fed sweep (a project, or
+`/api/ingest`) was drawn as a radio spectrum: x divided by 10^6 and labelled MHz, FM and Wi-Fi bands
+shaded, radio band names on its peaks. Now it keeps its own x, labelled `ch3.axis_unit` ("sample"
+from a project), with no radio bands; the radio sweep is unchanged. The PDF report takes the channel
+names and units and `report.title`/`report.subtitle`. Slice 4: the channel 1–3 charts and the
+cross-channel views say what they plot. Axis titles, legend names, colour bars and empty-state notes
+were the placeholders "Text", "Title" and "Label", and hover text said a literal "unit". They now
+name the axis (sample order, window, direction, sweep time) in the project's channel names and units.
+Slice 5: the receiver, scan and reference charts and the peak, finding and scan tables. They
+had placeholder titles and empty-state notes, and a literal "unit" for levels. Each now names
+what it shows. The receiver's own measurements keep their physical units (MHz, dBFS, µs). Wi-Fi
+and BLE signal is dBm. The radio's level and its plain-language scale use `ch3.unit`.
+studio/charts.py has no placeholder left. Slice 6: Page 1's three tabs (channel 1, channel 2, both).
+Their section heads, metric cards, buttons, zoom and listen cards, chart titles and notes were
+"LABEL", "Title", "Subtext" and "Paragraph…". Each now says what it shows, in the project's channel
+names, and channel 2's reference-scaled cards read `ch2.unit` instead of a literal "unit = N/C".
+The shared listen card (ui.py) names its level in dBFS. The words test renders the tabs empty, fed
+and in channel 2's reference mode. Slice 7: Page 2's four views (channel 3's sweep, the receiver,
+Wi-Fi, Bluetooth) and its tab bar: section heads, cards, controls, input hints, table headers and
+notes, plus the receiver's details table and its sweep and scan messages. The Bluetooth card read
+"-60 unit" for a dBm value; it reads dBm. The words test renders Page 2 empty and with a fed sweep.
+Next slices: the engine (D4) blocks under each tab, the MTDI page, Settings, typewriter lines, constellation and
+globe words (pages.py, ui.py and the browser layer).
 
 ### S1-07 · Reference project: Third Eye (MTDI 1 reborn) · in progress (project, firmware and tests done; CI compile and replay open)
 `projects/third-eye`: two ultrasonic sensors and a buzzer on an Arduino. Manifest, firmware

@@ -71,6 +71,20 @@ mtdi run projects/host-health     # a live project on the machine's own data; bu
 before every snapshot. Above the 100 ms target it shows a warning instead of failing, and estimates how
 many channels the machine handles inside the target.
 
+### On a phone
+
+A phone gets the same desktop layout as a laptop, always in landscape. Hold the phone sideways
+and the studio fills the screen. Held upright it stays landscape, turned with the phone, so it
+reads correctly as soon as you turn it (or with rotation lock on). Swipe to scroll; a drag across a
+3D view rotates it, and a drag up or down scrolls past it. Small controls also accept a tap just
+beside them.
+
+* For the full screen with no browser bars, add the studio to your home screen (Share, then "Add to
+  Home Screen" on an iPhone; the menu, then "Install app" on Android). Installed, Android may also
+  hold the app in landscape where the browser supports it.
+* In Settings, the Desktop / Mobile switch moves this phone to a narrow layout of its own instead
+  ("Mobile"), or back to the landscape desktop layout ("Desktop").
+
 The optional extras cost nothing:
 
 * Offline AI: install [Ollama](https://ollama.com), then run `ollama pull llama3.2:3b`. NVTRA uses it automatically.

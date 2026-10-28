@@ -36,11 +36,30 @@ def longest_contiguous(rows, gap_factor=4.0):
     return list(rows[bounds[best]:bounds[best + 1]])
 
 
+def ch3_packet(sp, threshold_db, level_unit=None):
+    """The D4 analysis of the latest channel 3 sweep. The radio's sweep is in hertz and dBm. A
+    fed sweep keeps its own x unit, and is analysed only when its levels are in decibels: the
+    floor threshold and the occupied width are decibel arithmetic, meaningless on other units."""
+    xu = sp.get("x_unit")
+    meta = {"trusted": sp["trusted"], "status": sp["status"], "x_unit": xu}
+    if xu is None:
+        return dict(d4.ch3_analysis(sp["freqs"], sp["levels"], threshold_db), **meta)
+    if level_unit is None:
+        from .content import T
+        level_unit = T("ch3.unit")
+    meta["level_unit"] = level_unit
+    if "db" not in str(level_unit).lower():
+        return dict(meta, error=f"The sweep analysis needs levels in decibels; this feed's levels are in {level_unit}, "
+                                f"so only the sweep itself is shown.")
+    return dict(d4.ch3_analysis(sp["freqs"], sp["levels"], threshold_db, digits=6), **meta)
+
+
 class D4Service:
     def __init__(self, ns, engine):
         self.ns = ns
         self.engine = engine
         self.lock = threading.Lock()
+        self.compute_lock = threading.Lock()   # one compute at a time: it appends to the histories below
         self.config, self.config_error = d4.load_config()
         self.packet = None
         self.computed_at = 0.0
@@ -112,7 +131,9 @@ class D4Service:
 
     # ── configuration ────────────────────────────────────────────────────────
     def reload_config(self):
-        with self.lock:
+        # after any compute in flight: its packet, made with the old config, is published first and
+        # then cleared here, so no caller reuses it (lock order: compute_lock, then lock)
+        with self.compute_lock, self.lock:
             self.config, self.config_error = d4.load_config()
             self.packet = None
         return self.config, self.config_error
@@ -249,7 +270,8 @@ class D4Service:
             return None
         with lock:
             return {"freqs": list(data.get("freqs") or []), "levels": list(data.get("levels") or []),
-                    "trusted": bool(data.get("trusted")), "last_rx": data.get("last_rx"), "status": data.get("status")}
+                    "trusted": bool(data.get("trusted")), "last_rx": data.get("last_rx"), "status": data.get("status"),
+                    "x_unit": data.get("x_unit")}
 
     # ── repeatability on demand ──────────────────────────────────────────────
     REPEAT_CHANNELS = {
@@ -331,12 +353,22 @@ class D4Service:
                 self.repeat_run.update(running=False, error=str(exc)[:160], finished_at=time.time())
 
     # ── calibration on demand ────────────────────────────────────────────────
+    def _ch1_unit(self):
+        """Channel 1's unit now: a feed's own (the project's word if it named none), else the
+        magnetometer's microtesla. Mirrors charts.ch1_value_unit."""
+        c1 = self.ns.get("ch1_data") or {}
+        if c1.get("fed_source"):
+            from .content import T
+            return str(c1.get("fed_unit") or "").strip() or T("ch1.unit")
+        return "µT"
+
     def calibrate_ch1probe(self, seconds=120):
         rows = self._ring("ch1_raw", seconds)
         pts = [r[1:4] for r in rows]
         result, err = d4.ellipsoid_fit(pts)
         if err:
             return None, err
+        result["unit"] = self._ch1_unit()   # the fit keeps the unit it was made in; the source can change later
         cfg_patch = {"c1_offsets": result["offsets_val"], "c1_soft_iron": result["soft_iron_matrix"],
                      "c1_scale": result["scale"], "c1_calibration_quality": result["quality"]}
         with self.lock:
@@ -349,10 +381,19 @@ class D4Service:
         with self.lock:
             if self.packet is not None and not force and time.time() - self.computed_at < 2.0:
                 return self.packet
-        packet = self._compute()
-        with self.lock:
-            self.packet = packet
-            self.computed_at = time.time()
+            asked = time.time()
+        # _compute_inner appends to and reads mtdi_history, transient_times and events. Two
+        # callbacks computing at once made one iterate a deque the other was appending to
+        # ("deque mutated during iteration", a 500 on the page). Computes now run one at a
+        # time; a caller that waited reuses the packet computed while it waited.
+        with self.compute_lock:
+            with self.lock:
+                if self.packet is not None and self.computed_at >= asked:
+                    return self.packet
+            packet = self._compute()
+            with self.lock:   # published before the next waiter looks, so it reuses this packet
+                self.packet = packet
+                self.computed_at = time.time()
         return packet
 
     def _compute(self):
@@ -463,7 +504,8 @@ class D4Service:
         # How small a change each channel can honestly claim to have seen, from its own
         # measured noise rather than a datasheet figure.
         limits = {}
-        for key, noise_key, unit in (("ch1", "noise_ch1", "uT"),
+        c1_unit = self._ch1_unit()
+        for key, noise_key, unit in (("ch1", "noise_ch1", c1_unit),
                                      ("ch2", "noise_ch2", "ADC codes")):
             lim = d4.detection_limits(out.get(noise_key), unit)
             if lim:
@@ -483,7 +525,7 @@ class D4Service:
         # CH3 analysis of the latest sweep
         sp = self._sweep3()
         if sp and len(sp["freqs"]) >= 8:
-            out["ch3"] = dict(d4.ch3_analysis(sp["freqs"], sp["levels"], cfg["ch3_threshold_db"]), trusted=sp["trusted"], status=sp["status"])
+            out["ch3"] = ch3_packet(sp, cfg["ch3_threshold_db"])
         else:
             out["ch3"] = {"error": "no sweep yet"}
 
@@ -542,7 +584,8 @@ class D4Service:
         fp = d4.fingerprint([np.linalg.norm(r[1:4]) for r in c1_cal] if c1_cal else [], series.get("ch2", []),
                             out["ch3"].get("noise_floor_dbm"), out["ch3"].get("primary_peak_hz"),
                             len([t for t in self.transient_times if now - t < 600]) / 10.0,
-                            {"fundamental_hz": out.get("linefreq", {}).get("fundamental_hz"), "thd_pct": out.get("linefreq", {}).get("thd_pct")})
+                            {"fundamental_hz": out.get("linefreq", {}).get("fundamental_hz"), "thd_pct": out.get("linefreq", {}).get("thd_pct")},
+                            ch3_x_unit=(sp or {}).get("x_unit"), ch3_level_unit=out["ch3"].get("level_unit"))
         out["fingerprint"] = fp
         out["fingerprint_reference"] = self.fingerprint_ref
         out["fingerprint_change"] = d4.compare_fingerprints(self.fingerprint_ref, fp)

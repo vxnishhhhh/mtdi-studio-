@@ -133,6 +133,12 @@ fills (see `studio` below), `ch1.name` / `ch1.unit` (and `ch2.*`, `ch3.*`) come 
 `label` and `unit`. Page 1's tabs, chart axes and statuses show them, and the data fed into the
 studio carries that unit. Set them in `interface` only to override.
 
+Channel 3 is a sweep: a series of (x, y) points. From a project it is the channel's recent history,
+so its x is the sample number (`ch3.axis_unit` is set to `sample`) and its level is in the channel's
+unit. Data fed to `/api/ingest` keeps the x it was given, labelled with `ch3.axis_unit` (default `x`).
+Only the studio's own radio sweep is read in MHz with radio services shaded behind it. The PDF
+report uses the same channel names and units; `report.title` and `report.subtitle` name the report. The channel charts (channels 1–3 and the views that compare them) title their axes, legends and colour bars with the same channel names and units. The studio's own instrument views (the receiver's IQ charts, the Wi-Fi and Bluetooth scans) keep the physical units those devices measure in: MHz, dBFS, µs, dBm.
+
 ## studio
 
 Which project channels fill the studio interface's three display channels. Optional; without

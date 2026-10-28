@@ -5,7 +5,7 @@
 //
 // Each page is judged once the studio says it is ready (<html data-page-ready="1">, see
 // studio/browser.py), never after a fixed sleep. The summary lists how long each page took
-// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 180000) is the deadline per page: software GL in
+// (ready_ms). TOUR_PAGE_TIMEOUT_MS (default 420000) is the deadline per page: software GL in
 // the cloud needs about 50 s for the 3D pages.
 //
 // Needs Playwright (resolved from NODE_PATH, /opt/node-tools or a local install) and Chromium
@@ -41,7 +41,13 @@ page.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("pageerror:
 page.on("console", (m) => { if (m.type() === "error" && !ignored(m.text())) problems.push("console: " + m.text().slice(0, 300)); });
 page.on("response", (r) => { if (r.status() >= 400 && !ignored(r.url())) problems.push(`${r.status()} ${r.url()}`); });
 
-const PAGE_TIMEOUT = Number(process.env.TOUR_PAGE_TIMEOUT_MS || 180000);
+// In software GL (a cloud container has no GPU: Chromium falls back to SwiftShader) the studio's
+// always-on shell, two full-screen background shaders and the full-screen scrub canvas, holds
+// every animation loop near 1.5 frames a second, so a 3D page can take minutes to settle. On
+// 2026-10-27 the MTDI page took 42-161 s on the desktop pass and 189-273 s on the phone pass
+// (its frame is 1180 px at 1.7x); runs vary a lot. The deadline is a measurement budget, not a
+// speed target.
+const PAGE_TIMEOUT = Number(process.env.TOUR_PAGE_TIMEOUT_MS || 420000);
 // Resolves with the page's own ready time once <html data-page=path data-page-ready="1">.
 async function ready(tab, path) {
   await tab.waitForFunction((p) => document.documentElement.dataset.page === p &&
@@ -56,6 +62,16 @@ try {
 } catch {
   problems.push("home: never signalled ready");
 }
+// A visitor scrolls through the startup intro before the nav can be used: the header is
+// pointer-events:none until then. element.click() below reaches the nav anyway, so without
+// this the tour browsed every page with the intro still active, its full-screen shader and the
+// hidden field background drawing behind each page (software GL then starved every page).
+await page.mouse.move(720, 450);   // the middle of the 1440 x 900 viewport, over the intro
+for (let i = 0; i < 60 && !(await page.evaluate(() => window.__introConsumed === true)); i++) {
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(150);
+}
+if (!(await page.evaluate(() => window.__introConsumed === true))) problems.push("home: the startup intro did not finish after scrolling it");
 for (const [name, nav, path] of pages) {
   await page.evaluate((id) => document.getElementById(id)?.click(), nav);
   let readyMs = null;
@@ -81,55 +97,105 @@ for (const [name, nav, path] of pages) {
 // (nothing on top of it), then make one real tap (the bug class fixed in #33). Reduced motion skips
 // the startup intro by design, so the check sees the page a returning visitor sees, every run.
 //
-// Precondition: on a phone the studio asks for the 1180 px desktop composition through the
-// viewport meta, set by its head script (studio/webapp.py, syncPhoneMode). Chromium's device
-// emulation often ignores a viewport meta changed by script: the meta is identical every run, yet
-// the layout stays 390 px wide in most fresh contexts. Judging the nav in that state tests the
-// emulator, not the studio, so an attempt where the viewport was not applied is retried in a
-// fresh context (PHONE_ATTEMPTS). If none applies it, the pass is reported as skipped with the
-// reason, never as passed. Whether real phones apply it is not verified here.
-const PHONE_ATTEMPTS = Number(process.env.TOUR_PHONE_ATTEMPTS || 5);
-const phoneReport = { attempts: 0, viewport_applied: false, skipped: null };
-for (let attempt = 1; attempt <= PHONE_ATTEMPTS && !phoneReport.viewport_applied; attempt++) {
-  phoneReport.attempts = attempt;
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true,
-    isMobile: true, reducedMotion: "reduce" });
+// A phone is sent to /phone, which holds the studio in a 1180 px iframe (the desktop composition)
+// and turns it a quarter turn when the phone is upright (studio/webapp.py, PHONE_SHELL). The pass
+// runs upright, the harder case: the tap goes through the scale and the rotation.
+const phoneReport = { stage: null, frame: null };
+{
+  const context = await browser.newContext({ ...playwright.devices["iPhone 13"], reducedMotion: "reduce" });
   const phone = await context.newPage();
-  const phoneErrors = [];               // every uncaught page error of this attempt counts, retried or not
-  phone.on("pageerror", (e) => { if (!ignored(e.message)) phoneErrors.push("phone pageerror: " + e.message); });
+  phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("phone pageerror: " + e.message); });
   try {
     await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
-    await ready(phone, "/");
-    const view = await phone.evaluate(() => ({
-      wantsDesktop: document.documentElement.classList.contains("phone-desktop"), width: innerWidth }));
-    if (!(view.wantsDesktop && view.width !== 1180)) {        // else the emulator ignored the viewport: retry
-      phoneReport.viewport_applied = true;
-      const covered = await phone.evaluate((ids) => ids.map((id) => {
-        const el = document.getElementById(id);
-        if (!el) return `${id}: missing`;
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) return `${id}: not visible`;
-        if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
-      }).filter(Boolean), pages.map((p) => p[1]));
-      for (const c of covered) problems.push("phone nav " + c);
-      await phone.tap("#nav-mtdi", { timeout: 10000 });
-      const ms = await ready(phone, "/mtdi");
-      visited.push({ name: "phone-tap-mtdi", path: await phone.evaluate(() => location.pathname), ready_ms: ms });
+    await phone.waitForURL(/\/phone/, { timeout: 30000 });
+    let stage = null;
+    for (let i = 0; i < 300 && !stage; i++) {
+      stage = phone.frames().find((f) => f.url().includes("stage=phone")) || null;
+      if (!stage) await phone.waitForTimeout(100);
     }
+    if (!stage) throw new Error("/phone has no studio frame");
+    phoneReport.stage = await phone.evaluate(() => document.getElementById("stage").style.transform);
+    await ready(stage, "/");
+    phoneReport.frame = await stage.evaluate(() => ({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio }));
+    if (phoneReport.frame.w !== 1180) problems.push(`phone stage is ${phoneReport.frame.w} px wide, not 1180`);
+    const covered = await stage.evaluate((ids) => ids.map((id) => {
+      const el = document.getElementById(id);
+      if (!el) return `${id}: missing`;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return `${id}: not visible`;
+      if (r.bottom > innerHeight || r.top < 0 || r.right > innerWidth || r.left < 0) return `${id}: off screen`;
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return el.contains(hit) ? null : `${id}: covered by ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`;
+    }).filter(Boolean), pages.map((p) => p[1]));
+    for (const c of covered) problems.push("phone nav " + c);
+    await stage.locator("#nav-mtdi").tap({ timeout: 15000 });
+    const ms = await ready(stage, "/mtdi");
+    visited.push({ name: "phone-tap-mtdi", path: await stage.evaluate(() => location.pathname), ready_ms: ms });
   } catch (e) {
-    phoneReport.viewport_applied = true;                      // a real failure (navigation included), not the precondition
     problems.push("phone: " + e.message.split("\n")[0]);
   } finally {
-    problems.push(...phoneErrors);
     await context.close().catch(() => {});
   }
 }
-if (!phoneReport.viewport_applied) {
-  phoneReport.skipped = `the emulator ignored the studio's 1180 px viewport in ${phoneReport.attempts} fresh contexts`;
+
+// Swipes (the flick): upright again, with motion on, so Page 1 opens with its scroll hero. Touches
+// go in at 60 Hz with their own timestamps, as a phone sends them; the studio measures a flick from
+// those, so the emulator's slow software GL does not hide it. The hero must clear in at most 3
+// swipes, and the next swipe must scroll the page. It runs in a browser of its own, full Chrome
+// (which has swipe-back, the failure it guards against) without forced software WebGL: it tests
+// touch, and the 3D views drawn on the CPU after the passes above can outlast the page deadline.
+const swipeReport = { swipes: null, scrolled: null };
+{
+  const plain = await playwright.chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM || "/opt/pw-browsers/chromium", headless: false, args: ["--headless=new"],
+  });
+  const context = await plain.newContext({ ...playwright.devices["iPhone 13"] });
+  const phone = await context.newPage();
+  phone.on("pageerror", (e) => { if (!ignored(e.message)) problems.push("swipe pageerror: " + e.message); });
+  try {
+    const cdp = await context.newCDPSession(phone);
+    await phone.goto(base + "/", { waitUntil: "domcontentloaded" });
+    await phone.waitForURL(/\/phone/, { timeout: 30000 });
+    let stage = null;
+    for (let i = 0; i < 300 && !stage; i++) {
+      stage = phone.frames().find((f) => f.url().includes("stage=phone")) || null;
+      if (!stage) await phone.waitForTimeout(100);
+    }
+    if (!stage) throw new Error("/phone has no studio frame");
+    await ready(stage, "/");
+    const glass = await phone.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+    let ts = Date.now() / 1000;
+    // Upright, the stage's "down" is the glass's left, so a finger scrolling down moves right.
+    const swipe = async (frac) => {
+      const y = glass.h / 2, x0 = glass.w * 0.15, x1 = glass.w * (0.15 + frac);
+      const touch = (type, x) => cdp.send("Input.dispatchTouchEvent", { type, timestamp: (ts += 0.016), touchPoints: x === null ? [] : [{ x, y }] });
+      await touch("touchStart", x0);
+      for (let k = 1; k <= 10; k++) await touch("touchMove", x0 + (x1 - x0) * k / 10);
+      await touch("touchEnd", null);
+      await phone.waitForTimeout(1500);
+    };
+    for (let i = 0; i < 8 && await stage.evaluate(() => !!document.getElementById("startup-intro")); i++) await swipe(0.6);
+    await stage.locator("#nav-em").tap({ timeout: 15000 });
+    await ready(stage, "/page-1");
+    await phone.waitForTimeout(1500);
+    const heroDone = () => stage.evaluate(() => { const h = document.querySelector(".i3-scrub-hero"); return !!h && h.classList.contains("i3-hero-hidden"); });   // no hero is a failure, not a pass
+    let swipes = 0;
+    // a flick glides on after the finger lifts; software GL draws it slowly, so give it time to land
+    while (!(await heroDone()) && swipes < 4) { await swipe(0.5); await phone.waitForTimeout(1500); swipes++; }
+    swipeReport.swipes = swipes;
+    if (!(await heroDone()) || swipes > 3) problems.push(`swipe: Page 1's scroll opening took more than 3 swipes (${swipes})`);
+    const y0 = await stage.evaluate(() => scrollY);
+    await swipe(0.5);
+    swipeReport.scrolled = Math.round((await stage.evaluate(() => scrollY)) - y0);
+    if (swipeReport.scrolled <= 0) problems.push("swipe: a swipe after the opening did not scroll Page 1");
+  } catch (e) {
+    problems.push("swipe: " + e.message.split("\n")[0]);
+  } finally {
+    await context.close().catch(() => {});
+    await plain.close().catch(() => {});
+  }
 }
 
 await browser.close();
-console.log(JSON.stringify({ ok: problems.length === 0, visited, phone: phoneReport, problems: [...new Set(problems)] }, null, 2));
+console.log(JSON.stringify({ ok: problems.length === 0, visited, phone: phoneReport, swipe: swipeReport, problems: [...new Set(problems)] }, null, 2));
 process.exit(problems.length ? 1 : 0);

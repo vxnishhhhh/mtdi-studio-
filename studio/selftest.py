@@ -21,7 +21,7 @@ def run(ns, runtime):
         engine.ingest('ch1', 13, timestamp=5, vector=[3, 4, 12], metadata={'monotonic': 5})
         data = engine.snapshot(now=5)
         check(math.isclose(data['fusion']['axial']['magnitude'], 13), 'Triaxial magnitude')
-        check(data['fusion']['axial']['unit'] == 'unit', 'Channel 1 unit')
+        check(data['fusion']['axial']['unit'] == 'µT', 'Channel 1 unit')
         check(data['channels']['ch2']['deviation'] is None, 'Offline channels have no numeric reading')
         for i in range(120):
             t = 1 + i * .12

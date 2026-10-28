@@ -410,6 +410,10 @@ html.i3-cursor #i3-finger-cursor {opacity:1;}
 #i3-orb.collapsed:hover {transform:translateX(-50%) scale(1.03);}
 #i3-orb.collapsed .i3-orb-text,#i3-orb.collapsed .i3-orb-form,#i3-orb.collapsed .i3-island-pills .i3-island-pill:not(.pill-mtdi),#i3-orb.collapsed .i3-voice-bars {display:none;}
 #i3-orb.hidden {transform:translate(-50%,140%);}
+/* phone stage: the idle island waits in the bottom-right corner, under a sideways phone's right thumb, instead of over the middle of the page */
+html.phone-stage #i3-orb.collapsed {left:auto;right:18px;transform:none;}
+html.phone-stage #i3-orb.collapsed:hover {transform:scale(1.03);}
+html.phone-stage #i3-orb.collapsed.hidden {transform:translateY(140%);}
 #i3-orb .i3-orb-text,#i3-orb .i3-orb-form {animation:i3IslandIn .45s cubic-bezier(.2,.8,.2,1) both;}
 @keyframes i3IslandIn {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .i3-island-top {display:flex;align-items:center;gap:12px;}
@@ -419,6 +423,8 @@ html.i3-cursor #i3-finger-cursor {opacity:1;}
 .i3-island-head {display:grid;gap:2px;min-width:0;}
 .i3-orb-name {font:600 10px var(--i3-mono);letter-spacing:.32em;color:#67e8f9;}
 .i3-orb-state {font:12px var(--i3-font);color:#94a3b8;min-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.i3-touch-hint {display:none;}
+@media (hover:none) and (pointer:coarse){.i3-key-hint{display:none;}.i3-touch-hint{display:inline;}}
 .i3-island-pills {display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;}
 .i3-island-pill {display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:0;background:rgba(255,255,255,.08);font:600 10px var(--i3-mono);letter-spacing:.1em;color:#f5f5f7;white-space:nowrap;}
 .i3-island-pill .pill-key {color:#98a2b3;}
@@ -928,7 +934,7 @@ function drawPacketInner(packet,append){
  for(const canvas of traceCanvases){const list=state.traces.get(canvas.dataset.i3Trace)||[];const last=list.at(-1)?.t;if(canvas.__i3TraceTime!==last){canvas.__i3TraceTime=last;drawTrace(canvas,list,traceDimensions.get(canvas));}}
  for(const canvas of document.querySelectorAll('[data-i3-meter]')){if(!visiblePanel(canvas))continue;const source=packet.audition?.sources?.[canvas.dataset.i3Meter];const level=finite(source?.level_dbfs)?source.level_dbfs:null;const key=(level===null?'off':level.toFixed(1))+(source?.clipped?'c':'')+colors.accent;if(canvas.__i3MeterKey===key)continue;canvas.__i3MeterKey=key;drawMeter(canvas,level,!!source?.clipped);
   const audio=document.querySelector('[data-i3-audio="'+canvas.dataset.i3Meter+'"]');if(audio&&source&&!source.enabled&&audio.getAttribute('src')){audio.pause();audio.removeAttribute('src');audio.load();}}
- const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
+ const timeline=document.querySelector('[data-i3-timeline]');if(timeline&&visiblePanel(timeline)){const rows=(packet.events||[]).slice().sort((a,b)=>Number(a.timestamp)-Number(b.timestamp)).slice(-14).reverse().map(e=>new Date(Number(e.timestamp)*1000).toLocaleTimeString()+'  '+clean(e.channel||e.source||'')+'  '+(finite(e.deviation)?fmt(e.deviation,'number')+' '+clean(e.unit||''):clean(e.message||''))+(e.state?'  '+clean(e.state):'')).join('\n');text(timeline,rows||'No events yet');}
  
  metrics.packetWorkMs=performance.now()-started;
  document.querySelectorAll('[data-i3-cloud]').forEach(el=>text(el,fmt(packet.cloud)));
@@ -1040,7 +1046,7 @@ function setupControls(){
  }
  button.disabled=true;control(payload,result).catch(()=>{}).finally(()=>{button.disabled=false;});
  });
- document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel')form.elements.namedItem('unit').value={ch1:'unit',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];});
+ document.addEventListener('change',event=>{const form=event.target.closest('[data-i3-form=calibration]');if(form&&event.target.name==='channel'){const live=state.packet?.channels?.[event.target.value];form.elements.namedItem('unit').value=(live&&live.fed&&live.source_unit)||{ch1:'µT',ch2:'V/m',ch3:'dB',current:'A'}[event.target.value];}});
  let gainTimer=null;document.addEventListener('input',event=>{if(!event.target.classList?.contains('i3-gain'))return;const key=(event.target.closest('[data-i3-form]')?.dataset.i3Form||'').replace('audition-','');if(!key)return;clearTimeout(gainTimer);gainTimer=setTimeout(()=>control({action:'audition',source:key,gain:Number(event.target.value)}).catch(()=>{}),120);});
  document.addEventListener('submit',event=>{if(event.target?.matches?.('[data-i3-form]'))event.preventDefault();});
 
@@ -1096,8 +1102,17 @@ function scrubFrame(now){if(!scrubActive()){scrub.raf=0;return;}const dt=scrub.l
  scrub.raf=requestAnimationFrame(scrubFrame);}
 const SCRUB_KEYS={ArrowDown:140,ArrowUp:-140,PageDown:700,PageUp:-700,' ':700,End:1e9,Home:-1e9};
 addEventListener('wheel',e=>{if(!scrubActive())return;if(scrubConsume(e.deltaY))e.preventDefault();},{passive:false});
-let scrubTouchY=0;addEventListener('touchstart',e=>{scrubTouchY=e.touches[0]?.clientY??0;},{passive:true});
-addEventListener('touchmove',e=>{if(!scrubActive())return;const y=e.touches[0]?.clientY??scrubTouchY;const d=scrubTouchY-y;scrubTouchY=y;if(scrubConsume(d))e.preventDefault();},{passive:false});
+/* One finger drives the hero: a second finger neither moves it twice nor starts a flick, and when the first lifts the other carries on from where it is. */
+let scrubTouchY=0,scrubTouchT=0,scrubTouchId=null,scrubFlingV=0,scrubFling=0;
+const scrubTouch=list=>{for(const t of list)if(t.identifier===scrubTouchId)return t;return null;};
+addEventListener('touchstart',e=>{if(e.touches.length===1){const t=e.touches[0];scrubTouchId=t.identifier;scrubTouchY=t.clientY;scrubTouchT=e.timeStamp;}scrubFlingV=0;cancelAnimationFrame(scrubFling);scrubFling=0;},{passive:true});
+addEventListener('touchmove',e=>{if(!scrubActive())return;const t=scrubTouch(e.touches);if(!t)return;const y=t.clientY,now=e.timeStamp;/* on the phone stage a swipe counts three times, so the hero is not a dozen swipes long */const d=(scrubTouchY-y)*(document.documentElement.classList.contains('phone-stage')?3:1);scrubFlingV=.8*d/Math.max(1,now-scrubTouchT)+.2*scrubFlingV;scrubTouchY=y;scrubTouchT=now;if(scrubConsume(d))e.preventDefault();},{passive:false});
+/* A flick carries on after the finger lifts, the way a page scroll does: the hero keeps the swipe's speed and slows down (a finger that stopped before lifting carries nothing). Speed comes from the touch events' own times, so a busy page does not lose it. */
+addEventListener('touchend',e=>{const lifted=!!scrubTouch(e.changedTouches);
+ if(lifted&&e.touches.length){const t=e.touches[0];scrubTouchId=t.identifier;scrubTouchY=t.clientY;scrubTouchT=e.timeStamp;scrubFlingV=0;return;}
+ if(!lifted||e.touches.length||!scrubActive()||!scrub.locked||e.timeStamp-scrubTouchT>90||Math.abs(scrubFlingV)<.3)return;let last=performance.now();
+ const glide=now=>{const dt=Math.min(50,now-last);last=now;scrubFlingV*=Math.pow(.95,dt/(1000/60));if(!scrubActive()||!scrub.locked||Math.abs(scrubFlingV)<.05){scrubFling=0;return;}scrubConsume(scrubFlingV*dt);scrubFling=requestAnimationFrame(glide);};
+ scrubFling=requestAnimationFrame(glide);},{passive:true});
 addEventListener('keydown',e=>{if(!scrubActive()||e.target.matches?.('input,textarea,select'))return;if(e.key==='Escape'&&scrub.locked){scrub.target=scrub.shown=1;scrub.moved=true;scrubPaint(1);scrubRelease(true);return;}const step=SCRUB_KEYS[e.key];if(step===undefined)return;if(scrubConsume(step))e.preventDefault();});
 function scrubExit(){if(!scrubActive()||scrub.locked)return;const h=scrub.hero.offsetHeight||1;const k=clamp((scrollY-scrub.hero.offsetTop)/h,0,1);const st=scrub.el.stage;if(st){st.style.transform='translate3d(0,'+(-k*22).toFixed(2)+'vh,0) scale('+(1+k*.28).toFixed(3)+')';st.style.opacity=String(1-k*1.15);}}
 addEventListener('scroll',scrubExit,{passive:true});
@@ -1358,7 +1373,7 @@ function compileGL(){
  try{const program=gl.createProgram();const source=[['VERTEX_SHADER','attribute vec2 position;void main(){gl_Position=vec4(position,0.,1.);}'],['FRAGMENT_SHADER','precision mediump float;uniform vec2 resolution;uniform float time;uniform vec3 ink;uniform vec3 paper;void main(){vec2 uv=gl_FragCoord.xy/resolution;float wave=sin(uv.x*17.+uv.y*6.+time*.2)*.5+.5;float field=exp(-abs(uv.y-.45-sin(uv.x*4.+time*.05)*.13)*27.);float grid=step(.985,fract(uv.x*28.))*step(.985,fract(uv.y*18.));gl_FragColor=vec4(mix(paper,ink,field*.065*wave+grid*.12),1.);}']];
  for(const [type,text] of source){const shader=gl.createShader(gl[type]);gl.shaderSource(shader,text);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(shader));gl.attachShader(program,shader);gl.deleteShader(shader);}gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);const position=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);glState.program=program;glState.uniforms={resolution:gl.getUniformLocation(program,'resolution'),time:gl.getUniformLocation(program,'time'),ink:gl.getUniformLocation(program,'ink'),paper:gl.getUniformLocation(program,'paper')};resizeGL();themeGL();root.dataset.i3Webgl='active';}catch(error){root.dataset.i3Webgl='shader unavailable';glState.program=null;}
 }
-function resizeGL(){if(!glState?.program)return;glState.dirty=true;const {gl,canvas,uniforms}=glState;/* full device resolution on a capable machine; a pixel budget on small hosts (this host's own screen) */const budget=(navigator.hardwareConcurrency||4)>=8?4800000:1200000;const ratio=Math.min(devicePixelRatio||1,2,Math.sqrt(budget/Math.max(1,innerWidth*innerHeight)));canvas.width=Math.max(1,Math.round(innerWidth*ratio));canvas.height=Math.max(1,Math.round(innerHeight*ratio));gl.viewport(0,0,canvas.width,canvas.height);gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);}
+function resizeGL(){if(!glState?.program)return;glState.dirty=true;const {gl,canvas,uniforms}=glState;/* full device resolution on a capable machine; a pixel budget on small hosts (this host's own screen) */const budget=document.documentElement.classList.contains('phone-stage')?400000:(navigator.hardwareConcurrency||4)>=8?4800000:1200000;const ratio=Math.min(devicePixelRatio||1,2,Math.sqrt(budget/Math.max(1,innerWidth*innerHeight)));canvas.width=Math.max(1,Math.round(innerWidth*ratio));canvas.height=Math.max(1,Math.round(innerHeight*ratio));gl.viewport(0,0,canvas.width,canvas.height);gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);}
 function themeGL(){if(!glState?.program)return;glState.dirty=true;const s=getComputedStyle(root),{gl,uniforms}=glState;gl.uniform3fv(uniforms.ink,s.getPropertyValue('--i3-shader-ink').split(',').map(Number));gl.uniform3fv(uniforms.paper,s.getPropertyValue('--i3-shader-bg').split(',').map(Number));}
 let lastFrame=0;
 /* Delivered frame cadence of THIS browser: the median gap between consecutive animation
@@ -2298,7 +2313,9 @@ function orbShow(state,textValue){const orb=document.getElementById('i3-orb');if
 /* Hide once the exchange is over: never while the operator is mid-sentence (a chunk recording or
    decoding), awake, or NVTRA is busy or speaking. Re-checks until it is safe. */
 function orbHideWhenIdle(){if(vc.speaking||(vc.inflight||0)>0||agent.awake||agent.busy||agent.speaking){clearTimeout(agent.hideTimer);agent.hideTimer=setTimeout(orbHideWhenIdle,300);return;}orbHide();}
-function orbHide(){const orb=document.getElementById('i3-orb');if(orb){orb.classList.add('collapsed');}text(document.getElementById('i3-orb-state'),agent.listening?'Listening for Hey Novatra':'Press ◍ or N to start listening');const robot=document.getElementById('nvtra-spline-host');if(robot&&agent.robotHome&&agent.robotHome.isConnected){agent.robotHome.insertBefore(robot,agent.robotNext&&agent.robotNext.isConnected?agent.robotNext:null);agent.robotHome=null;const slot=document.getElementById('i3-orb-robot');if(slot)slot.hidden=true;document.getElementById('i3-orb-canvas').hidden=false;}cancelAnimationFrame(agent.raf);agent.raf=0;agent.awake=false;}
+/* the idle hint names the keyboard key on a computer and a tap on a touch screen (CSS picks one) */
+const ORB_IDLE='<span class="i3-key-hint">Press ◍ or N</span><span class="i3-touch-hint">Tap ◍</span> to start listening';
+function orbHide(){const orb=document.getElementById('i3-orb');if(orb){orb.classList.add('collapsed');}{const st=document.getElementById('i3-orb-state');if(agent.listening)text(st,'Listening for Hey Novatra');else if(st)st.innerHTML=ORB_IDLE;}const robot=document.getElementById('nvtra-spline-host');if(robot&&agent.robotHome&&agent.robotHome.isConnected){agent.robotHome.insertBefore(robot,agent.robotNext&&agent.robotNext.isConnected?agent.robotNext:null);agent.robotHome=null;const slot=document.getElementById('i3-orb-robot');if(slot)slot.hidden=true;document.getElementById('i3-orb-canvas').hidden=false;}cancelAnimationFrame(agent.raf);agent.raf=0;agent.awake=false;}
 function orbAnimate(){if(agent.raf)return;const canvas=document.getElementById('i3-orb-canvas');const ctx=canvas.getContext('2d');const draw=()=>{if(document.getElementById('i3-orb').classList.contains('hidden')){agent.raf=0;return;}agent.phase+=.035;let level=agent.level;if(agent.analyser){const data=new Uint8Array(agent.analyser.frequencyBinCount);agent.analyser.getByteTimeDomainData(data);let sum=0;for(const v of data){const d=(v-128)/128;sum+=d*d;}level=Math.min(1,Math.sqrt(sum/data.length)*4);}if(agent.speaking)level=.35+Math.sin(agent.phase*6)*.2;const bars=document.querySelectorAll('#i3-voice-bars i');bars.forEach((bar,i)=>{const v=Math.max(.15,Math.min(1,level*3*(0.5+Math.abs(Math.sin(agent.phase*4+i*.9)))));bar.style.height=(4+v*16)+'px';});const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,base=w*.24;ctx.clearRect(0,0,w,h);const layers=[['#1d4ed8',.9,1],['#3b82f6',.7,1.4],['#22d3ee',.55,1.9],['#a5f3fc',.4,2.6]];layers.forEach(([color,alpha,speed],li)=>{ctx.beginPath();for(let a=0;a<=Math.PI*2+.01;a+=Math.PI/64){const wob=Math.sin(a*3+agent.phase*speed)*.06+Math.sin(a*5-agent.phase*speed*1.3)*.04+Math.sin(a*7+agent.phase*.7)*.03;const r=base*(1+li*.09)*(1+wob*(1+level*4)+level*.15);const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.closePath();ctx.globalAlpha=alpha*.55;ctx.fillStyle=color;ctx.globalCompositeOperation='lighter';ctx.fill();});ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;const core=ctx.createRadialGradient(cx,cy,0,cx,cy,base*.9);core.addColorStop(0,'rgba(255,255,255,.9)');core.addColorStop(.35,'rgba(147,197,253,.55)');core.addColorStop(1,'rgba(29,78,216,0)');ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,base*.9,0,Math.PI*2);ctx.fill();agent.raf=requestAnimationFrame(draw);};agent.raf=requestAnimationFrame(draw);}
 function voicePlayer(){if(!agent.player){agent.player=new Audio();agent.player.preload='auto';}return agent.player;}
 /* Browsers only let audio start after a user gesture: the first click, key or touch
@@ -2338,7 +2355,12 @@ async function runActions(actions){const navIds={'/':'nav-home','/page-1':'nav-e
   else if(action.type==='relock'){await control({action:'baseline',channel:t==='all'?null:t,relock:true}).catch(()=>{});}
  }}
 function cameraFrame(){try{const video=document.querySelector('.i3-hand-vision-video');if(!video||video.readyState<2)return null;const c=document.createElement('canvas');c.width=512;c.height=Math.round(512*video.videoHeight/Math.max(1,video.videoWidth));c.getContext('2d').drawImage(video,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.7);}catch(error){return null;}}
-async function agentRequest(textValue){if(agent.busy)return;agent.busy=true;const seq=agent.stopSeq||0;orbShow('Thinking',textValue);try{const image=cameraFrame();const response=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:textValue,image}),signal:AbortSignal.timeout(60000)});const data=await response.json();if((agent.stopSeq||0)!==seq){agent.busy=false;return;}if(!response.ok)throw Error(data.error||'Agent unavailable');orbShow(data.source==='instant'?'Done':data.source==='rules'?'Command mode':'NVTRA','');agent.followUntil=performance.now()+30000;typeIn(document.getElementById('i3-orb-text'),data.say);if(data.source!=='instant')speak(data.say);await runActions(data.actions);setTimeout(orbHideWhenIdle,data.source==='instant'?1800:2200);}catch(error){orbShow('NVTRA could not answer',clean(error.message));setTimeout(orbHideWhenIdle,3500);}finally{agent.busy=false;const q=agent.queued;agent.queued=null;if(q){agent.followUntil=performance.now()+30000;setTimeout(()=>{if(!agent.busy)agentHandleTranscript(q,true);},50);}}}
+// Consent saves and resets run one after another, so a reset can never be overtaken by an earlier yes.
+function consentOp(task){const run=(agent.consentChain||Promise.resolve()).then(task);agent.consentChain=run.catch(()=>{});return run;}
+async function consentedFrame(){const frame=cameraFrame();if(!frame)return null;// The saved answer is read fresh for every question (never cached), so another tab's reset is seen at once.
+try{return await consentOp(async()=>{let share=(await (await fetch('/api/camera-consent',{cache:'no-store'})).json()).share;if(share===null){share=window.confirm('NVTRA can send a still frame from your camera with each question, so it can see what you mean. With Gemini selected, that frame goes to Google. Allow this? NVTRA remembers your answer; the camera panel can make it ask again.');const saved=await fetch('/api/camera-consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({share})});if(!saved.ok)throw Error('not saved');share=(await saved.json()).share;}return share===true?frame:null;});}catch(error){orbShow('Camera answer not saved','NVTRA will ask again next time; no frame was sent');return null;}}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-camera-consent-reset]');if(!button)return;consentOp(()=>fetch('/api/camera-consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({share:null})}).then(r=>{if(!r.ok)throw Error('not reset');return r.json();}).then(()=>{button.textContent='NVTRA will ask before the next frame';})).catch(()=>{button.textContent='Could not reset; try again';});});
+async function agentRequest(textValue){if(agent.busy)return;agent.busy=true;const seq=agent.stopSeq||0;orbShow('Thinking',textValue);try{const image=await consentedFrame();const response=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:textValue,image}),signal:AbortSignal.timeout(60000)});const data=await response.json();if((agent.stopSeq||0)!==seq){agent.busy=false;return;}if(!response.ok)throw Error(data.error||'Agent unavailable');orbShow(data.source==='instant'?'Done':data.source==='rules'?'Command mode':'NVTRA','');agent.followUntil=performance.now()+30000;typeIn(document.getElementById('i3-orb-text'),data.say);if(data.source!=='instant')speak(data.say);await runActions(data.actions);setTimeout(orbHideWhenIdle,data.source==='instant'?1800:2200);}catch(error){orbShow('NVTRA could not answer',clean(error.message));setTimeout(orbHideWhenIdle,3500);}finally{agent.busy=false;const q=agent.queued;agent.queued=null;if(q){agent.followUntil=performance.now()+30000;setTimeout(()=>{if(!agent.busy)agentHandleTranscript(q,true);},50);}}}
 /* Turn taking: while NVTRA speaks the recogniser is paused so it never hears itself; the
    microphone level can still interrupt it (barge in). A request is sent once the
    operator has stopped talking for 750 ms, not on the engine's own final flag. */
@@ -2623,101 +2645,117 @@ def _channel(html, key, title):
     return _card(html, title, [
         _live(html, path + ".state", "Offline", class_name="i3-state"),
         html.Div([_live(html, path + ".deviation", fmt="number"), " ", _live(html, path + ".unit", "")], className="i3-value"),
-        _live(html, path + ".uncertainty", 'Text', class_name="i3-mute"),
-        html.Canvas(**{"data-i3-trace": key, "aria-label": title + ' Text', "className": "i3-mini-trace"}),
-        _row(html, 'Label', path + ".baseline", "baseline"),
+        _live(html, path + ".uncertainty", "no uncertainty yet", class_name="i3-mute"),
+        html.Canvas(**{"data-i3-trace": key, "aria-label": title + " change over time", "className": "i3-mini-trace"}),
+        _row(html, "Baseline", path + ".baseline", "baseline"),
     ], "compact")
+
+
+def _channel_names():
+    """The three channels in the project's words (S1-06), for the I³ panels' rows and pickers."""
+    return [("ch1", T("ch1.name")), ("ch2", T("ch2.name")), ("ch3", T("ch3.name"))]
 
 
 def axial_panel(html):
     path = "fusion.axial."
-    return _card(html, 'Title', [
+    return _card(html, f"{T('ch1.name').upper()} AXES", [
         *[_row(html, label, path + key, "number") for key, label in [
-            ("x", 'Text'), ("y", 'Text'), ("z", 'Text'),
-            ("magnitude", 'Text'), ("disagreement", 'Text'),
-            ("agreement", 'Text'), ("contribution", 'Text'), ("confidence_contribution", 'Text')]],
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+            ("x", "X change"), ("y", "Y change"), ("z", "Z change"),
+            ("magnitude", "Change, all axes"), ("disagreement", "Axis disagreement %"),
+            ("agreement", "Axis agreement %"), ("contribution.0", "X share %"),
+            ("contribution.1", "Y share %"), ("contribution.2", "Z share %"),
+            ("confidence_contribution", "Adds to confidence")]],
+        _row(html, "Unit", path + "unit"),
+        html.Div(f"Each axis's change from its own baseline. Agreement is how closely the share each axis "
+                 f"carries matches its recent pattern: a real change in the {T('ch1.name').lower()} field tends to keep "
+                 f"its direction, a disturbance on one axis does not.", className="i3-mute"),
     ])
 
 
 def baseline_panel(html, dcc):
-    return _card(html, 'Title', [
-        html.P('Paragraph. Enter your text here.'),
+    return _card(html, "BASELINE CONTROL", [
+        html.P("Each channel tracks the ambient level over a window of seconds. Set a new window, relock to "
+               "learn the level again from now, or freeze the baseline so it stops following the room."),
         html.Form([
             html.Div([
-                html.Label(['Label', html.Select([html.Option("All", value="all"), html.Option("Channel 1", value="ch1"), html.Option("Channel 2", value="ch2"), html.Option("Channel 3", value="ch3")], name="channel")]),
-                html.Label(['Label', dcc.Input(name="window", type="number", value=10, min=2, max=600, step=1)]),
+                html.Label(["Channel", html.Select([html.Option("All", value="all"), *[html.Option(name, value=key) for key, name in _channel_names()]], name="channel")]),
+                html.Label(["Window, seconds", dcc.Input(name="window", type="number", value=10, min=2, max=600, step=1)]),
             ], className="i3-form"),
-            html.Div([html.Button(label, type="button", className="i3-btn", **{"data-i3-action": "baseline", "data-i3-op": op}) for label, op in [('Text', "window"), ("Relock", "relock"), ("Freeze", "freeze"), ("Resume", "resume")]], className="i3-form"),
-            html.Div('Text', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Div([html.Button(label, type="button", className="i3-btn", **{"data-i3-action": "baseline", "data-i3-op": op}) for label, op in [("Set window", "window"), ("Relock", "relock"), ("Freeze", "freeze"), ("Resume", "resume")]], className="i3-form"),
+            html.Div("No change yet.", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "baseline"}),
-        *[_row(html, label + " baseline", "channels." + key + ".baseline", "baseline_window") for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]],
+        *[_row(html, label + " baseline", "channels." + key + ".baseline", "baseline_window") for key, label in _channel_names()],
     ], "tall")
 
 
 def transient_panel(html):
-    return _card(html, 'Title', [
+    return _card(html, "TRANSIENTS", [
         html.Table([
             html.Thead(html.Tr([html.Th(x) for x in ["Channel", "State", "Variance", "Threshold"]])),
-            html.Tbody([html.Tr([html.Td(label), *[html.Td(_live(html, "channels." + key + ".transient." + value, fmt="number" if value != "state" else None)) for value in ["state", "variance", "threshold"]]]) for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]])
+            html.Tbody([html.Tr([html.Td(label), *[html.Td(_live(html, "channels." + key + ".transient." + value, fmt="number" if value != "state" else None)) for value in ["state", "variance", "threshold"]]]) for key, label in _channel_names()])
         ], className="i3-health"),
-        html.P('Paragraph. Enter your text here.'),
+        html.P("Over the last 12 seconds: the variance of each channel's change from its baseline, against a "
+               "threshold of three times its ambient noise, squared. Short bursts above it read as transient; "
+               "a change that stays up reads as continuous."),
     ])
 
 
 def vector_panel(html):
-    return _card(html, 'Title', [
-        html.Canvas(className="i3-vector", **{"data-i3-vector": "true", "aria-label": 'Text'}),
-        _row(html, 'Label', "fusion.vector.bearing", "number"),
-        _row(html, 'Label', "fusion.vector.raw"),
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, f"{T('ch1.name').upper()} DIRECTION", [
+        html.Canvas(className="i3-vector", **{"data-i3-vector": "true", "aria-label": f"{T('ch1.name')} change direction"}),
+        _row(html, "Bearing, degrees", "fusion.vector.bearing", "number"),
+        _row(html, "Change, X Y Z", "fusion.vector.raw"),
+        html.Div(f"The direction of the {T('ch1.name').lower()} change from its baseline, seen from above. The bearing "
+                 "shows only when the change is more than three times the ambient noise.", className="i3-mute"),
     ])
 
 
 def signature_panel(html):
-    return _card(html, 'Title', [
-        html.Div(_live(html, "fusion.interpretation", 'Text'), className="i3-condition"),
-        html.Div(_live(html, "fusion.evidence", 'Text'), className="i3-evidence"),
-        html.Details([html.Summary('Title'), html.Pre(_live(html, "rules", 'Text', fmt="json"), className="i3-details")]),
+    return _card(html, "WHAT THE CHANNELS SAY", [
+        html.Div(_live(html, "fusion.interpretation", "Waiting for readings"), className="i3-condition"),
+        html.Div(_live(html, "fusion.evidence", "No evidence yet"), className="i3-evidence"),
+        html.Details([html.Summary("The rules behind this reading"), html.Pre(_live(html, "rules", "No rules loaded", fmt="json"), className="i3-details")]),
     ])
 
 
 def confidence_panel(html):
     factors = [("availability", "Availability"), ("baseline", "Baseline"),
-               ("signal_to_noise", 'Text'), ("clipping", "Clipping"),
+               ("signal_to_noise", "Signal to noise"), ("clipping", "Clipping"),
                ("timing", "Timing"), ("transient", "Transient"),
-               ("axial_consensus", 'Text'), ("correlation", "Correlation")]
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+               ("axial_consensus", "Axis agreement"), ("correlation", "Correlation")]
+    return _card(html, "CONFIDENCE BREAKDOWN", [
+        html.Div("Each channel's confidence is a weighted sum of these factors, each scored 0 to 100.", className="i3-mute"),
         html.Table([
-            html.Thead(html.Tr([html.Th(label) for label in ["Factor", "Weight", "Ch 1", "Ch 2", "Ch 3"]])),
+            html.Thead(html.Tr([html.Th(label) for label in ["Factor", "Weight", *[name for _, name in _channel_names()]]])),
             html.Tbody([html.Tr([html.Td(label), html.Td(_live(html, "fusion.breakdown.weights." + key, fmt="fraction")), *[
                 html.Td(_live(html, "fusion.breakdown.channels." + channel + ".terms." + key + ".value", fmt="number"))
                 for channel in ["ch1", "ch2", "ch3"]]]) for key, label in factors]),
         ], className="i3-health"),
-        html.Div('Paragraph. Enter your text here.', className="i3-notice"),
+        html.Div("Confidence says how far the evidence can be trusted, not whether a reading is good or bad.", className="i3-notice"),
     ])
 
 
 def calibration_panel(html, dcc):
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, "TWO-POINT CALIBRATION", [
+        html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
+                 f"and an offset, and every later reading is converted with them. {T('ch1.name')} takes a scale only, "
+                 "so its two references must be proportional.", className="i3-mute"),
         html.Form([
             html.Div([
-                html.Label(['Label', html.Select([html.Option("Channel 1", value="ch1"), html.Option("Channel 2", value="ch2"), html.Option("Channel 3", value="ch3")], name="channel")]),
-                html.Label(['Label', dcc.Input(name="unit", type="text", value="unit", required=True)]),
-                html.Label(['Label', dcc.Input(name="raw_low", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="raw_high", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="known_low", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="known_high", type="number", required=True)]),
-                html.Label(['Label', dcc.Input(name="uncertainty", type="number", min=0, required=True)]),
-                html.Label(['Label', dcc.Input(name="method", type="text", required=True, minLength=3)]),
+                html.Label(["Channel", html.Select([html.Option(name, value=key) for key, name in _channel_names()], name="channel")]),
+                html.Label(["Unit (leave blank to follow the live source; or uT, V/m, mV RMS relative, dB)", dcc.Input(name="unit", type="text", value="")]),
+                html.Label(["Raw reading, low", dcc.Input(name="raw_low", type="number", required=True)]),
+                html.Label(["Raw reading, high", dcc.Input(name="raw_high", type="number", required=True)]),
+                html.Label(["Known value, low", dcc.Input(name="known_low", type="number", required=True)]),
+                html.Label(["Known value, high", dcc.Input(name="known_high", type="number", required=True)]),
+                html.Label(["Reference uncertainty", dcc.Input(name="uncertainty", type="number", min=0, required=True)]),
+                html.Label(["How the references were made", dcc.Input(name="method", type="text", required=True, minLength=3)]),
             ], className="i3-form"),
-            html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "calibrate"}),
-            html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "reset_calibration"}),
-            html.Div('Paragraph. Enter your text here.', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Button("Apply calibration", type="button", className="i3-btn", **{"data-i3-action": "calibrate"}),
+            html.Button("Remove calibration", type="button", className="i3-btn", **{"data-i3-action": "reset_calibration"}),
+            html.Div("The result appears here.", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "calibration"}),
-        *[_row(html, label + " calibrated", "channels." + key + ".calibration.timestamp", "time") for key, label in [("ch1", 'Channel 1'), ("ch2", 'Channel 2'), ("ch3", "Channel 3")]],
+        *[_row(html, label + " calibrated", "channels." + key + ".calibration.timestamp", "time") for key, label in _channel_names()],
     ], "tall")
 
 
@@ -2725,10 +2763,10 @@ def _audio_block(html, dcc, key, title, extra):
     path = "audition.sources." + key + "."
     return html.Div([
         html.H4([title, _live(html, path + "state", "Unavailable", class_name="i3-state")]),
-        html.Canvas(className="i3-meter", **{"data-i3-meter": key, "aria-label": title + ' Text'}),
-        html.Div([html.Span('Label', className="i3-label"), _live(html, path + "level_dbfs", fmt="number")], className="i3-row"),
+        html.Canvas(className="i3-meter", **{"data-i3-meter": key, "aria-label": title + ' level meter'}),
+        html.Div([html.Span("Level (dBFS)", className="i3-label"), _live(html, path + "level_dbfs", fmt="number")], className="i3-row"),
         html.Div([html.Span("Device", className="i3-label"), _live(html, path + "device")], className="i3-row"),
-        html.Div([html.Span("Status", className="i3-label"), _live(html, path + "error", 'Text')], className="i3-row"),
+        html.Div([html.Span("Status", className="i3-label"), _live(html, path + "error", "—")], className="i3-row"),
         html.Form([
             html.Div([
                 html.Button("Start", type="button", className="i3-btn i3-primary", **{"data-i3-action": "audition", "data-i3-source": key, "data-i3-op": "start"}),
@@ -2738,47 +2776,56 @@ def _audio_block(html, dcc, key, title, extra):
             html.Label(["Gain", dcc.Input(name="gain", type="range", min=0, max=30, step=0.5, value=4 if key == "ch2f" else 1, className="i3-gain")]),
             *extra,
             html.Audio(preload="none", **{"data-i3-audio": key}),
-            html.Div('Text', className="i3-inline-result", **{"data-i3-result": "true"}),
+            html.Div("", className="i3-inline-result", **{"data-i3-result": "true"}),
         ], **{"data-i3-form": "audition-" + key}),
     ], className="i3-audio")
 
 
 def audition_panel(html, dcc):
     sdr_extra = [html.Div([
-        html.Label(['Label', dcc.Input(name="frequency_mhz", type="number", min=24, max=1766, step=0.001, value=100)]),
-        html.Label(['Label', html.Select([html.Option(m.upper(), value=m) for m in ("wbfm", "fm", "am", "usb", "lsb")], name="mode")]),
-        html.Button('Button', type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "sdr", "data-i3-op": "tune"}),
+        html.Label(["Frequency, MHz", dcc.Input(name="frequency_mhz", type="number", min=24, max=1766, step=0.001, value=100)]),
+        html.Label(["Mode", html.Select([html.Option(m.upper(), value=m) for m in ("wbfm", "fm", "am", "usb", "lsb")], name="mode")]),
+        html.Button("Tune", type="button", className="i3-btn", **{"data-i3-action": "audition", "data-i3-source": "sdr", "data-i3-op": "tune"}),
     ], className="i3-form")]
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
-        html.Div([_audio_block(html, dcc, "ch2f", 'Title', []), _audio_block(html, dcc, "c1", 'Title', []), _audio_block(html, dcc, "coil", 'Title', []), _audio_block(html, dcc, "sdr", 'Title', sdr_extra)], className="i3-audio-grid three"),
+    return _card(html, "LISTEN", [
+        html.Div(f"Hear the sources. {T('ch2.name')} plays its measured signal, up to about 430 Hz; on the Uno it is a "
+                 "tone whose pitch follows the measured level. "
+                 f"{T('ch1.name')} is a sonification: a 220 Hz tone whose loudness follows the change, because the "
+                 "field itself moves too slowly to hear.", className="i3-mute"),
+        html.Div([_audio_block(html, dcc, "ch2f", T("ch2.name"), []), _audio_block(html, dcc, "c1", f"{T('ch1.name')} (sonified)", []),
+                  _audio_block(html, dcc, "coil", "Pickup coil", []), _audio_block(html, dcc, "sdr", "Radio receiver", sdr_extra)], className="i3-audio-grid three"),
     ], "tall wide")
 
 
 
 def timeline_panel(html):
-    return _card(html, 'Title', [
-        html.Div('Paragraph. Enter your text here.', className="i3-mute"),
+    return _card(html, "EVENTS", [
+        html.Div("The latest 14 events from every channel, newest first.", className="i3-mute"),
         html.Div("No events yet", className="i3-timeline", **{"data-i3-timeline": "true"}),
     ])
 
 
 def telemetry_panel(html):
-    return _card(html, 'Title', [
-        html.Pre(_live(html, "telemetry", 'Text', "json"), className="i3-details"),
+    return _card(html, "TELEMETRY", [
+        html.Pre(_live(html, "telemetry", "No telemetry yet", "json"), className="i3-details"),
     ], "tall")
 
 
 def camera_panel(html):
-    return _card(html, 'Title', [
-        html.Div([html.Span('Text', className="i3-mute"), html.Img(className="i3-camera-preview", alt='Text', **{"data-i3-camera-preview": "true"})], className="i3-camera-frame"),
-        _row(html, 'Label', "camera.state"),
-        _row(html, 'Label', "camera.resolution"),
-        _row(html, 'Label', "camera.fps", "number"),
-        _row(html, 'Label', "camera.dropped_frames", "number"),
-        _row(html, 'Label', "camera.tracking.confidence", "fraction"),
+    return _card(html, "CAMERA", [
+        html.Div([html.Span("Camera off", className="i3-mute"), html.Img(className="i3-camera-preview", alt="Camera preview", **{"data-i3-camera-preview": "true"})], className="i3-camera-frame"),
+        _row(html, "State", "camera.state"),
+        _row(html, "Resolution", "camera.resolution"),
+        _row(html, "Frames per second", "camera.fps", "number"),
+        _row(html, "Dropped frames", "camera.dropped_frames", "number"),
+        _row(html, "Hand tracking confidence", "camera.tracking.confidence", "fraction"),
         _row(html, "Status", "camera.error"),
-        html.Div('Paragraph. Enter your text here.', className="i3-notice"),
+        html.Div("Hand tracking runs on this device. While the camera is on, a question to NVTRA in online mode can send one "
+                 "camera frame with it, and with Gemini selected that frame goes to Gemini. NVTRA asks once before the first "
+                 "frame and remembers your answer. Turn the camera on or off with ◉ or C.",
+                 className="i3-notice"),
+        html.Button("Ask again before sending camera frames", type="button", className="i3-btn",
+                    **{"data-i3-camera-consent-reset": "true"}),
     ])
 
 
@@ -2838,22 +2885,23 @@ def page(html, dcc):
         ]),
         html.Article([
         html.Section([
-            html.H2('Heading 2'),
-            html.P('Paragraph. Enter your text here.'),
-            html.Div([html.Div([html.B("MTDI"), html.Span('Text')], className="i3-page3-definition"),
-                      html.Div([html.B("TITLE"), html.Span('Text')], className="i3-page3-definition")], className="i3-page3-definitions"),
+            html.H2("WHAT THIS PAGE IS"),
+            html.P("The analysis behind every reading: how each channel compares with its baseline, how much the "
+                   "evidence can be trusted, and the controls that change how it is measured."),
+            html.Div([html.Div([html.B("MTDI"), html.Span("the framework that turns sources into calibrated, explained readings")], className="i3-page3-definition"),
+                      html.Div([html.B("I³"), html.Span("the interface: these pages, the hand control and the voice")], className="i3-page3-definition")], className="i3-page3-definitions"),
         ], className="i3-page3-section i3-page3-overview"),
         html.Section([
-            html.Div([html.Div('Label', className="i3-eyebrow"), html.Div(_live(html, "fusion.condition", 'Text'), className="i3-condition"), html.Div([html.Div(_live(html, "fusion.interpretation", 'Text')), html.Div(_live(html, "fusion.evidence", ""))], className="i3-evidence")]),
-            html.Div([html.Strong(_live(html, "fusion.confidence", "0 %", "percent")), html.Span('Text', className="i3-mute")], className="i3-confidence"),
+            html.Div([html.Div("NOW", className="i3-eyebrow"), html.Div(_live(html, "fusion.condition", "Waiting for readings"), className="i3-condition"), html.Div([html.Div(_live(html, "fusion.interpretation", "")), html.Div(_live(html, "fusion.evidence", ""))], className="i3-evidence")]),
+            html.Div([html.Strong(_live(html, "fusion.confidence", "0 %", "percent")), html.Span("confidence", className="i3-mute")], className="i3-confidence"),
         ], className="i3-summary i3-page3-summary"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
-                      html.Div([_channel(html, "ch1", 'Title'), _channel(html, "ch2", 'Title'), _channel(html, "ch3", 'Title')], className="i3-channels three")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
+        html.Section([html.H2("THE CHANNELS"), html.P("Each channel's change from its own baseline, with its uncertainty and recent trace."),
+                      html.Div([_channel(html, key, name) for key, name in _channel_names()], className="i3-channels three")], className="i3-page3-section"),
+        html.Section([html.H2("THE EVIDENCE"), html.P("What the channels say together, and how far it can be trusted."),
                       html.Div([signature_panel(html), vector_panel(html), axial_panel(html), confidence_panel(html)], className="i3-grid")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Paragraph. Enter your text here.'),
+        html.Section([html.H2("THE BASELINES"), html.P("How each channel learns its room, how it is calibrated, and what counts as a burst."),
                       html.Div([baseline_panel(html, dcc), calibration_panel(html, dcc), transient_panel(html)], className="i3-grid")], className="i3-page3-section"),
-        html.Section([html.H2('Heading 2'), html.P('Text'),
+        html.Section([html.H2("LISTEN, RECORD, EXPORT"), html.P("Hear the sources, follow the events, and take the session with you."),
                       html.Div([audition_panel(html, dcc), timeline_panel(html), camera_panel(html), export_panel(html)], className="i3-grid")], className="i3-page3-section"),
         ], id="i3-page3-document", className="i3-page3-document"),
         html.Div(id="i3-performance", className="i3-performance"),
@@ -2862,13 +2910,15 @@ def page(html, dcc):
 
 
 def export_panel(html):
-    return _card(html, 'Title', [
-        html.P('Paragraph. Enter your text here.'),
-        html.A('Text', href="/download/studio-report.pdf", className="i3-btn"),
-        html.A('Text', href="/api/export/session.json", className="i3-btn"),
-        html.A('Text', href="/api/export/session.csv", className="i3-btn"),
+    return _card(html, "EXPORT", [
+        html.P("The PDF report is built on this computer. The session downloads hold each channel's last 300 changes from "
+               "its baseline: about 30 seconds at the studio's own rates, longer for a slower source. The JSON adds the "
+               "calibrations and events. Notion gets a copy only when you press its button and Notion is set up in Settings."),
+        html.A("PDF report", href="/download/studio-report.pdf", className="i3-btn"),
+        html.A("Session · JSON", href="/api/export/session.json", className="i3-btn"),
+        html.A("Session · CSV", href="/api/export/session.csv", className="i3-btn"),
         html.Button("Upload report to Notion", type="button", className="i3-btn", **{"data-i3-action": "cloud_report"}),
-        html.Div('Text', className="i3-inline-result", **{"data-i3-cloud": "true"}),
+        html.Div("The upload result appears here.", className="i3-inline-result", **{"data-i3-cloud": "true"}),
     ])
 
 
@@ -2915,7 +2965,7 @@ def restructure_ch3(children, html):
             c.style = {**(getattr(c, "style", None) or {}), "marginTop": "0", "marginBottom": "12px"}
     band = html.Div([
         html.Div(guide, className="ch3-guide"),
-        html.Div([html.Div('LABEL', className="section-label", style={"marginTop": "0"})] + controls, className="ch3-controls chart-card"),
+        html.Div([html.Div("CONTROLS", className="section-label", style={"marginTop": "0"})] + controls, className="ch3-controls chart-card"),
     ], className="ch3-layout")
     return action + head + [band] + stores + rest
 
@@ -2965,7 +3015,7 @@ def install(ns, runtime):
         document = next((n for n in _walk(node) if getattr(n, "id", None) == "i3-page3-document"), None)
         children = list(document.children if document is not None else body.children)
         section = html.Div([
-            html.H2('Heading 2'),
+            html.H2("D4 ANALYSIS"),
             ns["d4_engine_section"](),
         ], className="i3-d4-host i3-page3-section")
         if document is not None:
@@ -2976,11 +3026,11 @@ def install(ns, runtime):
 
     ns["PAGES"]["/page-3"] = page3_page
     tools = html.Div([
-        html.Button("◉", id="i3-camera-toggle", type="button", className="i3-tool", title="Enable camera (hand tracking). Shortcut C", **{"data-i3-action": "camera", "aria-pressed": "false", "aria-label": 'Text'}),
-        html.Button("⇅", id="i3-mode-toggle", type="button", className="i3-tool", title='Title', **{"data-i3-action": "mode_toggle", "aria-label": 'Text'}),
-        html.Button("◍", id="i3-agent-toggle", type="button", className="i3-tool", title='Title', **{"data-i3-action": "agent", "aria-pressed": "false", "aria-label": 'Text'}),
-        html.A('Text', id="i3-https-link", href="#", className="i3-tool i3-tool-text", hidden=True),
-        html.Span('Text', id="i3-stream-state", hidden=True),
+        html.Button("◉", id="i3-camera-toggle", type="button", className="i3-tool", title="Enable camera (hand tracking). Shortcut C", **{"data-i3-action": "camera", "aria-pressed": "false", "aria-label": "Camera and hand tracking"}),
+        html.Button("⇅", id="i3-mode-toggle", type="button", className="i3-tool", title="Online or offline mode", **{"data-i3-action": "mode_toggle", "aria-label": "Online or offline mode"}),
+        html.Button("◍", id="i3-agent-toggle", type="button", className="i3-tool", title="NVTRA voice. Shortcut N", **{"data-i3-action": "agent", "aria-pressed": "false", "aria-label": "NVTRA voice"}),
+        html.A("Open over HTTPS", id="i3-https-link", href="#", className="i3-tool i3-tool-text", hidden=True),
+        html.Span("Connecting", id="i3-stream-state", hidden=True),
     ], className="i3-header-tools")
     toast = html.Div("", id="i3-control-result", className="i3-toast", role="status")
     def pill(key, label):
@@ -2989,15 +3039,15 @@ def install(ns, runtime):
         html.Div([
             html.Canvas(id="i3-orb-canvas", width=420, height=420),
             html.Div(id="i3-orb-robot", className="i3-orb-robot", hidden=True),
-            html.Div([html.Div("NVTRA", className="i3-orb-name"), html.Div("Press ◍ or N to start listening", id="i3-orb-state", className="i3-orb-state")], className="i3-island-head"),
+            html.Div([html.Div("NVTRA", className="i3-orb-name"), html.Div([html.Span("Press ◍ or N", className="i3-key-hint"), html.Span("Tap ◍", className="i3-touch-hint"), " to start listening"], id="i3-orb-state", className="i3-orb-state")], className="i3-island-head"),
             html.Div([html.I() for _ in range(9)], id="i3-voice-bars", className="i3-voice-bars", **{"aria-hidden": "true"}),
-            html.Div([pill("mtdi", "MTDI"), pill("c1", 'LABEL'), pill("ef", 'LABEL'), pill("ch3", "Channel 3")], className="i3-island-pills"),
+            html.Div([pill("mtdi", "MTDI"), pill("c1", T("ch1.name")), pill("ef", T("ch2.name")), pill("ch3", T("ch3.name"))], className="i3-island-pills"),
         ], className="i3-island-top"),
         html.Div("", id="i3-orb-text", className="i3-orb-text"),
-        html.Form([dcc.Input(id="i3-orb-input", type="text", placeholder='Enter your text here', autoComplete="off", debounce=False), html.Button("Send", type="submit", className="i3-btn i3-primary")], id="i3-orb-form", className="i3-orb-form"),
+        html.Form([dcc.Input(id="i3-orb-input", type="text", placeholder="Ask NVTRA", autoComplete="off", debounce=False), html.Button("Send", type="submit", className="i3-btn i3-primary")], id="i3-orb-form", className="i3-orb-form"),
         html.Div([
-            html.Select([html.Option('Text', value="")], className="i3-orb-engine", title='Title', **{"data-i3-engine": "true", "aria-label": 'Text'}),
-            html.Button("■ Stop", type="button", className="i3-btn i3-orb-stop", title='Title', **{"data-i3-action": "agent_stop"}),
+            html.Select([html.Option("Loading engines", value="")], className="i3-orb-engine", title="AI engine", **{"data-i3-engine": "true", "aria-label": "AI engine"}),
+            html.Button("■ Stop", type="button", className="i3-btn i3-orb-stop", title="Stop NVTRA", **{"data-i3-action": "agent_stop"}),
         ], className="i3-orb-tools"),
     ], id="i3-orb", className="i3-island collapsed")
     for node in _walk(app.layout):

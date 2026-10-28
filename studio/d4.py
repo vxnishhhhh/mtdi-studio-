@@ -359,10 +359,11 @@ CH3_BANDS = [
 ]
 
 
-def ch3_analysis(freqs, levels, threshold_db=10.0):
+def ch3_analysis(freqs, levels, threshold_db=10.0, digits=0):
     """Peak, robust noise floor, SNR, occupied bandwidth, peaks, harmonics of the primary
     peak, occupancy and interference density from one sweep in dBm. Band wording is
-    'consistent with', never an identification."""
+    'consistent with', never an identification. Positions are rounded to `digits`: whole
+    hertz for the radio, more for a fed sweep whose x axis is in its own unit."""
     f = np.asarray(freqs, dtype=float)
     L = np.asarray(levels, dtype=float)
     ok = np.isfinite(f) & np.isfinite(L)
@@ -407,20 +408,20 @@ def ch3_analysis(freqs, levels, threshold_db=10.0):
         ratio = q["hz"] / max(1.0, peak_f)
         k = round(ratio)
         if k >= 2 and abs(ratio - k) < 0.02:
-            harm.append({"order": int(k), "hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1)})
+            harm.append({"order": int(k), "hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1)})
     # interference density: activity islands per 100 MHz
     islands = int(np.sum(np.diff(above.astype(int)) == 1) + (1 if above[0] else 0))
     span_mhz = max(1e-3, (f.max() - f.min()) / 1e6)
     bands = [name for lo, hi, name in CH3_BANDS if lo <= peak_f <= hi]
     return {
-        "points": int(f.size), "span_hz": [_f(f.min(), 0), _f(f.max(), 0)],
-        "primary_peak_hz": _f(peak_f, 0), "primary_peak_dbm": _f(peak_l, 1),
+        "points": int(f.size), "span_hz": [_f(f.min(), digits), _f(f.max(), digits)],
+        "primary_peak_hz": _f(peak_f, digits), "primary_peak_dbm": _f(peak_l, 1),
         "noise_floor_dbm": _f(floor, 1), "noise_mad_db": _f(mad, 2), "snr_db": _f(snr, 1),
-        "occupied_bandwidth_hz": _f(obw, 0), "occupancy_pct": _f(occupancy, 1),
+        "occupied_bandwidth_hz": _f(obw, digits), "occupancy_pct": _f(occupancy, 1),
         "interference_islands": islands, "interference_density_per_100mhz": _f(islands / span_mhz * 100, 3),
-        "peaks": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1), "snr_db": _f(q["level"] - floor, 1)} for q in peaks[:10]],
+        "peaks": [{"hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1), "snr_db": _f(q["level"] - floor, 1)} for q in peaks[:10]],
         "harmonics_of_primary": harm[:5],
-        "unexpected": [{"hz": _f(q["hz"], 0), "level_dbm": _f(q["level"], 1)} for q in peaks[:10]
+        "unexpected": [{"hz": _f(q["hz"], digits), "level_dbm": _f(q["level"], 1)} for q in peaks[:10]
                        if not any(lo <= q["hz"] <= hi for lo, hi, _ in CH3_BANDS)][:5],
         "band_note": ("Signal characteristics are consistent with activity in the " + bands[0] + ".") if bands and snr >= threshold_db
                      else ("Primary peak falls outside the listed allocations; source not identified." if snr >= threshold_db else "No peak clears the activity threshold above the noise floor."),
@@ -697,7 +698,7 @@ EXPOSURE_REFERENCES = {
     },
     "ch1_val": {
         "public": 200.0, "occupational": 1000.0, "public_1998": 100.0,
-        "source": 'ICNIRP 2010 reference levels at 50 Hz (ICNIRP 1998 public level was 100 unit)',
+        "source": 'ICNIRP 2010 reference levels at 50 Hz (ICNIRP 1998 public level was 100 uT)',
     },
 }
 
@@ -724,7 +725,7 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
     if linefreq_ch1_val is not None and math.isfinite(linefreq_ch1_val):
         pct = 100.0 * linefreq_ch1_val / c1_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 1, 50 Hz component', "value": _f(linefreq_ch1_val, 4), "unit": "uT",
+            "key": "ch1", "channel": 'Channel 1, 50 Hz component', "value": _f(linefreq_ch1_val, 4), "unit": "uT",
             "public_limit": c1_ref["public"], "occupational_limit": c1_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
@@ -733,14 +734,14 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
                      "ICNIRP 1998 public level of 100 uT"),
         })
     else:
-        out["channels"].append({"channel": 'Channel 1, 50 Hz component', "quantitative": False,
+        out["channels"].append({"key": "ch1", "channel": 'Channel 1, 50 Hz component', "quantitative": False,
                                 "reading": 'no 50 Hz channel 1 fundamental stands above the noise',
                                 "unit": "uT", "public_limit": c1_ref["public"]})
     e_ref = EXPOSURE_REFERENCES["ch2_vu"]
     if linefreq_ch2_vu is not None and math.isfinite(linefreq_ch2_vu) and calibrated:
         pct = 100.0 * linefreq_ch2_vu / e_ref["public"]
         out["channels"].append({
-            "channel": 'Channel 2, 50 Hz component', "value": _f(linefreq_ch2_vu, 3), "unit": "V/m",
+            "key": "ch2", "channel": 'Channel 2, 50 Hz component', "value": _f(linefreq_ch2_vu, 3), "unit": "V/m",
             "public_limit": e_ref["public"], "occupational_limit": e_ref["occupational"],
             "pct_of_public": _f(pct, 4), "quantitative": True,
             "reading": ("below the public reference level" if pct < 100 else
@@ -748,9 +749,9 @@ def exposure_comparison(linefreq_ch2_vu, linefreq_ch1_val, calibrated=False):
         })
     else:
         out["channels"].append({
-            "channel": 'Channel 2, 50 Hz component', "quantitative": False, "unit": "V/m",
+            "key": "ch2", "channel": 'Channel 2, 50 Hz component', "quantitative": False, "unit": "V/m",
             "public_limit": e_ref["public"],
-            "reading": ("the Ch2 probe carries no absolute calibration, so no percentage of a "
+            "reading": ("the probe carries no absolute calibration, so no percentage of a "
                         "reference level is claimed. The published public level is 5 kV/m at 50 Hz; "
                         "stating where this reading sits against it needs a known-field fixture."),
         })
@@ -894,13 +895,15 @@ def validation_stats(values=None, detections=None):
 
 
 # ── 13. environmental fingerprint ────────────────────────────────────────────
-def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None):
+def fingerprint(c1_mags, e_values, ch3_floor, ch3_peak_hz, transient_rate_per_min, harmonics_summary=None,
+                ch3_x_unit=None, ch3_level_unit=None):
+    """ch3_x_unit and ch3_level_unit: None for the radio (hertz, dBm), else a fed sweep's own units."""
     def band(x):
         x = np.asarray([v for v in x if v is not None and math.isfinite(v)], dtype=float)
         return [_f(np.percentile(x, 10), 2), _f(np.percentile(x, 90), 2)] if x.size else None
     return {"taken_at": time.time(), "ch1_val": band(c1_mags), "ch2": band(e_values), "ch3_floor_dbm": _f(ch3_floor, 1),
-            "ch3_peak_hz": _f(ch3_peak_hz, 0), "transient_rate_per_min": _f(transient_rate_per_min, 2),
-            "linefreq": harmonics_summary}
+            "ch3_peak_hz": _f(ch3_peak_hz, 0 if ch3_x_unit is None else 6), "ch3_x_unit": ch3_x_unit, "ch3_level_unit": ch3_level_unit,
+            "transient_rate_per_min": _f(transient_rate_per_min, 2), "linefreq": harmonics_summary}
 
 
 def compare_fingerprints(old, new):
@@ -912,7 +915,11 @@ def compare_fingerprints(old, new):
             return _f(100 * (b - a) / abs(a), 1) if a else None
         except (TypeError, ValueError):
             return None
-    return {"ch3_floor_db": _f((new.get("ch3_floor_dbm") or 0) - (old.get("ch3_floor_dbm") or 0), 1),
+    # a channel 3 floor is compared only with one in the same kind of sweep (a reference taken on
+    # the radio says nothing about a fed sweep's floor) and only when both have one
+    a, b = old.get("ch3_floor_dbm"), new.get("ch3_floor_dbm")
+    same = all(old.get(k) == new.get(k) for k in ("ch3_x_unit", "ch3_level_unit"))
+    return {"ch3_floor_db": _f(b - a, 1) if same and a is not None and b is not None else None,
             "ch1_pct": pct(old.get("ch1_val"), new.get("ch1_val")),
             "ch2_pct": pct(old.get("ch2"), new.get("ch2")),
             "transient_rate_pct": pct(old.get("transient_rate_per_min"), new.get("transient_rate_per_min"))}
@@ -1062,7 +1069,9 @@ def feature_vector(packet):
     sc = packet.get("scores") or {}
     v = [me.get("fundamental_amp") if me.get("fundamental_detected") else 0.0, me.get("thd_pct") or 0.0, rel(me, 2), rel(me, 3),
          mm.get("fundamental_amp") if mm.get("fundamental_detected") else 0.0, mm.get("thd_pct") or 0.0, rel(mm, 2),
-         ch3.get("snr_db"), ch3.get("occupancy_pct"), (ch3.get("primary_peak_hz") or 0) / 1e9,
+         ch3.get("snr_db"), ch3.get("occupancy_pct"),
+         # a fed sweep's peak is a position in its own unit, not a frequency: no GHz feature for it
+         None if ch3.get("x_unit") is not None else (ch3.get("primary_peak_hz") or 0) / 1e9,
          (packet.get("fingerprint") or {}).get("transient_rate_per_min"), sc.get("ch2"), sc.get("ch1"), sc.get("conducted")]
     # None (not NaN) for JSON safety; consumers convert back with _nanvec
     return [_f(x, 4) if x is not None else None for x in v]

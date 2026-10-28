@@ -49,6 +49,8 @@ def words_for(project):
             words[f"{slot}.name"] = str(ch["label"]).strip()
         if str(ch.get("unit") or "").strip():
             words[f"{slot}.unit"] = str(ch["unit"]).strip()
+        if slot == "ch3":
+            words["ch3.axis_unit"] = "sample"   # sample_for sends channel 3 as its recent history
     return words
 
 

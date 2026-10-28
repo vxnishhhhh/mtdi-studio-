@@ -193,11 +193,12 @@ def _natural_earth_land():
 
 @server.get("/manifest.webmanifest")
 def _web_app_manifest():
-    """Allow either orientation; CSS fits the same desktop canvas to both."""
+    """Installed to a home screen, the studio is a landscape app (Android locks it; iOS
+    ignores the field, and the /phone stage turns the view instead)."""
     payload = {
         "name": "MTDI Studio", "short_name": "MTDI Studio",
         "start_url": "/", "scope": "/", "display": "standalone",
-        "orientation": "any", "background_color": "#07090f",
+        "orientation": "landscape", "background_color": "#07090f",
         "theme_color": "#07090f",
     }
     return Response(
@@ -205,6 +206,162 @@ def _web_app_manifest():
         mimetype="application/manifest+json",
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+# The phone stage. The studio runs in the iframe as an ordinary 1180 px desktop window; this
+# page only fits that window to the glass: scaled onto the long edge, and turned a quarter
+# turn when the phone is upright so the view stays landscape. The iframe may use the camera,
+# microphone and motion sensors the studio already asks for (same origin, Permissions-Policy).
+PHONE_STAGE_WIDTH = 1180
+PHONE_SHELL = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#07090f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>MTDI Studio</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07090f;overscroll-behavior:none}
+#stage{position:fixed;top:0;left:0;border:0;display:block;transform-origin:0 0;background:#07090f}
+</style>
+</head>
+<body>
+<iframe id="stage" title="MTDI Studio" src="/?stage=phone"
+  allow="camera; microphone; fullscreen; accelerometer; gyroscope; magnetometer; clipboard-write; autoplay"></iframe>
+<script>
+(function(){
+  var STAGE=__STAGE__, frame=document.getElementById('stage'), rotated=false;
+  function fit(){
+    var vv=window.visualViewport, w=vv?vv.width:innerWidth, h=vv?vv.height:innerHeight;
+    var portrait=h>w, lng=Math.max(w,h), shrt=Math.min(w,h), s=lng/STAGE;
+    frame.style.width=STAGE+'px';
+    frame.style.height=(shrt/s).toFixed(2)+'px';
+    /* Upright: the stage's top edge goes to the right of the glass, which reads correctly
+       once the phone is turned to landscape - the view never changes, only the glass. */
+    frame.style.transform=portrait?'translate('+w+'px,0) rotate(90deg) scale('+s+')':'scale('+s+')';
+    document.documentElement.classList.toggle('portrait',portrait);
+    rotated=portrait;
+    /* Rotated, the browser cannot turn a finger drag into a scroll (it pans along the glass,
+       not the stage), so the stage scrolls itself (below) and the browser's own panning is
+       switched off there. Unrotated, native scrolling works and is left alone. */
+    try{var de=frame.contentDocument.documentElement;de.style.touchAction=portrait?'none':'';de.classList.toggle('stage-turned',portrait);}catch(e){}
+    /* Device pixels per stage CSS pixel; the studio caps its canvases to this (max 2). */
+    window.__i3StageDPR=(window.devicePixelRatio||1)*s;
+  }
+
+  /* Scrolling a rotated stage. Touch coordinates inside the frame are already in the stage's
+     own axes, so a drag scrolls the nearest scrollable box under the finger along the stage's
+     axis, and keeps gliding after the finger lifts. Sliders and text fields keep every drag;
+     drag-to-rotate views (3D boards, the globe, 3D charts) keep a sideways drag and give an
+     up/down drag to the page. Flat charts do not pan, so a drag over one scrolls the page and
+     a tap still reads. */
+  function attachTouch(){
+    var w=frame.contentWindow, d=frame.contentDocument;
+    if(!w||!d||w.__i3StageTouch||!d.documentElement)return;
+    try{if(w.location.search.indexOf('stage=phone')<0)return;}catch(e){return;}   /* not the blank first page */
+    w.__i3StageTouch=true;
+    d.documentElement.style.touchAction=rotated?'none':'';
+    d.documentElement.classList.toggle('stage-turned',rotated);   /* every box, see theme.py */
+    var drag=null, vx=0, vy=0, glide=0;
+    /* Controls own every drag. Drag-to-rotate views own a sideways drag only: an up/down drag
+       scrolls the page, and the view does not see it (same rule as their pan-y on the
+       unrotated stage). */
+    var OWN='.rc-slider,input,textarea,select,[contenteditable]';
+    var ROTATE='#nvtra-spline-canvas,#home-module-globe,.instrument-constellation-canvas,.i3-lunar-canvas,'+
+               '.i3-vector,.i3-sc-canvas,.i3-sc-boards,.i3-tab-board canvas,.js-plotly-plot canvas,.gl-container';
+    function own(el){
+      for(var n=el;n&&n.nodeType===1&&n!==d.documentElement&&n!==d.body;n=n.parentElement){
+        if(n.matches(OWN))return true;
+      }
+      return false;
+    }
+    function hush(e){if(drag&&drag.hush)e.stopPropagation();}
+    w.addEventListener('pointermove',function(e){if(e.pointerType==='touch')hush(e);},{capture:true,passive:true});
+    function scroller(el,vertical){
+      for(var n=el;n&&n.nodeType===1&&n!==d.documentElement&&n!==d.body;n=n.parentElement){
+        var s=w.getComputedStyle(n);
+        if(vertical&&/auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+1)return n;
+        if(!vertical&&/auto|scroll/.test(s.overflowX)&&n.scrollWidth>n.clientWidth+1)return n;
+      }
+      return d.scrollingElement||d.documentElement;
+    }
+    w.addEventListener('touchstart',function(e){
+      w.cancelAnimationFrame(glide);
+      drag=null;
+      if(!rotated||e.touches.length!==1)return;
+      /* A control keeps its drags, except that a text box that has overflowed scrolls itself
+         up and down (nothing in the turned stage pans natively, see theme.py). */
+      var box=null;
+      if(own(e.target)){
+        box=e.target.closest&&e.target.closest('textarea,[contenteditable]');
+        if(!box||box.scrollHeight<=box.clientHeight+1)return;
+      }
+      var t=e.touches[0];
+      drag={x:t.clientX,y:t.clientY,t:e.timeStamp,target:e.target,el:null,vertical:true,box:box,
+            rotates:!!(e.target.closest&&e.target.closest(ROTATE)),hush:false};
+      vx=vy=0;
+    },{capture:true,passive:true});
+    w.addEventListener('touchmove',function(e){
+      if(!drag||e.touches.length!==1)return;
+      var t=e.touches[0], dx=drag.x-t.clientX, dy=drag.y-t.clientY, now=e.timeStamp;
+      if(!drag.el){
+        if(Math.abs(dx)+Math.abs(dy)<8)return;          /* still a tap */
+        drag.vertical=Math.abs(dy)>=Math.abs(dx);
+        if(drag.rotates&&!drag.vertical){drag=null;return;}   /* sideways on a 3D view: it rotates */
+        if(drag.box&&!drag.vertical){drag=null;return;}       /* sideways in a text box: the box's own (select, caret) */
+        drag.hush=drag.rotates;                          /* up/down on a 3D view: the page scrolls */
+        drag.el=drag.box||scroller(drag.target,drag.vertical);
+      }
+      hush(e);
+      if(drag.vertical)dx=0;else dy=0;
+      drag.el.scrollBy(dx,dy);
+      var dt=Math.max(1,now-drag.t);
+      vx=0.8*dx/dt+0.2*vx; vy=0.8*dy/dt+0.2*vy;
+      drag.x=t.clientX; drag.y=t.clientY; drag.t=now;
+    },{capture:true,passive:true});
+    /* Speed is measured from the touch events' own times, not from when a busy page got to
+       them, so a glide is not lost while the studio is drawing. */
+    function release(e){
+      if(!drag||!drag.el){drag=null;return;}
+      var el=drag.el, last=w.performance.now();
+      if(e.timeStamp-drag.t>90)vx=vy=0;                  /* the finger stopped before lifting */
+      drag=null;
+      (function step(now){
+        var dt=Math.max(1,now-last); last=now;
+        var k=Math.pow(0.93,dt/16); vx*=k; vy*=k;   /* about as far as the browser glides unturned */
+        if(Math.abs(vx)<0.02&&Math.abs(vy)<0.02)return;
+        el.scrollBy(vx*dt,vy*dt);
+        glide=w.requestAnimationFrame(step);
+      })(last);
+    }
+    w.addEventListener('touchend',release,{capture:true,passive:true});
+    w.addEventListener('touchcancel',release,{capture:true,passive:true});
+  }
+  frame.addEventListener('load',function(){attachTouch();fit();});
+  /* The studio's intro is on screen before the frame's load event (which waits for every
+     script), so attach as soon as the real document exists, and again after any reload. */
+  setInterval(attachTouch,400);
+
+  fit();
+  addEventListener('resize',fit,{passive:true});
+  if(window.visualViewport)visualViewport.addEventListener('resize',fit,{passive:true});
+  addEventListener('orientationchange',function(){setTimeout(fit,250);},{passive:true});
+  /* A real lock where the browser allows one (installed app, fullscreen on Android). */
+  try{var o=screen.orientation;if(o&&o.lock){var p=o.lock('landscape');if(p&&p.catch)p.catch(function(){});}}catch(e){}
+})();
+</script>
+</body>
+</html>
+""".replace("__STAGE__", str(PHONE_STAGE_WIDTH))
+
+
+@server.get("/phone")
+def _phone_stage():
+    return Response(PHONE_SHELL, mimetype="text/html", headers={"Cache-Control": "no-store"})
 
 
 @server.get("/api/system")
@@ -510,111 +667,113 @@ app.index_string = f"""<!DOCTYPE html>
     <script type="module" src="/_i3/nvtra-loader.js?v={APP_VERSION}"></script>
     <script defer src="/_i3/boards.js?v={APP_VERSION}"></script>
     <script>
-      /* Phones receive the complete 1180 px desktop composition and nothing else.
-         There is no portrait layout: the instrument is a landscape view, fixed.
-         If the browser will lock the orientation (installed to the home screen, or
-         fullscreen/kiosk) we let it. Otherwise, when the phone is held upright we
-         rotate that same composition 90 degrees so the landscape view still fills
-         the screen. Either way the composition is identical - only its placement
-         on the glass changes, so nothing reflows between orientations. */
+      /* PHONES: a fixed landscape stage. A phone (coarse pointer, short screen edge up to
+         600 CSS px) is sent to /phone, a thin shell that holds this same page in an iframe
+         exactly 1180 px wide: the desktop composition, at the height the screen allows.
+         The shell scales that stage onto the long edge and turns it a quarter turn when
+         the phone is held upright, so the view is always landscape. Inside the iframe the
+         page sees an ordinary 1180 px desktop window, so every layout rule and script works
+         unchanged - unlike rotating <body>, which left innerWidth, window scroll and every
+         canvas size pointing at the wrong box.
+
+         TABLETS (coarse pointer, larger screen) keep the desktop composition through the
+         viewport: 1180 CSS px on the long edge, no rotation.
+
+         Settings can switch a phone to the native mobile reflow instead ('mobile'); then
+         there is no stage and the narrow stylesheet applies. */
       (function(){{
-        var STAGE=1180;
-        function edges(){{
-          var forced=false;
-          try{{forced=new URLSearchParams(location.search).get('phone-preview')==='1';}}catch(e){{}}
-          /* screen.* does not move when the viewport meta changes, so the fit cannot
-             feed back on itself the way innerWidth would. A forced preview runs in a
-             desktop window, which has no meaningful screen orientation. */
-          var a=forced?innerWidth:(Number(screen.width)||innerWidth);
-          var b=forced?innerHeight:(Number(screen.height)||innerHeight);
-          return {{lng:Math.max(1,Math.max(a,b)), shrt:Math.max(1,Math.min(a,b)), forced:forced}};
+        var STAGE=1180, root=document.documentElement;
+        function inStage(){{
+          try{{return window.top!==window&&window.top.location.pathname==='/phone';}}catch(e){{return false;}}
         }}
-        function portrait(){{
-          try{{if(matchMedia('(orientation: portrait)').matches)return true;
-               if(matchMedia('(orientation: landscape)').matches)return false;}}catch(e){{}}
-          return innerHeight>innerWidth;
+        function forced(){{
+          try{{return new URLSearchParams(location.search).get('phone-preview')==='1';}}catch(e){{return false;}}
+        }}
+        function coarse(){{
+          try{{return matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0;}}catch(e){{return false;}}
+        }}
+        function isPhone(){{
+          var a=Number(screen.width)||innerWidth, b=Number(screen.height)||innerHeight;
+          return forced()||(coarse()&&Math.min(a,b)<=600);
+        }}
+        function wantMobile(){{
+          try{{return localStorage.getItem('i3-phone-layout')==='mobile';}}catch(e){{return false;}}
+        }}
+        function setViewport(content){{
+          /* Dash and the interface each add a viewport tag; the last one wins, so set all. */
+          var metas=document.querySelectorAll('meta[name="viewport"]');
+          for(var i=0;i<metas.length;i++)metas[i].content=content;
+        }}
+        if(inStage()){{
+          root.classList.add('phone-desktop','phone-stage');
+          /* Canvases and WebGL size themselves by devicePixelRatio. Inside the stage one CSS
+             pixel lands on (screen density x stage scale) device pixels, about 2.1 on a
+             phone; rendering at the phone's full 3x would draw twice the pixels nobody sees.
+             devicePixelRatio is a replaceable attribute, so this caps it for this page only. */
+          try{{
+            var d=Number(window.top.__i3StageDPR)||Math.min(2,window.devicePixelRatio||1);
+            window.devicePixelRatio=Math.max(1,Math.min(2,d));
+          }}catch(e){{}}
+          /* Touch forgiveness. At phone scale the desktop controls are small, so a tap that
+             lands just outside one - within 12 stage px, about 7 on the glass - goes to the
+             nearest control instead of the background. Anything that already takes the tap
+             (a control, a chart, an input, a clickable card) keeps it, and a control only
+             receives it if nothing covers it at that spot. */
+          var OWN='button,a,input,select,textarea,label,summary,[role="button"],[role="tab"],[role="slider"],'+
+                  '[contenteditable],.js-plotly-plot,.dash-dropdown,.Select,.rc-slider';
+          function takesTap(el){{
+            for(var n=el,i=0;n&&n.nodeType===1&&i<8;n=n.parentElement,i++){{
+              if(n.matches(OWN)||getComputedStyle(n).cursor==='pointer')return true;
+            }}
+            return false;
+          }}
+          document.addEventListener('click',function(ev){{
+            if(!ev.isTrusted||!ev.target||ev.target.nodeType!==1||takesTap(ev.target))return;
+            var x=ev.clientX,y=ev.clientY,R=12,best=null,bestD=R+1;
+            var all=document.querySelectorAll('button,a[href],[role="button"],[role="tab"]');
+            for(var i=0;i<all.length;i++){{
+              var el=all[i],r=el.getBoundingClientRect();
+              if(!r.width||!r.height||el.disabled)continue;
+              var d=Math.hypot(Math.max(r.left-x,0,x-r.right),Math.max(r.top-y,0,y-r.bottom));
+              if(d>=bestD)continue;
+              var top=document.elementFromPoint(Math.min(Math.max(x,r.left+1),r.right-1),
+                                                Math.min(Math.max(y,r.top+1),r.bottom-1));
+              if(top&&(top===el||el.contains(top))){{best=el;bestD=d;}}
+            }}
+            if(best){{ev.preventDefault();ev.stopPropagation();best.click();}}
+          }},true);
         }}
         function syncPhoneMode(){{
-          var meta=document.querySelector('meta[name="viewport"]');
-          if(!meta)return;
-          var root=document.documentElement;
-          var phone=false,e=edges();
-          try{{phone=matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0||e.forced;}}catch(err){{}}
-          /* Two ways to show a phone the instrument, chosen in Settings and kept
-             in this browser. The default holds the desktop composition on the long
-             edge, which is what was asked for originally: one layout everywhere, no
-             narrow-viewport restyle. 'mobile' releases the viewport to device-width
-             so the narrow media queries fire and the page reflows to the phone
-             stylesheet. Neither is a fallback for the other -- they are different
-             products, and the choice belongs to whoever is holding the phone. */
-          var wantMobile=false;
-          try{{wantMobile=localStorage.getItem('i3-phone-layout')==='mobile';}}catch(err){{}}
-          root.classList.toggle('phone-desktop',phone&&!wantMobile);
-          root.classList.toggle('i3-mobile-layout',phone&&wantMobile);
-          if(!phone||wantMobile){{
-            root.classList.remove('force-landscape');
-            root.style.removeProperty('--i3-stage-w');
-            root.style.removeProperty('--i3-stage-h');
-            root.style.removeProperty('--i3-stage-tf');
-            meta.content='width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover';
-          }} else {{
-            /* One scale for both cases: the long edge always carries the 1180 px
-               composition, so the view is the same size however the phone is held. */
-            var scale=e.lng/STAGE;
-            if(portrait()){{
-              /* The layout viewport stays 1180 CSS px wide here, exactly as it is in
-                 landscape. That is the whole point: at a device-width viewport the
-                 narrow media queries (max-width:760px and friends) fire and restyle
-                 the page into a phone layout, which is the one thing this view must
-                 never do. Holding the viewport at 1180 keeps the desktop stylesheet.
-
-                 The browser then scales 1180 CSS px onto the SHORT edge, so the
-                 rotated stage needs one extra factor of long/short on top to land on
-                 the long edge instead. */
-              var extra=e.lng/e.shrt;
-              root.style.setProperty('--i3-stage-w',STAGE+'px');
-              root.style.setProperty('--i3-stage-h',(STAGE*e.shrt/e.lng)+'px');
-              root.style.setProperty('--i3-stage-tf',
-                'translateX('+STAGE+'px) rotate(90deg) scale('+extra.toFixed(5)+')');
-              root.classList.add('force-landscape');
-              meta.content='width='+STAGE+',initial-scale='+(e.shrt/STAGE).toFixed(4)+
-                ',maximum-scale='+(e.shrt/STAGE).toFixed(4)+',user-scalable=no,viewport-fit=cover';
-            }} else {{
-              root.classList.remove('force-landscape');
-              root.style.removeProperty('--i3-stage-w');
-              root.style.removeProperty('--i3-stage-h');
-              root.style.removeProperty('--i3-stage-tf');
-              meta.content='width='+STAGE+',initial-scale='+scale.toFixed(4)+
-                ',minimum-scale=0.25,maximum-scale=3,viewport-fit=cover';
-            }}
+          if(inStage()){{
+            /* Settings chose the mobile reflow: leave the stage for the plain page. */
+            if(wantMobile()){{try{{window.top.location.replace('/');}}catch(e){{}}}}
+            return;
+          }}
+          var phone=isPhone(), mobile=phone&&wantMobile();
+          if(phone&&!mobile){{location.replace('/phone'+location.search);return;}}
+          var tablet=!phone&&coarse();
+          root.classList.toggle('phone-desktop',tablet);
+          root.classList.toggle('i3-mobile-layout',mobile);
+          if(tablet){{
+            var a=Number(screen.width)||innerWidth, b=Number(screen.height)||innerHeight;
+            var portrait=matchMedia('(orientation: portrait)').matches;
+            var edge=portrait?Math.min(a,b):Math.max(a,b);
+            setViewport('width='+STAGE+',initial-scale='+(edge/STAGE).toFixed(4)+
+                        ',minimum-scale=0.25,maximum-scale=3,viewport-fit=cover');
+          }} else if(mobile){{
+            setViewport('width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover');
           }}
           try{{
             if(window.dash_clientside&&window.dash_clientside.set_props){{
-              window.dash_clientside.set_props('mobile-mode',{{data:phone}});
+              window.dash_clientside.set_props('mobile-mode',{{data:phone||tablet}});
             }}
           }}catch(err){{}}
         }}
-        /* A real lock is better than rotating ourselves: ask for one, and fall back
-           to the transform when the browser refuses (Safari always refuses outside
-           fullscreen). Never throws on browsers without the API. */
-        function requestLandscapeLock(){{
-          try{{
-            var o=screen.orientation;
-            if(o&&typeof o.lock==='function'){{
-              var p=o.lock('landscape');
-              if(p&&typeof p.catch==='function')p.catch(function(){{}});
-            }}
-          }}catch(e){{}}
-        }}
-        requestLandscapeLock();
-        /* Exposed so the Settings toggle can re-apply the layout choice without a
-           reload. It is idempotent and cheap, so calling it from anywhere is safe. */
+        /* Exposed so the Settings toggle can re-apply the layout choice without a reload. */
         try{{window.__i3SyncPhoneMode=syncPhoneMode;}}catch(err){{}}
         syncPhoneMode();
-        addEventListener('orientationchange',function(){{
-          setTimeout(syncPhoneMode,150);
-          setTimeout(syncPhoneMode,450);
-        }},{{passive:true}});
+        document.addEventListener('DOMContentLoaded',syncPhoneMode);
+        addEventListener('orientationchange',function(){{setTimeout(syncPhoneMode,200);}},{{passive:true}});
         addEventListener('resize',syncPhoneMode,{{passive:true}});
       }})();
     </script>
@@ -650,7 +809,7 @@ app.layout = html.Div([
     dcc.Interval(id="mobile-mode-probe", interval=400, n_intervals=0),
     dcc.Interval(id="d4-tick", interval=2500, n_intervals=0),
     html.Div(
-        'TEXT',
+        "SIMULATED DATA · NOT A MEASUREMENT",
         id="simulation-watermark",
         style={
             "display":"block" if RUNTIME["demo"] else "none",
