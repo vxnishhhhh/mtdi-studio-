@@ -809,7 +809,7 @@ app.layout = html.Div([
     dcc.Interval(id="mobile-mode-probe", interval=400, n_intervals=0),
     dcc.Interval(id="d4-tick", interval=2500, n_intervals=0),
     html.Div(
-        'TEXT',
+        "SIMULATED DATA · NOT A MEASUREMENT",
         id="simulation-watermark",
         style={
             "display":"block" if RUNTIME["demo"] else "none",
