@@ -75,7 +75,9 @@ class Manifest(unittest.TestCase):
         a, b = [c for c in base["channels"] if len(c["keys"]) == 1][:2]
         a.update(calibration={"gain": 1.0, "offset": 0.0, "residual_sd": 0.1, "n": 3, "method": "two-point"},
                  raw_range=[0, 1], expected_rate=1.0, transform="none", window=25, scale=1.0, offset=0.0,
-                 alert_direction="both", unit="u", label="l", domain="generic", source=base["sources"][0]["id"])
+                 alert_direction="both", unit="u", label="l", domain="generic", source=base["sources"][0]["id"],
+                 axes=[k.lower() for k in a["keys"]], kind="scalar", noise_floor=0.01, noise_budget=0.1, stale_after=4.0,
+                 alert_change=0.2, optional=False)
         b["unit"] = "u"
         base["fused"] = [{"id": "f", "label": "f", "unit": "u", "inputs": [a["id"], b["id"]],
                           "method": "inverse-variance", "sd": {a["id"]: 1.0, b["id"]: 1.0}}]
@@ -87,8 +89,9 @@ class Manifest(unittest.TestCase):
             for k, v in items:
                 yield from paths(v, path + (k,))
 
+        escaped = []
         for path in list(paths(base))[1:]:
-            for bad in (None, [], "x", 7, True, {}, [None], [{}], {"a": None}):
+            for bad in (None, [], "x", 7, -1, 0, 10 ** 400, True, {}, [None], [{}], {"a": None}):
                 data = copy.deepcopy(base)
                 target = data
                 for step in path[:-1]:
@@ -99,7 +102,8 @@ class Manifest(unittest.TestCase):
                 except ManifestError:
                     pass
                 except Exception as error:   # noqa: BLE001 - the point is that nothing else escapes
-                    self.fail(f"{path} = {bad!r}: {type(error).__name__}: {error}")
+                    escaped.append(f"{path} = {str(bad)[:20]}: {type(error).__name__}: {str(error)[:60]}")
+        self.assertEqual(escaped, [], "\n".join(escaped))
 
     def test_defaults(self):
         m = manifest()

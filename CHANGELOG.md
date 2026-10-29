@@ -4,8 +4,8 @@
 
 ### Framework
 * `mtdi.project.normalise` raises `ManifestError` naming the field for any wrong JSON shape (null,
-  list, text, number, boolean or object where another is expected); before, some shapes escaped as
-  `TypeError` or `AttributeError` from `mtdi check` and the studio.
+  list, text, number, boolean or object where another is expected) or a number too large for a float;
+  before, some escaped as `TypeError`, `AttributeError` or `OverflowError` from `mtdi check` and the studio.
 * `mtdi.project.summary(project, target=None)`: what `mtdi check` reports, as data. The CLI and the
   studio's PROJECT CHECK both use it.
 * `mtdi.protocol.parse_line` rejects a JSON integer too large for a float, and JSON nested deeper

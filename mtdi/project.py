@@ -196,7 +196,7 @@ def _channel(ch, where, default_source, source_ids):
     _require(isinstance(ch["kind"], str) and ch["kind"] in KINDS, f"{where}.kind must be scalar or vector")
     _require(ch["kind"] == "vector" or len(keys) == 1, f"{where}: a scalar channel takes exactly one key")
     ch.setdefault("axes", [k.lower() for k in keys])
-    _require(len(ch["axes"]) == len(keys), f"{where}.axes must match keys")
+    _require(isinstance(ch["axes"], list) and len(ch["axes"]) == len(keys), f"{where}.axes must match keys")
     ch.setdefault("unit", "")
     _require(isinstance(ch["unit"], str), f"{where}.unit must be text")
     scale = ch.setdefault("scale", 1.0)
@@ -212,7 +212,7 @@ def _channel(ch, where, default_source, source_ids):
     _require(isinstance(ch["transform"], str) and ch["transform"] in TRANSFORMS, f"{where}.transform must be one of {sorted(TRANSFORMS)}")
     ch.setdefault("window", 25)
     floor = ch.setdefault("noise_floor", 0.01)
-    _require(isinstance(floor, (int, float)) and floor > 0, f"{where}.noise_floor must be > 0")
+    _require(_finite(floor) and floor > 0, f"{where}.noise_floor must be > 0")
     ch.setdefault("noise_budget", floor * 10)
     rate = ch.get("expected_rate")
     _require(rate is None or (_finite(rate) and rate > 0), f"{where}.expected_rate must be > 0")
@@ -247,7 +247,12 @@ def _channel(ch, where, default_source, source_ids):
 
 def _finite(value):
     # json.loads accepts NaN and Infinity; a calibration built from them turns every reading into NaN.
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:   # a JSON integer too large for a float
+        return False
 
 
 def _require(ok, message):
