@@ -293,9 +293,13 @@ def new_project(pid, name=None, folder=None):
     if exists:
         raise ValueError(f"{target} already exists")
     try:
-        shutil.copytree(folder / "_template", target)
-    except FileExistsError:   # made between the check and the copy: someone else's folder, leave it
+        target.mkdir()            # exclusive: from here on the folder is this call's, and only this call removes it
+    except FileExistsError:       # made between the check and now: someone else's folder, leave it
         raise ValueError(f"{target} already exists") from None
+    except OSError as error:
+        raise ValueError(f"could not write {target}: {error.strerror or error}") from None
+    try:
+        shutil.copytree(folder / "_template", target, dirs_exist_ok=True)
     except OSError as error:
         shutil.rmtree(target, ignore_errors=True)
         raise ValueError(f"could not write {target}: {error.strerror or error}") from None

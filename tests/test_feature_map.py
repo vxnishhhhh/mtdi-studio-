@@ -183,6 +183,12 @@ class FeatureMap(unittest.TestCase):
         self.assertFalse(data["ok"])
         self.assertIn("could not write", data["error"])
         self.assertFalse((folder / "no-disk").exists())
+        (folder / "theirs").mkdir()
+        (folder / "theirs" / "keep.txt").write_text("someone else's", encoding="utf-8")
+        with mock.patch("pathlib.Path.exists", return_value=False):   # made after the check: a race
+            data = self.client.post("/api/project-new", json={"id": "theirs"}).get_json()
+        self.assertIn("already exists", data["error"])
+        self.assertTrue((folder / "theirs" / "keep.txt").exists())    # their folder is left alone
         with mock.patch("pathlib.Path.exists", side_effect=PermissionError(13, "Permission denied")):
             data = self.client.post("/api/project-new", json={"id": "no-look"}).get_json()
         self.assertFalse(data["ok"])
