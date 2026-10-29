@@ -265,13 +265,14 @@ class SecondContentFile(unittest.TestCase):
             path = pathlib.Path(d, "words.json")
             path.write_text(json.dumps(words), encoding="utf-8")
             # a fresh home: an empty archive, as on a new install and in CI (the report must build from nothing)
-            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d,
+            # PYTHONFAULTHANDLER: an abort at exit (seen twice in CI, never locally) prints every thread's stack
+            env = dict(os.environ, MTDI_CONTENT=str(path), STUDIO_HTTPS_PORT="0", HOME=d, PYTHONFAULTHANDLER="1",
                        D4_TEST_XU=words["ch3.axis_unit"])
             for name in ("NOTION_API_KEY", "NOTION_REPORT_PAGE_ID"):   # the unconfigured render must not see the host's
                 env.pop(name, None)
             res = subprocess.run([sys.executable, "-c", RENDER], cwd=ROOT, env=env,
                                  capture_output=True, text=True, timeout=300)
-        self.assertEqual(res.returncode, 0, res.stderr[-2000:])
+        self.assertEqual(res.returncode, 0, res.stderr[-8000:])
         rendered = json.loads(res.stdout.strip().splitlines()[-1])
         for page in ("/", "/page-1", "/page-2", "/mtdi", "/page-3", "/settings"):
             self.assertIn(page, rendered)
