@@ -3,7 +3,7 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 312 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 309 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
 * **Next item:** the owner's priorities of 28 Oct, in order: P-01 back end visible (slices 1–4 merged; 9 features still missing from the studio, listed in studio/features.json), P-02 UI glitch sweep, P-03 research database, P-04 describe-it-and-build (see ops/BACKLOG.md and ops/inbox/2026-10-28-owner-priorities.md); then S1-06 slice 13, S1-08, S1-09.
 * **Waiting on the owner:** whether P-04 (describe-it-and-build) goes before Stage 2; branch protection on main;
