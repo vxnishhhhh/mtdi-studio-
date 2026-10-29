@@ -93,6 +93,14 @@ class Runtime:
         self._original_start = ns['LIFECYCLE'].start
         self._original_stop = ns['LIFECYCLE'].stop
 
+    def https_bind_address(self):
+        # The LAN login hook skips checks when the studio is bound to loopback without a tunnel, so in
+        # that mode this second listener must not be reachable from the network either.
+        rt = self.ns['RUNTIME']
+        if rt.get('host') in {'127.0.0.1', '::1', 'localhost'} and not rt.get('public_tunnel'):
+            return '::1' if rt.get('host') == '::1' else '127.0.0.1'
+        return '0.0.0.0'
+
     def start_local_https(self):
         """Serve the same app over TLS on STUDIO_HTTPS_PORT with a self signed certificate.
 
@@ -163,7 +171,7 @@ class Runtime:
                                                        serialization.NoEncryption()))
                 cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
                 os.chmod(key_path, 0o600)
-            httpd = make_server('0.0.0.0', port, self.ns['server'], threaded=True,
+            httpd = make_server(self.https_bind_address(), port, self.ns['server'], threaded=True,
                                 ssl_context=(str(cert_path), str(key_path)))
         except Exception as exc:
             LOG.warning('Local HTTPS listener failed: %s', exc)

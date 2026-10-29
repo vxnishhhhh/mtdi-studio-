@@ -208,6 +208,19 @@ class FeatureMap(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertFalse((folder / "lan-anon").exists())
 
+    def test_the_https_listener_follows_local_only(self):
+        from unittest import mock
+        from run import NAMESPACE
+        import studio.common as common
+        runtime = common.INSTRUMENT_RUNTIME
+        cases = [({"host": "127.0.0.1", "public_tunnel": False}, "127.0.0.1"),
+                 ({"host": "::1", "public_tunnel": False}, "::1"),
+                 ({"host": "127.0.0.1", "public_tunnel": True}, "0.0.0.0"),   # the tunnel hook logs everyone in
+                 ({"host": "0.0.0.0", "public_tunnel": False}, "0.0.0.0")]
+        for state, address in cases:
+            with mock.patch.dict(NAMESPACE["RUNTIME"], state):
+                self.assertEqual(runtime.https_bind_address(), address, state)
+
     def test_the_online_studio_does_not_create_projects(self):
         from unittest import mock
         folder = self._projects_copy()
