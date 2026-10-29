@@ -160,5 +160,47 @@ class FeatureMap(unittest.TestCase):
             self.assertIn(ch["id"], out)
         self.assertTrue(out.rstrip().endswith("OK"))
 
+    def test_a_csv_calibration_fits_from_settings(self):
+        from run import NAMESPACE
+        page = json.dumps(NAMESPACE["PAGES"]["/settings"]().to_plotly_json(), default=lambda o: o.to_plotly_json())
+        self.assertIn("CSV CALIBRATION FIT", page)
+        self.assertIn("data-i3-csv-fit", page)
+        csv = "raw,reference\n100,10.1\n200,19.9\n300,30.2\n400,39.8\n"
+        data = self.client.post("/api/calibration-fit", json={"csv": csv}).get_json()
+        self.assertTrue(data["ok"], data)
+        from mtdi.fusion import Calibration
+        expected = Calibration.fit([100, 200, 300, 400], [10.1, 19.9, 30.2, 39.8]).to_dict()
+        self.assertAlmostEqual(data["calibration"]["gain"], expected["gain"], places=12)
+        self.assertAlmostEqual(data["calibration"]["offset"], expected["offset"], places=12)
+        self.assertEqual(data["calibration"]["n"], 4)
+        hot = "\ufeffraw,reference,temperature\n1,3,20\n2,5,25\n3,7.5,30\n4,9,22\n"
+        data = self.client.post("/api/calibration-fit", json={"csv": hot, "temperature_key": "T"}).get_json()
+        self.assertTrue(data["ok"], data)
+        self.assertEqual(data["calibration"]["temperature_key"], "T")
+
+    def test_a_bad_csv_is_reported_not_raised(self):
+        # Every input a person can paste: the fit is refused with a reason, never a server error.
+        good = "raw,reference\n1,2\n2,4\n3,6\n"
+        bad_csv = ["", "x,y\n1,2\n", "raw,reference\n1,2\n2,4\n", "raw,reference\n1,2\nx,4\n3,6\n",
+                   "raw,reference\n1,2\n2\n3,6\n", "raw,reference\n1,nan\n2,4\n3,6\n",
+                   "raw,reference\n1,2\n2,inf\n3,6\n", "raw,reference\n1e400,2\n2,4\n3,6\n",
+                   "raw,reference\n" + "9" * 400 + ",2\n2,4\n3,6\n", "raw,reference\n1,2\n1,4\n1,6\n",
+                   "raw,reference,temperature\n1,2,20\n2,4,20\n3,6,20\n", "raw,reference\n\n\n",
+                   "raw,raw,reference\n1,1,2\n2,2,4\n3,3,6\n", "\x00\x00", "raw,reference\n" + "1,2\n" * 100_001]
+        for csv in bad_csv:
+            reply = self.client.post("/api/calibration-fit", json={"csv": csv, "temperature_key": "T"})
+            self.assertEqual(reply.status_code, 200, csv[:40])
+            self.assertFalse(reply.get_json()["ok"], csv[:40])
+            self.assertTrue(reply.get_json()["error"], csv[:40])
+        for extra in ({"temperature_key": "TEMP C"}, {"temp_ref": "nan"}, {"temp_ref": "x"}, {"temp_ref": None},
+                      {"temp_ref": 10 ** 400}, {"temp_ref": []}):
+            hot = "raw,reference,temperature\n1,3,20\n2,5,25\n3,7.5,30\n4,9,22\n"
+            reply = self.client.post("/api/calibration-fit", json={"csv": hot, "temperature_key": "T", **extra})
+            self.assertEqual(reply.status_code, 200, extra)
+            self.assertFalse(reply.get_json()["ok"], extra)
+        for body in ({}, {"csv": 5}, {"csv": None}, [], "x", 7, {"csv": good, "temperature_key": 5},
+                     {"csv": good, "temperature_key": ["T"]}, {"csv": "x" * 2_000_001}):
+            self.assertEqual(self.client.post("/api/calibration-fit", json=body).status_code, 400, str(body)[:40])
+
 if __name__ == "__main__":
     unittest.main()

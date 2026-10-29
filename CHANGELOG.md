@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Framework
+* `mtdi.fusion.fit_csv(text, ...)`: the CSV calibration fit shared by `mtdi calibrate` and the studio. It
+  refuses a column named twice and any fit a manifest would reject (NaN, infinite or overflowing values).
 * `mtdi.project.normalise` raises `ManifestError` naming the field for any wrong JSON shape (null,
   list, text, number, boolean or object where another is expected) or a number too large for a float;
   before, some escaped as `TypeError`, `AttributeError` or `OverflowError` from `mtdi check` and the studio.
@@ -12,6 +14,8 @@
   than the stack, as `ProtocolError` instead of `OverflowError` or `RecursionError`.
 
 ### Studio
+* Settings → CSV CALIBRATION FIT: `mtdi calibrate` from pasted readings, with the fit shown and the
+  calibration file offered as a download (`POST /api/calibration-fit`; nothing is written on the server).
 * Settings → PROJECT CHECK: `mtdi check` for a bundled project and `mtdi parse` for one protocol line
   (`GET /api/project-check`, `POST /api/parse-line`).
 

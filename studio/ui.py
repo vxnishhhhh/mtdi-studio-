@@ -247,7 +247,8 @@ body.intro-active .i3-header-tools,body.intro-active #i3-orb,html:not([data-i3-r
 .i3-btn:hover {border-color:rgba(49,215,230,.55);box-shadow:0 0 0 1px rgba(49,215,230,.18),0 0 18px rgba(49,215,230,.12);}
 .i3-btn:focus-visible {outline:2px solid var(--i3-accent);outline-offset:2px;}
 .i3-card p {margin:0 0 12px;color:var(--i3-muted);font-size:13px;line-height:1.55;}
-.i3-form :is(input,select),.i3-card :is(input[type=text],input[type=number],input[type=password],select) {background:var(--i3-soft);color:var(--i3-ink);font:13px var(--i3-mono);border:1px solid var(--i3-border);border-radius:7px;color-scheme:dark;}
+.i3-form :is(input,select),.i3-card :is(input[type=text],input[type=number],input[type=password],select,textarea) {background:var(--i3-soft);color:var(--i3-ink);font:13px var(--i3-mono);border:1px solid var(--i3-border);border-radius:7px;color-scheme:dark;}
+.i3-card textarea {width:100%;box-sizing:border-box;padding:8px 10px;resize:vertical;line-height:1.5;}
 .i3-form :is(input,select):focus {outline:none;border-color:rgba(49,215,230,.6);box-shadow:0 0 0 2px rgba(49,215,230,.15);}
 .i3-form label {font:500 11px/1.3 var(--i3-mono);letter-spacing:.06em;text-transform:uppercase;}
 .i3-form .dash-input-container,.i3-card .dash-input-container {background:var(--i3-soft);border:1px solid var(--i3-border);border-radius:7px;color-scheme:dark;}
@@ -2370,6 +2371,7 @@ function systemRows(title,rows){const box=document.createElement('div');const h=
 document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-system-check]');if(!button)return;const out=button.parentElement.querySelector('[data-i3-system-result]');if(!out)return;button.disabled=true;out.textContent='Checking…';fetch('/api/system-check',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('check failed ('+r.status+')');return r.json();}).then(d=>{out.replaceChildren(systemRows('THIS MACHINE · '+d.host.name+' · '+d.host.memory_mb+' MB',d.doctor.map(c=>[c.status.toUpperCase(),c.name,c.detail])),systemRows('RUNTIME MTDI PICKS (HYBRID PROFILE)',d.targets.map(t=>[t.target,t.runtime,t.why])),systemRows('INTEGRATIONS',d.integrations.map(i=>[i.status,i.provider,i.area,i.cost])),systemRows('COMPUTATIONAL CORE MODULES',d.modules.map(m=>[m.ok?'OK':'MISSING',m.module])));}).catch(error=>{out.textContent='System check failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
 document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-project-check]');if(!button)return;const card=button.closest('.i3-card')||document;const sel=card.querySelector('[data-i3-project-list]');const out=card.querySelector('[data-i3-project-result]');if(!sel||!out||!sel.value)return;button.disabled=true;out.textContent='Checking…';fetch('/api/project-check?id='+encodeURIComponent(sel.value),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('check failed ('+r.status+')');return r.json();}).then(d=>{if(!d.ok){out.textContent='Manifest error: '+clean(d.error);return;}out.replaceChildren(systemRows(d.name+' · MTDI '+d.mtdi,[['PROFILE',d.profile,d.runtime+(d.qualifies?' · hosts it':' · streams instead'),d.why],['NVTRA',d.nvtra_rules+' rules',d.environments+' saved environments',d.interface_words+' studio words']]),systemRows('SOURCES',d.sources.map(x=>[x.adapter,x.id,JSON.stringify(x.detail)])),systemRows('CHANNELS',d.channels.map(c=>[c.kind,c.id,c.domain+(c.unit?' · '+c.unit:''),'keys '+c.keys.join(', ')+' · from '+c.sources.join(', ')])));}).catch(error=>{out.textContent='Project check failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
 document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-line-test]');if(!button)return;const card=button.closest('.i3-card')||document;const input=card.querySelector('[data-i3-line-input] input');const out=card.querySelector('[data-i3-line-result]');if(!input||!out)return;button.disabled=true;fetch('/api/parse-line',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({line:input.value})}).then(r=>r.json()).then(d=>{if(d.ok)out.replaceChildren(systemRows('ACCEPTED',Object.entries(d.values).map(([k,v])=>['OK',k,String(v)])));else out.textContent='Rejected: '+clean(d.error);}).catch(error=>{out.textContent='Line test failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-csv-fit]');if(!button)return;const card=button.closest('.i3-card')||document;const val=s=>(card.querySelector(s)||{}).value;const out=card.querySelector('[data-i3-csv-result]');if(!out)return;const tref=Number(val('[data-i3-csv-tref] input'));button.disabled=true;out.textContent='Fitting…';fetch('/api/calibration-fit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv:val('[data-i3-csv-input] textarea')||'',temperature_key:(val('[data-i3-csv-tkey] input')||'').trim(),temp_ref:Number.isFinite(tref)?tref:25})}).then(r=>r.json().then(d=>{if(!r.ok&&!d.error)throw Error('fit failed ('+r.status+')');return d;})).then(d=>{if(!d.ok){out.textContent='Not fitted: '+clean(d.error);return;}const c=d.calibration;const rows=[['GAIN',String(c.gain)],['OFFSET',String(c.offset)],['RESIDUAL SD',String(c.residual_sd)],['READINGS',String(c.n)+' · '+c.method]];if(c.temperature_key)rows.push(['TEMPERATURE',c.temp_coeff+' per degree from '+c.temp_ref+' ('+c.temperature_key+')']);const save=document.createElement('a');save.className='i3-btn';save.textContent='SAVE CALIBRATION FILE';save.download='calibration.cal.json';save.href=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)+'\n'],{type:'application/json'}));out.replaceChildren(systemRows('FIT',rows),save);}).catch(error=>{out.textContent='Fit failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
 async function agentRequest(textValue){if(agent.busy)return;agent.busy=true;const seq=agent.stopSeq||0;orbShow('Thinking',textValue);try{const image=await consentedFrame();const response=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:textValue,image}),signal:AbortSignal.timeout(60000)});const data=await response.json();if((agent.stopSeq||0)!==seq){agent.busy=false;return;}if(!response.ok)throw Error(data.error||'Agent unavailable');orbShow(data.source==='instant'?'Done':data.source==='rules'?'Command mode':'NVTRA','');agent.followUntil=performance.now()+30000;typeIn(document.getElementById('i3-orb-text'),data.say);if(data.source!=='instant')speak(data.say);await runActions(data.actions);setTimeout(orbHideWhenIdle,data.source==='instant'?1800:2200);}catch(error){orbShow('NVTRA could not answer',clean(error.message));setTimeout(orbHideWhenIdle,3500);}finally{agent.busy=false;const q=agent.queued;agent.queued=null;if(q){agent.followUntil=performance.now()+30000;setTimeout(()=>{if(!agent.busy)agentHandleTranscript(q,true);},50);}}}
 /* Turn taking: while NVTRA speaks the recogniser is paused so it never hears itself; the
    microphone level can still interrupt it (barge in). A request is sent once the
@@ -2782,6 +2784,26 @@ def project_panel(html, dcc):
     ])
 
 
+def calibration_csv_panel(html, dcc):
+    # P-01: `mtdi calibrate`, a least-squares fit from many readings instead of two.
+    return _card(html, "CSV CALIBRATION FIT", [
+        html.Div("Paste readings with the header raw,reference (add a temperature column to correct for "
+                 "temperature too). MTDI fits the gain, offset and residual spread, checks the result the way a "
+                 "project would, and offers the calibration file to save in the project folder. Nothing is "
+                 "stored on this machine.", className="i3-mute"),
+        html.Div(dcc.Textarea(value="raw,reference\n100,10.1\n200,19.9\n300,30.2\n400,39.8", rows=6),
+                 **{"data-i3-csv-input": "true"}),
+        html.Div([
+            html.Label(["Temperature key", html.Div(dcc.Input(type="text", value=""),
+                                                                                  **{"data-i3-csv-tkey": "true"})]),
+            html.Label(["Reference temperature", html.Div(dcc.Input(type="number", value=25),
+                                                          **{"data-i3-csv-tref": "true"})]),
+            html.Button("FIT FROM CSV", type="button", className="i3-btn i3-primary", **{"data-i3-csv-fit": "true"}),
+        ], className="i3-form"),
+        html.Div("Not fitted yet.", className="i3-system-result", **{"data-i3-csv-result": "true", "aria-live": "polite"}),
+    ])
+
+
 def calibration_panel(html, dcc):
     return _card(html, "TWO-POINT CALIBRATION", [
         html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
@@ -3115,7 +3137,7 @@ def install(ns, runtime):
         "environmental_intelligence_section": lambda: [baseline_panel(html, dcc), transient_panel(html)],
         "i3_field_section": lambda: [vector_panel(html), audition_panel(html, dcc)],
         "nvtra_field_section": lambda: [signature_panel(html)],
-        "settings_page": lambda: [system_panel(html), project_panel(html, dcc), calibration_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
+        "settings_page": lambda: [system_panel(html), project_panel(html, dcc), calibration_panel(html, dcc), calibration_csv_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
     }
     replacements = {}
     for name, addition in factories.items():

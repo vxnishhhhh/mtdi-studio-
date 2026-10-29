@@ -1474,6 +1474,24 @@ def install(ns):
         except ProtocolError as exc:
             return {'ok': False, 'error': clean_text(exc)}
 
+    @server.post('/api/calibration-fit')
+    def calibration_fit():
+        # The studio's `mtdi calibrate` (P-01): fit from pasted CSV. Nothing is written on the server; the
+        # page offers the result as a .cal.json download for the project folder.
+        from mtdi.fusion import fit_csv
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict) or not isinstance(body.get('csv'), str) or len(body['csv']) > 2_000_000:
+            return {'error': 'csv must be text of at most 2 MB'}, 400
+        key = body.get('temperature_key') or None
+        if key is not None and not isinstance(key, str):
+            return {'error': 'temperature_key must be text'}, 400
+        try:
+            cal = fit_csv(body['csv'], temperature_key=key, temp_ref=body.get('temp_ref', 25.0),
+                          use_temperature=body.get('use_temperature', True) is not False)
+        except ValueError as exc:
+            return {'ok': False, 'error': clean_text(exc)}
+        return {'ok': True, 'calibration': cal.to_dict()}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
