@@ -183,6 +183,10 @@ class FeatureMap(unittest.TestCase):
         self.assertFalse(data["ok"])
         self.assertIn("could not write", data["error"])
         self.assertFalse((folder / "no-disk").exists())
+        with mock.patch("pathlib.Path.exists", side_effect=PermissionError(13, "Permission denied")):
+            data = self.client.post("/api/project-new", json={"id": "no-look"}).get_json()
+        self.assertFalse(data["ok"])
+        self.assertIn("could not check", data["error"])
 
     def test_an_open_lan_studio_does_not_create_projects(self):
         from unittest import mock

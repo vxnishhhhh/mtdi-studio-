@@ -286,7 +286,11 @@ def new_project(pid, name=None, folder=None):
         raise ValueError("project name: text of at most 80 characters, on one line")
     name = (name or "").strip() or pid.replace("-", " ").title()
     target = folder / pid
-    if target.exists():
+    try:
+        exists = target.exists()
+    except OSError as error:   # e.g. no permission to look in projects/
+        raise ValueError(f"could not check {target}: {error.strerror or error}") from None
+    if exists:
         raise ValueError(f"{target} already exists")
     try:
         shutil.copytree(folder / "_template", target)
