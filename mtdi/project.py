@@ -287,10 +287,12 @@ def new_project(pid, name=None, folder=None):
     name = (name or "").strip() or pid.replace("-", " ").title()
     target = folder / pid
     try:
-        exists = target.exists()
+        target.stat()          # not exists(): from Python 3.14 it hides every OSError as "absent"
+    except FileNotFoundError:
+        pass
     except OSError as error:   # e.g. no permission to look in projects/
         raise ValueError(f"could not check {target}: {error.strerror or error}") from None
-    if exists:
+    else:
         raise ValueError(f"{target} already exists")
     try:
         target.mkdir()            # exclusive: from here on the folder is this call's, and only this call removes it
