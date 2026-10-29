@@ -182,7 +182,8 @@ class Runtime:
         if bind == '0.0.0.0':
             print(f'Camera capable HTTPS https://{host}.local:{port} and https://{lan_ip}:{port} (self signed; accept the browser warning once)', flush=True)
         else:   # local only: the network addresses would refuse the connection
-            print(f'Camera capable HTTPS https://localhost:{port} (this machine only; self signed; accept the browser warning once)', flush=True)
+            local = '[::1]' if bind == '::1' else 'localhost'
+            print(f'Camera capable HTTPS https://{local}:{port} (this machine only; self signed; accept the browser warning once)', flush=True)
 
     def start(self):
         with self.lock:
