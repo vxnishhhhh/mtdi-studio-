@@ -120,10 +120,10 @@ try {
 try {
   // The tour serves the studio as Vercel does, so CREATE PROJECT must refuse in words; it never writes a folder.
   await page.evaluate(() => document.querySelector("[data-i3-new-create]")?.click());
-  await page.waitForFunction(() => /Not created: /.test(document.querySelector("[data-i3-new-result]")?.textContent || ""),
+  await page.waitForFunction(() => /Not created: the online studio cannot keep files/.test(document.querySelector("[data-i3-new-result]")?.textContent || ""),
     null, { timeout: 30000 });
 } catch {
-  problems.push("settings: CREATE PROJECT did not answer in words");
+  problems.push("settings: CREATE PROJECT did not refuse in the online studio");
 }
 
 // Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an

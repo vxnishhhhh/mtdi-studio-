@@ -17,7 +17,7 @@
 
 ### Studio
 * Settings → NEW PROJECT: `mtdi new` from the studio (`POST /api/project-new`). The online studio refuses
-  it, since it cannot keep files.
+  it, since it cannot keep files, and so does a studio open on the network with no login set up.
 * Settings → CSV CALIBRATION FIT: `mtdi calibrate` from pasted readings, with the fit shown and the
   calibration file offered as a download (`POST /api/calibration-fit`; nothing is written on the server).
 * Settings → PROJECT CHECK: `mtdi check` for a bundled project and `mtdi parse` for one protocol line

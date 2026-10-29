@@ -1501,6 +1501,14 @@ def install(ns):
             return {'error': 'send a JSON object with id and name'}, 400
         if os.environ.get('STUDIO_SERVERLESS'):
             return {'ok': False, 'error': 'the online studio cannot keep files; run mtdi new on your own machine'}
+        # It writes files, so off this machine it needs a caller the LAN hook authenticated: a Basic login or
+        # the printed access link. With neither configured that hook lets everyone in, so refuse instead.
+        rt = ns['RUNTIME']
+        local = rt.get('host') in {'127.0.0.1', '::1', 'localhost'} and not rt.get('public_tunnel')
+        guarded = (os.environ.get('STUDIO_AUTH_USER') and os.environ.get('STUDIO_AUTH_PASSWORD_HASH')) or rt.get('access_token')
+        if not (local or guarded):
+            return {'ok': False, 'error': 'this studio is open on the network without a login; '
+                                          'set one up or run mtdi new on this machine'}, 403
         folder = Path(manifest.__file__).resolve().parent.parent / 'projects'
         try:
             target = manifest.new_project(body.get('id'), body.get('name'), folder)

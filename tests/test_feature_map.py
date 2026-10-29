@@ -127,6 +127,10 @@ class FeatureMap(unittest.TestCase):
         patch = mock.patch("mtdi.project.__file__", str(pathlib.Path(tmp.name) / "mtdi" / "project.py"))
         patch.start()
         self.addCleanup(patch.stop)
+        from run import NAMESPACE
+        local = mock.patch.dict(NAMESPACE["RUNTIME"], {"host": "127.0.0.1", "public_tunnel": False})
+        local.start()   # the studio as run on this machine; the LAN case is tested on its own
+        self.addCleanup(local.stop)
         return pathlib.Path(tmp.name) / "projects"
 
     def test_a_new_project_is_created_from_settings(self):
@@ -179,6 +183,30 @@ class FeatureMap(unittest.TestCase):
         self.assertFalse(data["ok"])
         self.assertIn("could not write", data["error"])
         self.assertFalse((folder / "no-disk").exists())
+
+    def test_an_open_lan_studio_does_not_create_projects(self):
+        from unittest import mock
+        from run import NAMESPACE
+        folder = self._projects_copy()
+        runtime = NAMESPACE["RUNTIME"]
+        clear = {k: "" for k in ("STUDIO_AUTH_USER", "STUDIO_AUTH_PASSWORD_HASH")}
+        with mock.patch.dict(runtime, {"host": "0.0.0.0", "access_token": "", "public_tunnel": False}), \
+             mock.patch.dict(os.environ, clear):
+            reply = self.client.post("/api/project-new", json={"id": "lan-try"})
+        self.assertEqual(reply.status_code, 403)
+        self.assertIn("without a login", reply.get_json()["error"])
+        self.assertFalse((folder / "lan-try").exists())
+        token = "t" * 32
+        with mock.patch.dict(runtime, {"host": "0.0.0.0", "access_token": token, "public_tunnel": False}), \
+             mock.patch.dict(os.environ, clear):
+            self.assertEqual(self.client.post("/api/project-new", json={"id": "lan-anon"}).status_code, 401)
+            self.client.set_cookie("studio_access", token)
+            try:
+                data = self.client.post("/api/project-new", json={"id": "lan-ok"}).get_json()
+            finally:
+                self.client.delete_cookie("studio_access")
+        self.assertTrue(data["ok"])
+        self.assertFalse((folder / "lan-anon").exists())
 
     def test_the_online_studio_does_not_create_projects(self):
         from unittest import mock
