@@ -3,15 +3,16 @@
 Updated by every session. Newest first.
 
 * **Stage:** 1 · Universal foundation
-* **Main:** green (CI on Python 3.11, 3.12, 3.13; 293 tests, MATLAB parity in GNU Octave)
+* **Main:** green (CI on Python 3.11, 3.12, 3.13; 300 tests, MATLAB parity in GNU Octave)
 * **Open PRs:** none
-* **Next item:** the owner's priorities of 28 Oct, in order: P-01 back end visible (slice 1 merged; 13 features still missing from the studio, listed in studio/features.json), P-02 UI glitch sweep, P-03 research database, P-04 describe-it-and-build (see ops/BACKLOG.md and ops/inbox/2026-10-28-owner-priorities.md); then S1-06 slice 13, S1-08, S1-09.
+* **Next item:** the owner's priorities of 28 Oct, in order: P-01 back end visible (slices 1–2 merged; 11 features still missing from the studio, listed in studio/features.json), P-02 UI glitch sweep, P-03 research database, P-04 describe-it-and-build (see ops/BACKLOG.md and ops/inbox/2026-10-28-owner-priorities.md); then S1-06 slice 13, S1-08, S1-09.
 * **Waiting on the owner:** whether P-04 (describe-it-and-build) goes before Stage 2; branch protection on main;
   Codex setup; Notion connector; Vercel connector team access (see the
   plan doc's checklist). None blocks Stage 1.
 
 ## Log
 
+* 2026-10-29 early · Merged #82 (P-01 slice 2): Settings → PROJECT CHECK runs `mtdi check` on a bundled project and `mtdi parse` on one protocol line. CodeRabbit's reviews kept finding crash paths in the manifest loader and line parser; fixed across four rounds: 24 in the manifest loader (6 non-object sections, 8 wrong types, 10 numbers too large for a float), 2 in the line parser (huge integer, deep nesting) and 1 in the line-tester endpoint (non-object body). A shape-fuzz test (every manifest field × every JSON shape, huge numbers included) found most of them. The fuzz test stays in the suite.
 * 2026-10-28 late · Merged #79 (owner priorities) and #80 (P-01 slice 1): studio/features.json lists all 25 CLI commands and 42 routes as in the studio, hidden on purpose, or missing, and a test fails if one is added without an entry. Settings has a SYSTEM CHECK card (machine checks, host, targets, integrations, modules). CodeRabbit found 7 issues over 6 reviews, all fixed: a saved Settings key now counts as set up and as the AI NVTRA uses; offline mode never probes the local AI; Notion counts only with both its key and report page; a saved AI key without an id no longer crashes the key lookup; two tests no longer depend on the machine they run on.
 * 2026-10-28 evening · Owner decisions: #52 Compatibility Lab approved and merged (one CodeRabbit finding fixed: checkouts no longer persist the git credential); #78 camera consent merged (NVTRA asks once and remembers; 5 CodeRabbit findings over 4 reviews, all fixed); science hosts already reachable. New owner priorities P-01 to P-04 put ahead of the rest of Stage 1.
 * 2026-10-28 midday · Merged #76 (S1-06 slice 12; CodeRabbit found 4 more data-integrity issues after the night report, all fixed with tests: a calibration saved before any sample applied to feeds, skipped profiles were reported as applied, and a change of input unit or source kept the old baseline). Main green. #52 unchanged since 25 Oct, waiting on the owner. Report: ops/reports/2026-10-28-midday.md.
