@@ -369,42 +369,23 @@ def cmd_capabilities(args):
             print(f"  {prof:<11} {runtime:<14} {why}")
 def cmd_calibrate(args):
     """Fit a calibration from a CSV (columns raw, reference, optional temperature) and save it."""
-    import csv
-    from .fusion import Calibration
+    from .fusion import fit_csv
     path = pathlib.Path(args.csv)
     try:
-        with path.open(newline="", encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
+        text = path.read_text(encoding="utf-8")
     except OSError as error:
         sys.exit(f"mtdi calibrate: {error}")
-    cols = set(rows[0]) if rows else set()
-    if not {"raw", "reference"} <= cols:
-        sys.exit(f"mtdi calibrate: {path} needs header columns raw,reference (and optionally temperature)")
-    use_t = "temperature" in cols and not args.no_temperature
-    if use_t and not args.temperature_key:
-        sys.exit("mtdi calibrate: a temperature fit needs --temperature-key (the protocol key carrying "
-                 "temperature), or pass --no-temperature")
     try:
-        raw = [float(r["raw"]) for r in rows]
-        ref = [float(r["reference"]) for r in rows]
-        temp = [float(r["temperature"]) for r in rows] if use_t else None
-        cal = Calibration.fit(raw, ref, temperature=temp, temp_ref=args.temp_ref,
-                              temperature_key=args.temperature_key if use_t else None)
-    except (TypeError, ValueError) as error:
-        sys.exit(f"mtdi calibrate: {error}")
-    # Validate with the manifest's own rules before writing, so a file this command saves always loads
-    # (protocol-valid temperature key, finite numbers, a finite reference temperature).
-    from .project import ManifestError, normalise
-    try:
-        normalise({"project": {"id": "check"}, "sources": [{"id": "s", "adapter": "http"}],
-                   "channels": [{"id": "c", "keys": ["X"], "calibration": cal.to_dict()}]})
-    except ManifestError as error:
-        sys.exit(f"mtdi calibrate: not saved, a manifest would reject it: {error}")
+        cal = fit_csv(text, temperature_key=args.temperature_key, temp_ref=args.temp_ref,
+                      use_temperature=not args.no_temperature)
+    except ValueError as error:
+        hint = (" (pass --temperature-key, or --no-temperature)" if "temperature fit needs" in str(error) else "")
+        sys.exit(f"mtdi calibrate: {path}: {error}{hint}")
     out = pathlib.Path(args.out or path.with_suffix(".cal.json"))
     cal.save(out)
     d = cal.to_dict()
     print(f"{d['method']} on {d['n']} readings: gain {d['gain']:.6g}, offset {d['offset']:+.6g}"
-          + (f", {d['temp_coeff']:+.6g} per degree from {d['temp_ref']:g}" if use_t else "")
+          + (f", {d['temp_coeff']:+.6g} per degree from {d['temp_ref']:g}" if d["temperature_key"] else "")
           + f", residual sd {d['residual_sd']:.4g}")
     print(f"saved {out}\nput it in the project folder (next to project.json) and set "
           f"\"calibration\": \"{out.name}\" on the channel")

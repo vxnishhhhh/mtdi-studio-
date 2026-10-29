@@ -110,6 +110,13 @@ try {
 } catch {
   problems.push("settings: PROJECT CHECK or TEST LINE did not show its results");
 }
+try {
+  await page.evaluate(() => document.querySelector("[data-i3-csv-fit]")?.click());
+  await page.waitForFunction(() => document.querySelector("[data-i3-csv-result] a[download]")
+    && document.querySelectorAll("[data-i3-csv-result] .i3-system-row").length >= 4, null, { timeout: 30000 });
+} catch {
+  problems.push("settings: FIT FROM CSV did not show a fit and a calibration file");
+}
 
 // Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an
 // overlay. A phone user taps a point, so check that each nav button's centre is really the button

@@ -146,6 +146,64 @@ class Calibration:
         return cls(**json.loads(pathlib.Path(path).read_text(encoding="utf-8")))
 
 
+CSV_MAX_ROWS = 100_000
+
+
+def fit_csv(text, temperature_key=None, temp_ref=25.0, use_temperature=True):
+    """Fit a Calibration from CSV text (columns raw, reference, optional temperature).
+
+    The result is checked with the manifest's own rules, so whatever this returns loads in a project.
+    Raises ValueError with a message fit for the person who supplied the file.
+    """
+    import csv
+    import io
+    from .project import ManifestError, normalise
+    if not isinstance(text, str):
+        raise ValueError("the CSV must be text")
+    try:
+        # strict: an unclosed quote is an error, not a field that silently swallows the readings after it
+        reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")), strict=True)
+        header = [(c or "").strip() for c in (reader.fieldnames or [])]
+        rows = []
+        for row in reader:
+            # DictReader files extra values under None and fills missing ones with None: refuse both
+            if None in row or any(v is None for v in row.values()):
+                raise ValueError(f"line {reader.line_num} has {'more' if None in row else 'fewer'} values than the header")
+            rows.append(row)
+            if len(rows) > CSV_MAX_ROWS:
+                break
+    except csv.Error as error:   # e.g. a field over the reader's size limit, or an unclosed quote
+        raise ValueError(f"not readable as CSV: {error}") from error
+    named = [c for c in header if c in ("raw", "reference", "temperature")]
+    if len(named) != len(set(named)):
+        raise ValueError("a column is named twice; keep one raw, one reference and at most one temperature")
+    if len(rows) > CSV_MAX_ROWS:
+        raise ValueError(f"at most {CSV_MAX_ROWS} readings")
+    cols = {c.strip() for c in (rows[0].keys() if rows else ()) if isinstance(c, str)}
+    if not {"raw", "reference"} <= cols:
+        raise ValueError("needs header columns raw,reference (and optionally temperature)")
+    use_t = "temperature" in cols and use_temperature
+    if use_t and not temperature_key:
+        raise ValueError("a temperature fit needs the protocol key that carries temperature, "
+                         "or turn the temperature column off")
+    try:
+        temp_ref = float(temp_ref)
+        clean = [{k.strip(): v for k, v in r.items()} for r in rows]
+        raw = [float(r["raw"]) for r in clean]
+        ref = [float(r["reference"]) for r in clean]
+        temp = [float(r["temperature"]) for r in clean] if use_t else None
+        cal = Calibration.fit(raw, ref, temperature=temp, temp_ref=temp_ref,
+                              temperature_key=temperature_key if use_t else None)
+    except (TypeError, ValueError, OverflowError, ZeroDivisionError) as error:
+        raise ValueError(f"cannot fit: {error}") from error
+    try:
+        normalise({"project": {"id": "check"}, "sources": [{"id": "s", "adapter": "http"}],
+                   "channels": [{"id": "c", "keys": ["X"], "calibration": cal.to_dict()}]})
+    except ManifestError as error:
+        raise ValueError(f"not saved, a manifest would reject it: {error}") from error
+    return cal
+
+
 # ── drift: the Environmental -> Validation link ─────────────────────────────
 DRIFT_MIN_CHECKS = 3
 DRIFT_FACTOR = 3.0
