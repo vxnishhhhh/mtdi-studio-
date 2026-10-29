@@ -171,14 +171,18 @@ class Runtime:
                                                        serialization.NoEncryption()))
                 cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
                 os.chmod(key_path, 0o600)
-            httpd = make_server(self.https_bind_address(), port, self.ns['server'], threaded=True,
+            bind = self.https_bind_address()
+            httpd = make_server(bind, port, self.ns['server'], threaded=True,
                                 ssl_context=(str(cert_path), str(key_path)))
         except Exception as exc:
             LOG.warning('Local HTTPS listener failed: %s', exc)
             return
         self.https_server = httpd
         threading.Thread(target=httpd.serve_forever, name='studio-https', daemon=True).start()
-        print(f'Camera capable HTTPS https://{host}.local:{port} and https://{lan_ip}:{port} (self signed; accept the browser warning once)', flush=True)
+        if bind == '0.0.0.0':
+            print(f'Camera capable HTTPS https://{host}.local:{port} and https://{lan_ip}:{port} (self signed; accept the browser warning once)', flush=True)
+        else:   # local only: the network addresses would refuse the connection
+            print(f'Camera capable HTTPS https://localhost:{port} (this machine only; self signed; accept the browser warning once)', flush=True)
 
     def start(self):
         with self.lock:
