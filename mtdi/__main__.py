@@ -122,18 +122,12 @@ def cmd_check(args):
 
 
 def cmd_new(args):
-    if not re.match(r"^[a-z0-9][a-z0-9\-]{1,47}$", args.id):
-        sys.exit("project id: lowercase letters, digits and dashes")
-    target = ROOT / "projects" / args.id
-    if target.exists():
-        sys.exit(f"{target} already exists")
-    shutil.copytree(ROOT / "projects" / "_template", target)
-    manifest = target / "project.json"
-    data = json.loads(manifest.read_text(encoding="utf-8"))
-    data["project"]["id"] = args.id
-    data["project"]["name"] = args.name or args.id.replace("-", " ").title()
-    manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"created {target}\nnext: edit {manifest}, then  python -m mtdi run {target}")
+    from .project import new_project
+    try:
+        target = new_project(args.id, args.name, ROOT / "projects")
+    except ValueError as error:
+        sys.exit(str(error))
+    print(f"created {target}\nnext: edit {target / 'project.json'}, then  python -m mtdi run {target}")
 
 
 def cmd_parse(args):

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Framework
+* `mtdi.project.new_project(pid, name=None, folder=None)`: the project-from-template step shared by `mtdi new`
+  and the studio's NEW PROJECT card. It refuses a bad id or name with `ValueError` and removes a half-made folder.
 * `mtdi.fusion.fit_csv(text, ...)`: the CSV calibration fit shared by `mtdi calibrate` and the studio. It
   refuses a column named twice and any fit a manifest would reject (NaN, infinite or overflowing values).
 * `mtdi.project.normalise` raises `ManifestError` naming the field for any wrong JSON shape (null,
@@ -14,6 +16,8 @@
   than the stack, as `ProtocolError` instead of `OverflowError` or `RecursionError`.
 
 ### Studio
+* Settings → NEW PROJECT: `mtdi new` from the studio (`POST /api/project-new`). The online studio refuses
+  it, since it cannot keep files.
 * Settings → CSV CALIBRATION FIT: `mtdi calibrate` from pasted readings, with the fit shown and the
   calibration file offered as a download (`POST /api/calibration-fit`; nothing is written on the server).
 * Settings → PROJECT CHECK: `mtdi check` for a bundled project and `mtdi parse` for one protocol line

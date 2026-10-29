@@ -117,6 +117,14 @@ try {
 } catch {
   problems.push("settings: FIT FROM CSV did not show a fit and a calibration file");
 }
+try {
+  // The tour serves the studio as Vercel does, so CREATE PROJECT must refuse in words; it never writes a folder.
+  await page.evaluate(() => document.querySelector("[data-i3-new-create]")?.click());
+  await page.waitForFunction(() => /Not created: /.test(document.querySelector("[data-i3-new-result]")?.textContent || ""),
+    null, { timeout: 30000 });
+} catch {
+  problems.push("settings: CREATE PROJECT did not answer in words");
+}
 
 // Phone pass: the desktop loop clicks with element.click(), which reaches a button even under an
 // overlay. A phone user taps a point, so check that each nav button's centre is really the button

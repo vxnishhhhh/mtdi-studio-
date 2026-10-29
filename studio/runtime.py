@@ -1492,6 +1492,22 @@ def install(ns):
             return {'ok': False, 'error': clean_text(exc)}
         return {'ok': True, 'calibration': cal.to_dict()}
 
+    @server.post('/api/project-new')
+    def project_new():
+        # The studio's `mtdi new` (P-01): a project folder from the template, on the machine running MTDI.
+        from mtdi import project as manifest
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return {'error': 'send a JSON object with id and name'}, 400
+        if os.environ.get('STUDIO_SERVERLESS'):
+            return {'ok': False, 'error': 'the online studio cannot keep files; run mtdi new on your own machine'}
+        folder = Path(manifest.__file__).resolve().parent.parent / 'projects'
+        try:
+            target = manifest.new_project(body.get('id'), body.get('name'), folder)
+        except ValueError as exc:
+            return {'ok': False, 'error': clean_text(str(exc).replace(str(folder), 'projects'))}
+        return {'ok': True, 'id': target.name, 'path': f'projects/{target.name}/project.json'}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
