@@ -3,6 +3,7 @@
 import base64
 import json
 import re
+from pathlib import Path
 
 from .content import T  # studio words (S1-06)
 import zlib
@@ -2367,6 +2368,8 @@ document.addEventListener('click',event=>{const button=event.target.closest('[da
 /* System check (P-01): renders /api/system-check into the Settings card; every value is text, never HTML. */
 function systemRows(title,rows){const box=document.createElement('div');const h=document.createElement('div');h.className='section-label';h.textContent=title;box.append(h);for(const cells of rows){const r=document.createElement('div');r.className='i3-system-row';for(const c of cells){const sp=document.createElement('span');sp.textContent=c;r.append(sp);}box.append(r);}return box;}
 document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-system-check]');if(!button)return;const out=button.parentElement.querySelector('[data-i3-system-result]');if(!out)return;button.disabled=true;out.textContent='Checking…';fetch('/api/system-check',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('check failed ('+r.status+')');return r.json();}).then(d=>{out.replaceChildren(systemRows('THIS MACHINE · '+d.host.name+' · '+d.host.memory_mb+' MB',d.doctor.map(c=>[c.status.toUpperCase(),c.name,c.detail])),systemRows('RUNTIME MTDI PICKS (HYBRID PROFILE)',d.targets.map(t=>[t.target,t.runtime,t.why])),systemRows('INTEGRATIONS',d.integrations.map(i=>[i.status,i.provider,i.area,i.cost])),systemRows('COMPUTATIONAL CORE MODULES',d.modules.map(m=>[m.ok?'OK':'MISSING',m.module])));}).catch(error=>{out.textContent='System check failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-project-check]');if(!button)return;const card=button.closest('.i3-card')||document;const sel=card.querySelector('[data-i3-project-list]');const out=card.querySelector('[data-i3-project-result]');if(!sel||!out||!sel.value)return;button.disabled=true;out.textContent='Checking…';fetch('/api/project-check?id='+encodeURIComponent(sel.value),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('check failed ('+r.status+')');return r.json();}).then(d=>{if(!d.ok){out.textContent='Manifest error: '+clean(d.error);return;}out.replaceChildren(systemRows(d.name+' · MTDI '+d.mtdi,[['PROFILE',d.profile,d.runtime+(d.qualifies?' · hosts it':' · streams instead'),d.why],['NVTRA',d.nvtra_rules+' rules',d.environments+' saved environments',d.interface_words+' studio words']]),systemRows('SOURCES',d.sources.map(x=>[x.adapter,x.id,JSON.stringify(x.detail)])),systemRows('CHANNELS',d.channels.map(c=>[c.kind,c.id,c.domain+(c.unit?' · '+c.unit:''),'keys '+c.keys.join(', ')+' · from '+c.sources.join(', ')])));}).catch(error=>{out.textContent='Project check failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-i3-line-test]');if(!button)return;const card=button.closest('.i3-card')||document;const input=card.querySelector('[data-i3-line-input] input');const out=card.querySelector('[data-i3-line-result]');if(!input||!out)return;button.disabled=true;fetch('/api/parse-line',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({line:input.value})}).then(r=>r.json()).then(d=>{if(d.ok)out.replaceChildren(systemRows('ACCEPTED',Object.entries(d.values).map(([k,v])=>['OK',k,String(v)])));else out.textContent='Rejected: '+clean(d.error);}).catch(error=>{out.textContent='Line test failed: '+clean(error.message);}).finally(()=>{button.disabled=false;});});
 async function agentRequest(textValue){if(agent.busy)return;agent.busy=true;const seq=agent.stopSeq||0;orbShow('Thinking',textValue);try{const image=await consentedFrame();const response=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:textValue,image}),signal:AbortSignal.timeout(60000)});const data=await response.json();if((agent.stopSeq||0)!==seq){agent.busy=false;return;}if(!response.ok)throw Error(data.error||'Agent unavailable');orbShow(data.source==='instant'?'Done':data.source==='rules'?'Command mode':'NVTRA','');agent.followUntil=performance.now()+30000;typeIn(document.getElementById('i3-orb-text'),data.say);if(data.source!=='instant')speak(data.say);await runActions(data.actions);setTimeout(orbHideWhenIdle,data.source==='instant'?1800:2200);}catch(error){orbShow('NVTRA could not answer',clean(error.message));setTimeout(orbHideWhenIdle,3500);}finally{agent.busy=false;const q=agent.queued;agent.queued=null;if(q){agent.followUntil=performance.now()+30000;setTimeout(()=>{if(!agent.busy)agentHandleTranscript(q,true);},50);}}}
 /* Turn taking: while NVTRA speaks the recogniser is paused so it never hears itself; the
    microphone level can still interrupt it (barge in). A request is sent once the
@@ -2752,6 +2755,33 @@ def system_panel(html):
     ])
 
 
+def bundled_projects():
+    """The folders under projects/ that hold a project, without the template (what PROJECT CHECK can open)."""
+    folder = Path(__file__).resolve().parent.parent / "projects"
+    return sorted(p.parent.name for p in folder.glob("*/project.json") if p.parent.name != "_template")
+
+
+def project_panel(html, dcc):
+    # P-01: `mtdi check` and `mtdi parse`, run from the studio on request.
+    return _card(html, "PROJECT CHECK", [
+        html.Div("Reads a bundled project's manifest the way mtdi check does: its sources, its channels and whether "
+                 "this machine can host its profile. The line tester takes one line a device would send and shows "
+                 "what MTDI reads from it, or why it rejects it.", className="i3-mute"),
+        html.Div([
+            html.Label(["Project", html.Select([html.Option(name, value=name) for name in bundled_projects()],
+                                               **{"data-i3-project-list": "true", "aria-label": "Bundled project"})]),
+            html.Button("CHECK PROJECT", type="button", className="i3-btn i3-primary", **{"data-i3-project-check": "true"}),
+        ], className="i3-form"),
+        html.Div("Not run yet.", className="i3-system-result", **{"data-i3-project-result": "true", "aria-live": "polite"}),
+        html.Div([
+            html.Label(["Protocol line", html.Div(dcc.Input(type="text", value="CH1=512,CH2=498,_T=1200"),
+                                                   **{"data-i3-line-input": "true"})]),
+            html.Button("TEST LINE", type="button", className="i3-btn", **{"data-i3-line-test": "true"}),
+        ], className="i3-form"),
+        html.Div("Not tested yet.", className="i3-system-result", **{"data-i3-line-result": "true", "aria-live": "polite"}),
+    ])
+
+
 def calibration_panel(html, dcc):
     return _card(html, "TWO-POINT CALIBRATION", [
         html.Div(f"Measure two known references with the probe. The raw readings and the known values fix a scale "
@@ -3085,7 +3115,7 @@ def install(ns, runtime):
         "environmental_intelligence_section": lambda: [baseline_panel(html, dcc), transient_panel(html)],
         "i3_field_section": lambda: [vector_panel(html), audition_panel(html, dcc)],
         "nvtra_field_section": lambda: [signature_panel(html)],
-        "settings_page": lambda: [system_panel(html), calibration_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
+        "settings_page": lambda: [system_panel(html), project_panel(html, dcc), calibration_panel(html, dcc), camera_panel(html), telemetry_panel(html), timeline_panel(html), export_panel(html)],
     }
     replacements = {}
     for name, addition in factories.items():

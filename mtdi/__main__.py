@@ -88,18 +88,8 @@ def cmd_run(args):
 
 
 def cmd_check(args):
+    from .project import summary
     project = load(args.project)
-    meta = project["project"]
-    print(f"{meta['name']} ({meta['id']}) · MTDI {project['mtdi']}")
-    print("sources:")
-    for s in project["sources"]:
-        detail = {k: v for k, v in s.items() if k not in ("id", "adapter")}
-        print(f"  {s['id']:<14} {s['adapter']:<10} {json.dumps(detail)}")
-    print("channels:")
-    for c in project["channels"]:
-        print(f"  {c['id']:<14} {c['kind']:<7} {c['domain']:<11} keys={','.join(c['keys']):<18} "
-              f"unit={c['unit'] or '-':<8} source={'|'.join(c['sources'])}  floor={c['noise_floor']}"
-              + (f"  {c['transform']}({c['window']})" if c["transform"] != "none" else ""))
     if project["interface"] and (ROOT / "studio" / "content.py").exists():
         sys.path.insert(0, str(ROOT))
         from studio import content
@@ -107,17 +97,27 @@ def cmd_check(args):
             content.validate(project["interface"], "interface")
         except content.ContentError as error:
             sys.exit(f"manifest error: {error}")
-        print(f"interface: {len(project['interface'])} studio word(s) set")
-    from .capabilities import detect_host, load_targets
-    from .profiles import qualifies
-    target = load_targets().get(args.target) if args.target else detect_host()
-    if target is None:
-        sys.exit(f"unknown target {args.target!r}; see python -m mtdi capabilities")
-    ok, runtime, why = qualifies(project["profile"], target)
-    print(f"profile: {project['profile']} · target {target['id']}: {runtime} "
-          f"({'qualifies' if ok else 'does not host it; streams instead'}) · {why}")
-    print(f"nvtra rules: {len(project['nvtra']['rules'])}   saved environments: "
-          f"{len(list((pathlib.Path(project['_dir']) / 'environments').glob('*.json')))}")
+    from .capabilities import load_targets
+    target = None
+    if args.target:
+        target = load_targets().get(args.target)
+        if target is None:
+            sys.exit(f"unknown target {args.target!r}; see python -m mtdi capabilities")
+    r = summary(project, target)
+    print(f"{r['name']} ({r['id']}) · MTDI {r['mtdi']}")
+    print("sources:")
+    for s in r["sources"]:
+        print(f"  {s['id']:<14} {s['adapter']:<10} {json.dumps(s['detail'])}")
+    print("channels:")
+    for c in r["channels"]:
+        print(f"  {c['id']:<14} {c['kind']:<7} {c['domain']:<11} keys={','.join(c['keys']):<18} "
+              f"unit={c['unit'] or '-':<8} source={'|'.join(c['sources'])}  floor={c['noise_floor']}"
+              + (f"  {c['transform']}({c['window']})" if c["transform"] != "none" else ""))
+    if r["interface_words"]:
+        print(f"interface: {r['interface_words']} studio word(s) set")
+    print(f"profile: {r['profile']} · target {r['target']}: {r['runtime']} "
+          f"({'qualifies' if r['qualifies'] else 'does not host it; streams instead'}) · {r['why']}")
+    print(f"nvtra rules: {r['nvtra_rules']}   saved environments: {r['environments']}")
     print("OK")
 
 

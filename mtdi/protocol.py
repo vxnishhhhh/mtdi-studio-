@@ -57,7 +57,7 @@ def parse_line(line):
 def _parse_json(text):
     try:
         data = json.loads(text)
-    except ValueError as error:
+    except (ValueError, RecursionError) as error:   # deep nesting fits in MAX_LINE and can exhaust the stack
         raise ProtocolError("invalid JSON") from error
     if not isinstance(data, dict) or not data:
         raise ProtocolError("JSON line must be a non-empty object")
@@ -70,7 +70,10 @@ def _parse_json(text):
 
 
 def _finite(raw, key):
-    value = float(raw)
+    try:
+        value = float(raw)
+    except OverflowError as error:   # a JSON integer too large for a float
+        raise ProtocolError(f"{key} is not finite") from error
     if not math.isfinite(value):
         raise ProtocolError(f"{key} is not finite")
     return value

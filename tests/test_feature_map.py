@@ -103,5 +103,62 @@ class FeatureMap(unittest.TestCase):
         self.assertEqual((row["status"], row["detail"]), ("ok", "no local model; NVTRA uses the gemini key saved in Settings"))
         self.assertNotIn("sk-another-secret-987654", reply.get_data(as_text=True))
 
+    def test_every_bundled_project_checks_from_settings(self):
+        from run import NAMESPACE
+        page = json.dumps(NAMESPACE["PAGES"]["/settings"]().to_plotly_json(), default=lambda o: o.to_plotly_json())
+        self.assertIn("PROJECT CHECK", page)
+        self.assertIn("data-i3-project-check", page)
+        names = self.client.get("/api/project-check").get_json()["projects"]
+        self.assertIn("host-health", names)
+        self.assertNotIn("_template", names)
+        for name in names:
+            data = self.client.get("/api/project-check", query_string={"id": name}).get_json()
+            self.assertTrue(data["ok"], name)
+            self.assertEqual(data["id"], name)
+            self.assertTrue(data["channels"] and data["sources"], name)
+
+    def test_project_check_reads_only_listed_folders(self):
+        for wanted in ("../run", "_template", "/etc/passwd", "host-health/../third-eye"):
+            self.assertEqual(self.client.get("/api/project-check", query_string={"id": wanted}).status_code, 404, wanted)
+
+    def test_a_bad_manifest_is_reported_not_raised(self):
+        import tempfile
+        from unittest import mock
+        good = json.loads((ROOT / "projects" / "host-health" / "project.json").read_text(encoding="utf-8"))
+        broken = {"sources": [None]}, {"project": None}, {"channels": [None]}, {"nvtra": None}, {"nvtra": {"rules": [None]}}
+        for change in broken:
+            with tempfile.TemporaryDirectory() as tmp:
+                folder = pathlib.Path(tmp) / "projects"
+                (folder / "broken").mkdir(parents=True)
+                (folder / "broken" / "project.json").write_text(json.dumps({**good, **change}), encoding="utf-8")
+                with mock.patch("studio.ui.bundled_projects", return_value=["broken"]), \
+                     mock.patch("mtdi.project.__file__", str(pathlib.Path(tmp) / "mtdi" / "project.py")):
+                    reply = self.client.get("/api/project-check", query_string={"id": "broken"})
+            self.assertEqual(reply.status_code, 200, change)
+            data = reply.get_json()
+            self.assertFalse(data["ok"], change)
+            self.assertIn("must be an object", data["error"], change)
+
+    def test_the_line_tester_matches_the_protocol(self):
+        ok = self.client.post("/api/parse-line", json={"line": "CH1=512,CH2=498,_T=1200"}).get_json()
+        self.assertEqual(ok, {"ok": True, "values": {"CH1": 512.0, "CH2": 498.0, "_T": 1200.0}})
+        for line in ("CH1=512,CH2", '{"A": ' + "9" * 400 + "}"):   # the second overflows a float
+            reply = self.client.post("/api/parse-line", json={"line": line})
+            self.assertEqual(reply.status_code, 200, line)
+            self.assertFalse(reply.get_json()["ok"], line)
+            self.assertTrue(reply.get_json()["error"], line)
+        for body in ({}, {"line": 5}, {"line": "A=1," * 2000}, [], ["CH1=1"], 7, "CH1=1"):
+            self.assertEqual(self.client.post("/api/parse-line", json=body).status_code, 400, body)
+
+    def test_mtdi_check_prints_the_same_summary(self):
+        import subprocess, sys
+        out = subprocess.run([sys.executable, "-m", "mtdi", "check", "projects/host-health"], cwd=ROOT,
+                             capture_output=True, text=True, check=True).stdout
+        data = self.client.get("/api/project-check", query_string={"id": "host-health"}).get_json()
+        self.assertIn(f"{data['name']} ({data['id']})", out)
+        for ch in data["channels"]:
+            self.assertIn(ch["id"], out)
+        self.assertTrue(out.rstrip().endswith("OK"))
+
 if __name__ == "__main__":
     unittest.main()

@@ -1440,6 +1440,40 @@ def install(ns):
                 'integrations': [{k: r[k] for k in ('id', 'provider', 'area', 'status', 'cost')} for r in snap['integrations']],
                 'modules': [{'module': m['module'], 'ok': m['ok']} for m in snap['modules']]}
 
+    @server.get('/api/project-check')
+    def project_check():
+        # The studio's `mtdi check` (P-01): pick a bundled project, see what MTDI reads from its manifest.
+        from mtdi import project as manifest
+        from studio import content
+        from studio.ui import bundled_projects
+        folder = Path(manifest.__file__).resolve().parent.parent / 'projects'
+        names = bundled_projects()
+        wanted = request.args.get('id')
+        if wanted is None:
+            return {'projects': names}
+        if wanted not in names:   # only a listed folder: no path from the request reaches the file system
+            return {'error': 'unknown project'}, 404
+        try:
+            loaded = manifest.load(folder / wanted)
+            if loaded['interface']:
+                content.validate(loaded['interface'], 'interface')
+        except (manifest.ManifestError, content.ContentError) as exc:
+            return {'id': wanted, 'ok': False, 'error': clean_text(exc)}
+        return {'ok': True, **manifest.summary(loaded)}
+
+    @server.post('/api/parse-line')
+    def parse_protocol_line():
+        # The studio's `mtdi parse` (P-01): test one line before a device sends it.
+        from mtdi.protocol import ProtocolError, parse_line
+        body = request.get_json(silent=True)
+        line = body.get('line') if isinstance(body, dict) else None
+        if not isinstance(line, str) or len(line) > 4096:
+            return {'error': 'line must be text of at most 4096 characters'}, 400
+        try:
+            return {'ok': True, 'values': parse_line(line)}
+        except ProtocolError as exc:
+            return {'ok': False, 'error': clean_text(exc)}
+
     @server.post('/api/agent')
     def agent():
         data = request.get_json(silent=True) or {}
