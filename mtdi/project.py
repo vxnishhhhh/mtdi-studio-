@@ -13,6 +13,7 @@ import json
 import math
 import pathlib
 import re
+import shutil
 
 from .protocol import KEY  # a calibration's temperature_key must be one the protocol can carry
 
@@ -268,6 +269,56 @@ def scale_of(ch, i):
 def offset_of(ch, i):
     o = ch["offset"]
     return o[i] if isinstance(o, list) else o
+
+
+PROJECT_ID = re.compile(r"[a-z0-9][a-z0-9\-]{1,47}")
+
+
+def new_project(pid, name=None, folder=None):
+    """`mtdi new`: copy projects/_template to projects/<pid> and name it. Returns the new folder.
+
+    Raises ValueError with the reason when the id or name is unusable or the folder exists."""
+    folder = pathlib.Path(folder) if folder else pathlib.Path(__file__).resolve().parent.parent / "projects"
+    if not isinstance(pid, str) or not PROJECT_ID.fullmatch(pid):
+        raise ValueError("project id: lowercase letters, digits and dashes")
+    if name is not None and (not isinstance(name, str) or len(name) > 80
+                             or any(ord(c) < 32 or ord(c) == 127 for c in name)):
+        raise ValueError("project name: text of at most 80 characters, on one line")
+    name = (name or "").strip() or pid.replace("-", " ").title()
+    target = folder / pid
+    try:
+        target.stat()          # not exists(): from Python 3.14 it hides every OSError as "absent"
+    except FileNotFoundError:
+        pass
+    except OSError as error:   # e.g. no permission to look in projects/
+        raise ValueError(f"could not check {target}: {error.strerror or error}") from None
+    else:
+        raise ValueError(f"{target} already exists")
+    try:
+        target.mkdir()            # exclusive: from here on the folder is this call's, and only this call removes it
+    except FileExistsError:       # made between the check and now: someone else's folder, leave it
+        raise ValueError(f"{target} already exists") from None
+    except OSError as error:
+        raise ValueError(f"could not write {target}: {error.strerror or error}") from None
+    try:
+        shutil.copytree(folder / "_template", target, dirs_exist_ok=True)
+    except OSError as error:   # shutil.Error lists every file's paths, escaped on Windows: never pass them on
+        shutil.rmtree(target, ignore_errors=True)
+        raise ValueError(f"could not write {target}: {error.strerror or 'the template could not be copied'}") from None
+    try:
+        manifest = target / "project.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        data["project"]["id"] = pid
+        data["project"]["name"] = name
+        manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        load(target)
+    except OSError as error:
+        shutil.rmtree(target, ignore_errors=True)
+        raise ValueError(f"could not write {target}: {error.strerror or error}") from None
+    except BaseException:
+        shutil.rmtree(target, ignore_errors=True)   # never leave half a project behind
+        raise
+    return target
 
 
 def summary(project, target=None):

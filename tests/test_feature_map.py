@@ -117,6 +117,137 @@ class FeatureMap(unittest.TestCase):
             self.assertEqual(data["id"], name)
             self.assertTrue(data["channels"] and data["sources"], name)
 
+    def _projects_copy(self):
+        import shutil
+        import tempfile
+        from unittest import mock
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        shutil.copytree(ROOT / "projects" / "_template", pathlib.Path(tmp.name) / "projects" / "_template")
+        patch = mock.patch("mtdi.project.__file__", str(pathlib.Path(tmp.name) / "mtdi" / "project.py"))
+        patch.start()
+        self.addCleanup(patch.stop)
+        from run import NAMESPACE
+        local = mock.patch.dict(NAMESPACE["RUNTIME"], {"host": "127.0.0.1", "public_tunnel": False})
+        local.start()   # the studio as run on this machine; the LAN case is tested on its own
+        self.addCleanup(local.stop)
+        return pathlib.Path(tmp.name) / "projects"
+
+    def test_a_new_project_is_created_from_settings(self):
+        from mtdi.project import load
+        from run import NAMESPACE
+        page = json.dumps(NAMESPACE["PAGES"]["/settings"]().to_plotly_json(), default=lambda o: o.to_plotly_json())
+        self.assertIn("data-i3-new-create", page)
+        folder = self._projects_copy()
+        data = self.client.post("/api/project-new", json={"id": "bench-rig", "name": "Bench Rig"}).get_json()
+        self.assertEqual(data, {"ok": True, "id": "bench-rig", "path": "projects/bench-rig/project.json"})
+        made = load(folder / "bench-rig")
+        self.assertEqual((made["project"]["id"], made["project"]["name"]), ("bench-rig", "Bench Rig"))
+        again = self.client.post("/api/project-new", json={"id": "bench-rig"}).get_json()
+        self.assertFalse(again["ok"])
+        self.assertIn("already exists", again["error"])
+        self.assertNotIn(str(folder), again["error"])   # the server's folders stay private
+        named = self.client.post("/api/project-new", json={"id": "no-name"}).get_json()
+        self.assertTrue(named["ok"])
+        self.assertEqual(load(folder / "no-name")["project"]["name"], "No Name")
+
+    def test_a_bad_new_project_is_refused_not_raised(self):
+        folder = self._projects_copy()
+        shapes = [None, [], {}, 7, -1, 0, 10**400, True, "", " ", [None], {"a": None}]
+        bad_ids = shapes + ["x", "A-b", "../x", "x/../y", "-x", "a" * 49, "_template", "a b", "a\nb"]
+        bad_names = [n for n in shapes if n is not None and n != "" and n != " "] + ["a" * 81, "a\nb", "a\x7fb"]
+        for pid in bad_ids:
+            reply = self.client.post("/api/project-new", json={"id": pid})
+            self.assertEqual(reply.status_code, 200, pid)
+            self.assertFalse(reply.get_json()["ok"], pid)
+        for name in bad_names:
+            reply = self.client.post("/api/project-new", json={"id": "ok-id", "name": name})
+            self.assertEqual(reply.status_code, 200, name)
+            self.assertFalse(reply.get_json()["ok"], name)
+        for body in ("[]", '"x"', "7", "null", "{not json"):
+            reply = self.client.post("/api/project-new", data=body, content_type="application/json")
+            self.assertEqual(reply.status_code, 400, body)
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["_template"])   # nothing half-made
+
+    def test_a_disk_error_is_reported_and_cleaned_up(self):
+        import shutil
+        from unittest import mock
+        folder = self._projects_copy()
+        real = shutil.copytree
+
+        def half_copy(src, dst, **kw):
+            real(src, dst, **kw)
+            raise PermissionError(13, "Permission denied")
+        with mock.patch("mtdi.project.shutil.copytree", half_copy):
+            data = self.client.post("/api/project-new", json={"id": "no-disk"}).get_json()
+        self.assertFalse(data["ok"])
+        self.assertIn("could not write", data["error"])
+        self.assertFalse((folder / "no-disk").exists())
+
+        def windows_copy(src, dst, **kw):   # shutil.Error text carries repr()-escaped absolute paths
+            raise shutil.Error([(r"C:\\srv\\projects\\_template\\a", r"C:\\srv\\projects\\x\\a", "denied")])
+        with mock.patch("mtdi.project.shutil.copytree", windows_copy):
+            data = self.client.post("/api/project-new", json={"id": "win-copy"}).get_json()
+        self.assertTrue(data["error"].endswith(": the template could not be copied"), data["error"])
+        self.assertNotIn("srv", data["error"])
+        self.assertNotIn(str(folder), data["error"])
+        (folder / "theirs").mkdir()
+        (folder / "theirs" / "keep.txt").write_text("someone else's", encoding="utf-8")
+        with mock.patch("pathlib.Path.stat", side_effect=FileNotFoundError(2, "gone")):   # made after the check: a race
+            data = self.client.post("/api/project-new", json={"id": "theirs"}).get_json()
+        self.assertIn("already exists", data["error"])
+        self.assertTrue((folder / "theirs" / "keep.txt").exists())    # their folder is left alone
+        with mock.patch("pathlib.Path.stat", side_effect=PermissionError(13, "Permission denied")):
+            data = self.client.post("/api/project-new", json={"id": "no-look"}).get_json()
+        self.assertFalse(data["ok"])
+        self.assertIn("could not check", data["error"])
+
+    def test_an_open_lan_studio_does_not_create_projects(self):
+        from unittest import mock
+        from run import NAMESPACE
+        folder = self._projects_copy()
+        runtime = NAMESPACE["RUNTIME"]
+        clear = {k: "" for k in ("STUDIO_AUTH_USER", "STUDIO_AUTH_PASSWORD_HASH")}
+        with mock.patch.dict(runtime, {"host": "0.0.0.0", "access_token": "", "public_tunnel": False}), \
+             mock.patch.dict(os.environ, clear):
+            reply = self.client.post("/api/project-new", json={"id": "lan-try"})
+        self.assertEqual(reply.status_code, 403)
+        self.assertIn("without a login", reply.get_json()["error"])
+        self.assertFalse((folder / "lan-try").exists())
+        token = "t" * 32
+        with mock.patch.dict(runtime, {"host": "0.0.0.0", "access_token": token, "public_tunnel": False}), \
+             mock.patch.dict(os.environ, clear):
+            self.assertEqual(self.client.post("/api/project-new", json={"id": "lan-anon"}).status_code, 401)
+            self.client.set_cookie("studio_access", token)
+            try:
+                data = self.client.post("/api/project-new", json={"id": "lan-ok"}).get_json()
+            finally:
+                self.client.delete_cookie("studio_access")
+        self.assertTrue(data["ok"])
+        self.assertFalse((folder / "lan-anon").exists())
+
+    def test_the_https_listener_follows_local_only(self):
+        from unittest import mock
+        from run import NAMESPACE
+        import studio.common as common
+        runtime = common.INSTRUMENT_RUNTIME
+        cases = [({"host": "127.0.0.1", "public_tunnel": False}, "127.0.0.1"),
+                 ({"host": "::1", "public_tunnel": False}, "::1"),
+                 ({"host": "127.0.0.1", "public_tunnel": True}, "0.0.0.0"),   # the tunnel hook logs everyone in
+                 ({"host": "0.0.0.0", "public_tunnel": False}, "0.0.0.0")]
+        for state, address in cases:
+            with mock.patch.dict(NAMESPACE["RUNTIME"], state):
+                self.assertEqual(runtime.https_bind_address(), address, state)
+
+    def test_the_online_studio_does_not_create_projects(self):
+        from unittest import mock
+        folder = self._projects_copy()
+        with mock.patch.dict(os.environ, {"STUDIO_SERVERLESS": "1"}):
+            data = self.client.post("/api/project-new", json={"id": "cloud-try"}).get_json()
+        self.assertFalse(data["ok"])
+        self.assertIn("mtdi new", data["error"])
+        self.assertFalse((folder / "cloud-try").exists())
+
     def test_project_check_reads_only_listed_folders(self):
         for wanted in ("../run", "_template", "/etc/passwd", "host-health/../third-eye"):
             self.assertEqual(self.client.get("/api/project-check", query_string={"id": wanted}).status_code, 404, wanted)

@@ -93,6 +93,14 @@ class Runtime:
         self._original_start = ns['LIFECYCLE'].start
         self._original_stop = ns['LIFECYCLE'].stop
 
+    def https_bind_address(self):
+        # The LAN login hook skips checks when the studio is bound to loopback without a tunnel, so in
+        # that mode this second listener must not be reachable from the network either.
+        rt = self.ns['RUNTIME']
+        if rt.get('host') in {'127.0.0.1', '::1', 'localhost'} and not rt.get('public_tunnel'):
+            return '::1' if rt.get('host') == '::1' else '127.0.0.1'
+        return '0.0.0.0'
+
     def start_local_https(self):
         """Serve the same app over TLS on STUDIO_HTTPS_PORT with a self signed certificate.
 
@@ -163,14 +171,19 @@ class Runtime:
                                                        serialization.NoEncryption()))
                 cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
                 os.chmod(key_path, 0o600)
-            httpd = make_server('0.0.0.0', port, self.ns['server'], threaded=True,
+            bind = self.https_bind_address()
+            httpd = make_server(bind, port, self.ns['server'], threaded=True,
                                 ssl_context=(str(cert_path), str(key_path)))
         except Exception as exc:
             LOG.warning('Local HTTPS listener failed: %s', exc)
             return
         self.https_server = httpd
         threading.Thread(target=httpd.serve_forever, name='studio-https', daemon=True).start()
-        print(f'Camera capable HTTPS https://{host}.local:{port} and https://{lan_ip}:{port} (self signed; accept the browser warning once)', flush=True)
+        if bind == '0.0.0.0':
+            print(f'Camera capable HTTPS https://{host}.local:{port} and https://{lan_ip}:{port} (self signed; accept the browser warning once)', flush=True)
+        else:   # local only: the network addresses would refuse the connection
+            local = '[::1]' if bind == '::1' else 'localhost'
+            print(f'Camera capable HTTPS https://{local}:{port} (this machine only; self signed; accept the browser warning once)', flush=True)
 
     def start(self):
         with self.lock:
@@ -1491,6 +1504,30 @@ def install(ns):
         except ValueError as exc:
             return {'ok': False, 'error': clean_text(exc)}
         return {'ok': True, 'calibration': cal.to_dict()}
+
+    @server.post('/api/project-new')
+    def project_new():
+        # The studio's `mtdi new` (P-01): a project folder from the template, on the machine running MTDI.
+        from mtdi import project as manifest
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return {'error': 'send a JSON object with id and name'}, 400
+        if os.environ.get('STUDIO_SERVERLESS'):
+            return {'ok': False, 'error': 'the online studio cannot keep files; run mtdi new on your own machine'}
+        # It writes files, so off this machine it needs a caller the LAN hook authenticated: a Basic login or
+        # the printed access link. With neither configured that hook lets everyone in, so refuse instead.
+        rt = ns['RUNTIME']
+        local = rt.get('host') in {'127.0.0.1', '::1', 'localhost'} and not rt.get('public_tunnel')
+        guarded = (os.environ.get('STUDIO_AUTH_USER') and os.environ.get('STUDIO_AUTH_PASSWORD_HASH')) or rt.get('access_token')
+        if not (local or guarded):
+            return {'ok': False, 'error': 'this studio is open on the network without a login; '
+                                          'set one up or run mtdi new on this machine'}, 403
+        folder = Path(manifest.__file__).resolve().parent.parent / 'projects'
+        try:
+            target = manifest.new_project(body.get('id'), body.get('name'), folder)
+        except ValueError as exc:
+            return {'ok': False, 'error': clean_text(str(exc).replace(str(folder), 'projects'))}
+        return {'ok': True, 'id': target.name, 'path': f'projects/{target.name}/project.json'}
 
     @server.post('/api/agent')
     def agent():
