@@ -161,13 +161,14 @@ def fit_csv(text, temperature_key=None, temp_ref=25.0, use_temperature=True):
     if not isinstance(text, str):
         raise ValueError("the CSV must be text")
     try:
-        reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+        # strict: an unclosed quote is an error, not a field that silently swallows the readings after it
+        reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")), strict=True)
         header = [(c or "").strip() for c in (reader.fieldnames or [])]
         rows = []
-        for line, row in enumerate(reader, start=2):
+        for row in reader:
             # DictReader files extra values under None and fills missing ones with None: refuse both
             if None in row or any(v is None for v in row.values()):
-                raise ValueError(f"line {line} has {'more' if None in row else 'fewer'} values than the header")
+                raise ValueError(f"line {reader.line_num} has {'more' if None in row else 'fewer'} values than the header")
             rows.append(row)
             if len(rows) > CSV_MAX_ROWS:
                 break

@@ -178,6 +178,11 @@ class FeatureMap(unittest.TestCase):
         self.assertTrue(data["ok"], data)
         self.assertEqual(data["calibration"]["temperature_key"], "T")
 
+    def test_a_short_row_names_its_physical_line(self):
+        from mtdi.fusion import fit_csv
+        with self.assertRaisesRegex(ValueError, r"line 5 has fewer"):
+            fit_csv("raw,reference\n1,2\n\n2,4\n3\n")    # the blank line 3 still counts
+
     def test_a_bad_csv_is_reported_not_raised(self):
         # Every input a person can paste: the fit is refused with a reason, never a server error.
         good = "raw,reference\n1,2\n2,4\n3,6\n"
@@ -188,7 +193,8 @@ class FeatureMap(unittest.TestCase):
                    "raw,reference,temperature\n1,2,20\n2,4,20\n3,6,20\n", "raw,reference\n\n\n",
                    "raw,raw,reference\n1,1,2\n2,2,4\n3,3,6\n", "\x00\x00", "raw,reference\n" + "1,2\n" * 100_001,
                    "raw,reference\n1,2,999\n2,4,999\n3,6,999\n", "raw,reference\n1,2\n2,4\n3," + "6" * 200_000 + "\n",
-                   "raw,reference\n\"1\n2,4\n3,6\n", "raw,reference,temperature\n1,2,20\n2,4\n3,6,22\n"]
+                   "raw,reference\n\"1\n2,4\n3,6\n", "raw,reference,temperature\n1,2,20\n2,4\n3,6,22\n",
+                   "raw,reference,note\n1,2,a\n2,4,b\n3,60,\"x\n4,8,z\n", "raw,reference\n1,2\n2,4\n3,6,\"x\n"]
         for csv in bad_csv:
             reply = self.client.post("/api/calibration-fit", json={"csv": csv, "temperature_key": "T"})
             self.assertEqual(reply.status_code, 200, csv[:40])
