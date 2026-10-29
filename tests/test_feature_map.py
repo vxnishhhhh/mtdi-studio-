@@ -183,6 +183,14 @@ class FeatureMap(unittest.TestCase):
         self.assertFalse(data["ok"])
         self.assertIn("could not write", data["error"])
         self.assertFalse((folder / "no-disk").exists())
+
+        def windows_copy(src, dst, **kw):   # shutil.Error text carries repr()-escaped absolute paths
+            raise shutil.Error([(r"C:\\srv\\projects\\_template\\a", r"C:\\srv\\projects\\x\\a", "denied")])
+        with mock.patch("mtdi.project.shutil.copytree", windows_copy):
+            data = self.client.post("/api/project-new", json={"id": "win-copy"}).get_json()
+        self.assertTrue(data["error"].endswith(": the template could not be copied"), data["error"])
+        self.assertNotIn("srv", data["error"])
+        self.assertNotIn(str(folder), data["error"])
         (folder / "theirs").mkdir()
         (folder / "theirs" / "keep.txt").write_text("someone else's", encoding="utf-8")
         with mock.patch("pathlib.Path.stat", side_effect=FileNotFoundError(2, "gone")):   # made after the check: a race

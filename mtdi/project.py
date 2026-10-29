@@ -302,9 +302,9 @@ def new_project(pid, name=None, folder=None):
         raise ValueError(f"could not write {target}: {error.strerror or error}") from None
     try:
         shutil.copytree(folder / "_template", target, dirs_exist_ok=True)
-    except OSError as error:
+    except OSError as error:   # shutil.Error lists every file's paths, escaped on Windows: never pass them on
         shutil.rmtree(target, ignore_errors=True)
-        raise ValueError(f"could not write {target}: {error.strerror or error}") from None
+        raise ValueError(f"could not write {target}: {error.strerror or 'the template could not be copied'}") from None
     try:
         manifest = target / "project.json"
         data = json.loads(manifest.read_text(encoding="utf-8"))
