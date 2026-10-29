@@ -160,12 +160,22 @@ def fit_csv(text, temperature_key=None, temp_ref=25.0, use_temperature=True):
     from .project import ManifestError, normalise
     if not isinstance(text, str):
         raise ValueError("the CSV must be text")
-    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
-    header = [(c or "").strip() for c in (reader.fieldnames or [])]
+    try:
+        reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+        header = [(c or "").strip() for c in (reader.fieldnames or [])]
+        rows = []
+        for line, row in enumerate(reader, start=2):
+            # DictReader files extra values under None and fills missing ones with None: refuse both
+            if None in row or any(v is None for v in row.values()):
+                raise ValueError(f"line {line} has {'more' if None in row else 'fewer'} values than the header")
+            rows.append(row)
+            if len(rows) > CSV_MAX_ROWS:
+                break
+    except csv.Error as error:   # e.g. a field over the reader's size limit, or an unclosed quote
+        raise ValueError(f"not readable as CSV: {error}") from error
     named = [c for c in header if c in ("raw", "reference", "temperature")]
     if len(named) != len(set(named)):
         raise ValueError("a column is named twice; keep one raw, one reference and at most one temperature")
-    rows = list(reader)
     if len(rows) > CSV_MAX_ROWS:
         raise ValueError(f"at most {CSV_MAX_ROWS} readings")
     cols = {c.strip() for c in (rows[0].keys() if rows else ()) if isinstance(c, str)}
@@ -177,7 +187,7 @@ def fit_csv(text, temperature_key=None, temp_ref=25.0, use_temperature=True):
                          "or turn the temperature column off")
     try:
         temp_ref = float(temp_ref)
-        clean = [{(k or "").strip(): v for k, v in r.items()} for r in rows]
+        clean = [{k.strip(): v for k, v in r.items()} for r in rows]
         raw = [float(r["raw"]) for r in clean]
         ref = [float(r["reference"]) for r in clean]
         temp = [float(r["temperature"]) for r in clean] if use_t else None

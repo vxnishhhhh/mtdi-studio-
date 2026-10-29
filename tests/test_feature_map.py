@@ -186,7 +186,9 @@ class FeatureMap(unittest.TestCase):
                    "raw,reference\n1,2\n2,inf\n3,6\n", "raw,reference\n1e400,2\n2,4\n3,6\n",
                    "raw,reference\n" + "9" * 400 + ",2\n2,4\n3,6\n", "raw,reference\n1,2\n1,4\n1,6\n",
                    "raw,reference,temperature\n1,2,20\n2,4,20\n3,6,20\n", "raw,reference\n\n\n",
-                   "raw,raw,reference\n1,1,2\n2,2,4\n3,3,6\n", "\x00\x00", "raw,reference\n" + "1,2\n" * 100_001]
+                   "raw,raw,reference\n1,1,2\n2,2,4\n3,3,6\n", "\x00\x00", "raw,reference\n" + "1,2\n" * 100_001,
+                   "raw,reference\n1,2,999\n2,4,999\n3,6,999\n", "raw,reference\n1,2\n2,4\n3," + "6" * 200_000 + "\n",
+                   "raw,reference\n\"1\n2,4\n3,6\n", "raw,reference,temperature\n1,2,20\n2,4\n3,6,22\n"]
         for csv in bad_csv:
             reply = self.client.post("/api/calibration-fit", json={"csv": csv, "temperature_key": "T"})
             self.assertEqual(reply.status_code, 200, csv[:40])
